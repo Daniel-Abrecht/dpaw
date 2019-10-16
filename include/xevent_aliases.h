@@ -1,6 +1,8 @@
 #ifndef XEVENT_ALIASES
 #define XEVENT_ALIASES
 
+#include <X11/Xlib.h>
+
 #define XEVENT_ALIAS_LIST \
   X(KeyPress, XKeyPressedEvent, xkey) \
   X(KeyRelease, XKeyReleasedEvent, xkey) \
@@ -39,5 +41,7 @@
 #define X(C, T, F) typedef T xev_ ## C ## _t;
   XEVENT_ALIAS_LIST // Define event types consistent with constant names
 #undef X
+
+const char* dpawin_get_event_name(int type);
 
 #endif

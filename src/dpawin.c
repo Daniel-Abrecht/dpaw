@@ -80,18 +80,18 @@ int dpawin_run(struct dpawin* dpawin){
       enum event_handler_result result = dpawindow_dispatch_event(it, &event);
       switch(result){
         case EHR_FATAL_ERROR: {
-          fprintf(stderr, "A fatal error occured while trying to handle event %d for a %s-window.\n", event.type, it->type->name);
+          fprintf(stderr, "A fatal error occured while trying to handle event %d (%s) for a %s-window.\n", event.type, dpawin_get_event_name(event.type), it->type->name);
         } return -1;
         case EHR_OK: break;
         case EHR_ERROR: {
-          fprintf(stderr, "An error occured while trying to handle event %d for a %s-window.\n", event.type, it->type->name);
+          fprintf(stderr, "An error occured while trying to handle event %d (%s) for a %s-window.\n", event.type, dpawin_get_event_name(event.type), it->type->name);
         } break;
         case EHR_UNHANDLED: {
-          fprintf(stderr, "Got unhandled event %d for a %s-window.\n", event.type, it->type->name);
+          fprintf(stderr, "Got unhandled event %d (%s) for a %s-window.\n", event.type, dpawin_get_event_name(event.type), it->type->name);
         } break;
       }
     }else{
-      fprintf(stderr, "Got event %d for unknown window\n", event.type);
+      fprintf(stderr, "Got event %d (%s) for unknown window\n", event.type, dpawin_get_event_name(event.type));
     }
   }
   return 0;
