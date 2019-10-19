@@ -3,7 +3,7 @@ CC_OPTS += -Wall -Wextra -pedantic -std=c99
 CC_OPTS += -Iinclude/ -Ibuild/include/
 CC_OPTS += -Werror -g -Og
 
-LD_OPTS += -lX11 -g
+LD_OPTS += -lX11 -lXinerama -g
 
 SOURCES = $(wildcard src/*.c) $(wildcard src/**/*.c)
 HEADERS = $(wildcard include/*.h) $(wildcard include/**/*.h)
@@ -24,4 +24,4 @@ clean:
 	rm -rf build bin
 
 test-run: all
-	xinit ./test-xinitrc -- "$$(which Xephyr)" :100 -ac -screen 800x600 -host-cursor
+	xinit ./test-xinitrc -- "$$(which Xephyr)" :100 -ac +xinerama -screen 400x600 -screen 800x600 -host-cursor

@@ -1,17 +1,15 @@
 #include <dpawin.h>
 #include <stdlib.h>
 
-static struct dpawin dpawin;
-
 static void cleanup(void){
-  dpawin_cleanup(&dpawin);
+  dpawin_cleanup();
 }
 
 int main(){
-  if(dpawin_init(&dpawin) == -1)
+  if(dpawin_init() == -1)
     return 1;
   atexit(cleanup);
-  if(dpawin_run(&dpawin) == -1)
+  if(dpawin_run() == -1)
     return 1;
   return 0;
 }

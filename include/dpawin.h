@@ -7,9 +7,11 @@ struct dpawin {
   struct dpawindow_root root;
 };
 
-int dpawin_cleanup(struct dpawin*);
-int dpawin_init(struct dpawin*);
-int dpawin_run(struct dpawin* dpawin);
+int dpawin_cleanup(void);
+int dpawin_init(void);
+int dpawin_run(void);
 int dpawin_error_handler(Display*, XErrorEvent*);
+
+extern struct dpawin dpawin;
 
 #endif
