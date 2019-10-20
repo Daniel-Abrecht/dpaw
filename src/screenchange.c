@@ -133,6 +133,7 @@ int dpawin_screenchange_listener_unregister(dpawin_screenchange_handler_t callba
     if(it->callback != callback || (ptr && it->ptr != ptr))
       continue;
     *pit = it->next;
+    it->next = 0;
     return 0;
   }
   fprintf(stderr, "Warning: Failed to find screen change listener to be removed.\n");
