@@ -1,4 +1,4 @@
-#include <dpawindow_root.h>
+#include <dpawindow/root.h>
 #include <stdio.h>
 
 DEFINE_DPAWIN_DERIVED_WINDOW(root)

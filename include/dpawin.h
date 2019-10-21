@@ -1,7 +1,7 @@
 #ifndef DPAWIN_H
 #define DPAWIN_H
 
-#include <dpawindow_root.h>
+#include <dpawindow/root.h>
 
 struct dpawin {
   struct dpawindow_root root;

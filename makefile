@@ -5,8 +5,8 @@ CC_OPTS += -Werror -g -Og
 
 LD_OPTS += -lX11 -lXinerama -g
 
-SOURCES = $(wildcard src/*.c) $(wildcard src/**/*.c)
-HEADERS = $(wildcard include/*.h) $(wildcard include/**/*.h)
+SOURCES = $(shell find src/ -iname "*.c")
+HEADERS = $(shell find src/ -iname "*.h")
 
 OBJECTS = $(patsubst src/%.c,build/%.c.o,$(SOURCES))
 

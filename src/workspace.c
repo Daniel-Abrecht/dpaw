@@ -124,6 +124,10 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
 int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspace_manager* wmgr, struct dpawin_workspace_screen* screen){
   if(!screen->workspace){
     struct dpawin_workspace_type* type = choose_best_target_workspace_type(wmgr, screen);
+    if(!type){
+      fprintf(stderr, "Error: choose_best_target_workspace_type failed\n");
+      return -1;
+    }
     // Does any existing workspace of the desired type want this screen?
     struct dpawin_workspace* target_workspace = 0;
     int min = 0;
