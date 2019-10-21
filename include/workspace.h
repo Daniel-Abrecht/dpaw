@@ -9,8 +9,6 @@ struct dpawin_workspace_manager {
   struct dpawin_workspace* workspace;
 };
 
-struct dpawin_workspace_screen;
-
 #define DPAWIN_WORKSPACE_TYPE(T, U) \
   struct dpawindow_workspace_ ## NAME; \
   struct dpawin_ ## T ## _type { \
@@ -27,12 +25,10 @@ struct dpawin_workspace_screen;
     void(*screen_removed)(U*, struct dpawin_workspace_screen*); \
   };
 
-#define DPAWIN_WORKSPACE_CALL(WORKSPACE, METHOD) \
-  (WORKSPACE)->type->METHOD(((char*)(WORKSPACE)-(WORKSPACE)->type->derived_offset))
-#define DPAWIN_WORKSPACE_CALL_P(WORKSPACE, METHOD, ...) \
-  (WORKSPACE)->type->METHOD(((char*)(WORKSPACE)-(WORKSPACE)->type->derived_offset), __VA_ARGS__)
+struct dpawindow;
+struct dpawin_workspace_screen;
 
-DPAWIN_WORKSPACE_TYPE(workspace, void)
+DPAWIN_WORKSPACE_TYPE(workspace, struct dpawindow)
 
 struct dpawin_workspace {
   const struct dpawin_workspace_type* type;

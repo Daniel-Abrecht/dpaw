@@ -1,3 +1,4 @@
+#include <dpawindow/root.h>
 #include <workspace.h>
 #include <screenchange.h>
 #include <stdio.h>
@@ -86,7 +87,7 @@ int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, 
       return 0;
     update_workspace(workspace);
     if(workspace->type->screen_changed)
-      return DPAWIN_WORKSPACE_CALL_P(workspace, screen_changed, screen);
+      return workspace->type->screen_changed(workspace->window, screen);
     return 0;
   }
   if(screen->workspace){
@@ -100,7 +101,7 @@ int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, 
     screen->workspace = 0;
     update_workspace(old_workspace);
     if(old_workspace->type->screen_removed)
-      DPAWIN_WORKSPACE_CALL_P(old_workspace, screen_removed, screen);
+      old_workspace->type->screen_removed(old_workspace->window, screen);
   }
   if(workspace){
     screen->workspace = workspace;
@@ -108,7 +109,7 @@ int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, 
     workspace->screen = screen;
     update_workspace(workspace);
     if(workspace->type->screen_added)
-      if(DPAWIN_WORKSPACE_CALL_P(workspace, screen_added, screen) != 0)
+      if(workspace->type->screen_added(workspace->window, screen) != 0)
         return -1;
   }
   return 0;
@@ -130,19 +131,40 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
   void* memory = calloc(type->size, 1);
   if(!memory){
     fprintf(stderr, "calloc failed\n");
-    return 0;
+    goto error;
   }
   struct dpawin_workspace* workspace = (struct dpawin_workspace*)((char*)memory+type->derived_offset);
   workspace->type = type;
   workspace->workspace_manager = wmgr;
-  DPAWIN_WORKSPACE_CALL(workspace, init_window_super);
-  if(type->init){
-    if(DPAWIN_WORKSPACE_CALL(workspace, init) != 0){
-      free(workspace);
-      return 0;
-    }
+  workspace->window = memory;
+
+  int xscreen = DefaultScreen(wmgr->root->display);
+  Visual* visual = DefaultVisual(wmgr->root->display, xscreen);
+  int depth  = DefaultDepth(wmgr->root->display, xscreen);
+
+  Window window = XCreateWindow(
+    wmgr->root->display, wmgr->root->window.xwindow,
+    0, 0, 0, 0, 0,
+    depth,  InputOutput,
+    visual, 0, 0
+  );
+  if(!window){
+    fprintf(stderr, "XCreateWindow failed\n");
+    goto error;
   }
+  workspace->window->xwindow = window;
+
+  workspace->type->init_window_super(workspace->window);
+  if(type->init)
+    if(workspace->type->init(workspace->window) != 0)
+      goto error;
+
   return workspace;
+
+error:
+  if(memory)
+    free(memory);
+  return 0;
 }
 
 int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspace_manager* wmgr, struct dpawin_workspace_screen* screen){
@@ -160,7 +182,7 @@ int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspa
         continue;
       if(!it->type->screen_make_bid)
         continue;
-      int res = it->type->screen_make_bid(it, screen);
+      int res = it->type->screen_make_bid(it->window, screen);
       if(!res || res <= min)
         continue;
       min = res;

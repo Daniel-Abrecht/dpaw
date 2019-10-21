@@ -3,10 +3,13 @@ CC_OPTS += -Wall -Wextra -pedantic -std=c99
 CC_OPTS += -Iinclude/ -Ibuild/include/
 CC_OPTS += -Werror -g -Og
 
+CC_OPTS += -fsanitize=address
+LD_OPTS += -fsanitize=address
+
 LD_OPTS += -lX11 -lXinerama -g
 
 SOURCES = $(shell find src/ -iname "*.c")
-HEADERS = $(shell find src/ -iname "*.h")
+HEADERS = $(shell find include/ -iname "*.h")
 
 OBJECTS = $(patsubst src/%.c,build/%.c.o,$(SOURCES))
 
