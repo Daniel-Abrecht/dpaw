@@ -2,12 +2,12 @@
 #define PRIMITIVES_H
 
 struct dpawin_point {
-  unsigned x, y;
+  long x, y;
 };
 
 struct dpawin_rect {
-  struct dpawin_point position;
-  struct dpawin_point size;
+  struct dpawin_point top_left;
+  struct dpawin_point bottom_right;
 };
 
 #endif

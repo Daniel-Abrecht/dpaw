@@ -8,12 +8,12 @@ static struct dpawin_workspace_type* workspace_type_list;
 static void screenchange_handler(void* ptr, enum dpawin_screenchange_type what, const struct dpawin_screen_info* info){
   struct dpawin_workspace_manager* wmgr = ptr;
   printf(
-    "Screen %p size: %ux%u offset: %ux%u\n",
+    "Screen %p (%ld-%ld)x(%ld-%ld)\n",
     (void*)info,
-    info->boundary.size.x,
-    info->boundary.size.y,
-    info->boundary.position.x,
-    info->boundary.position.y
+    info->boundary.bottom_right.x,
+    info->boundary.top_left.x,
+    info->boundary.bottom_right.y,
+    info->boundary.top_left.y
   );
   switch(what){
     case DPAWIN_SCREENCHANGE_SCREEN_ADDED: {
@@ -62,15 +62,35 @@ int dpawin_workspace_screen_init(struct dpawin_workspace_manager* wmgr, struct d
   return 0;
 }
 
-int dpawin_workspace_reassign_screen(struct dpawin_workspace_screen* screen, struct dpawin_workspace* workspace){
+static int update_workspace(struct dpawin_workspace* workspace){
+  if(workspace->screen){
+    // Calculate the boundaries just large enough to include all screens
+    struct dpawin_rect boundary = workspace->screen->info->boundary;
+    for( struct dpawin_workspace_screen* it = workspace->screen->next; it; it=it->next ){
+      if( boundary.top_left.x > it->info->boundary.top_left.x )
+        boundary.top_left.x = it->info->boundary.top_left.x;
+      if( boundary.top_left.y > it->info->boundary.top_left.y )
+        boundary.top_left.y = it->info->boundary.top_left.y;
+      if( boundary.bottom_right.x < it->info->boundary.bottom_right.x )
+        boundary.bottom_right.x = it->info->boundary.bottom_right.x;
+      if( boundary.bottom_right.y < it->info->boundary.bottom_right.y )
+        boundary.bottom_right.y = it->info->boundary.bottom_right.y;
+    }
+  }
+  return 0;
+}
+
+int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, struct dpawin_workspace* workspace){
   if(screen->workspace == workspace){
     if(!workspace)
       return 0;
-    return workspace->type->screen_changed(workspace, screen);
+    update_workspace(workspace);
+    if(workspace->type->screen_changed)
+      return DPAWIN_WORKSPACE_CALL_P(workspace, screen_changed, screen);
+    return 0;
   }
   if(screen->workspace){
-    if(workspace->type->screen_removed)
-      DPAWIN_WORKSPACE_CALL_P(workspace, screen_removed, screen);
+    struct dpawin_workspace* old_workspace = screen->workspace;
     for( struct dpawin_workspace_screen** psit = &workspace->screen; psit; psit=&(*psit)->next ){
       if( *psit != screen )
         continue;
@@ -78,14 +98,18 @@ int dpawin_workspace_reassign_screen(struct dpawin_workspace_screen* screen, str
       break;
     }
     screen->workspace = 0;
+    update_workspace(old_workspace);
+    if(old_workspace->type->screen_removed)
+      DPAWIN_WORKSPACE_CALL_P(old_workspace, screen_removed, screen);
   }
   if(workspace){
-    if(workspace->type->screen_added)
-      if(DPAWIN_WORKSPACE_CALL_P(workspace, screen_added, screen) != 0)
-        return -1;
     screen->workspace = workspace;
     screen->next = workspace->screen;
     workspace->screen = screen;
+    update_workspace(workspace);
+    if(workspace->type->screen_added)
+      if(DPAWIN_WORKSPACE_CALL_P(workspace, screen_added, screen) != 0)
+        return -1;
   }
   return 0;
 }
@@ -149,13 +173,13 @@ int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspa
         return -1;
       }
     }
-    return dpawin_workspace_reassign_screen(screen, target_workspace);
+    return dpawin_reassign_screen_to_workspace(screen, target_workspace);
   }
   return 0;
 }
 
 void dpawin_workspace_screen_cleanup(struct dpawin_workspace_screen* screen){
-  dpawin_workspace_reassign_screen(screen, 0);
+  dpawin_reassign_screen_to_workspace(screen, 0);
 }
 
 void dpawin_workspace_type_register(struct dpawin_workspace_type* type){

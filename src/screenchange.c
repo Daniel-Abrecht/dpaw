@@ -2,6 +2,7 @@
 #include <dpawin.h>
 #include <X11/extensions/Xinerama.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -27,19 +28,24 @@ static void invalidate_screen_info(void){
 }
 
 static int commit_screen_info(int id, struct dpawin_rect boundary){
+  if( boundary.top_left.x > boundary.bottom_right.x
+   || boundary.top_left.y > boundary.bottom_right.y
+  ) memset(&boundary, 0, sizeof(boundary));
   struct dpawin_screen_info_list_entry* it;
   for(it=screen_list; it; it=it->next){
     if(id != -1){
       if(it->id != id)
         continue;
-    }else if(it->lost || it->info.boundary.position.x != boundary.position.x || it->info.boundary.position.y != boundary.position.y)
+    }else if(it->lost || it->info.boundary.top_left.x != boundary.top_left.x || it->info.boundary.top_left.y != boundary.top_left.y)
       continue;
     break;
   }
   if(it){
     it->lost = false;
-    if( it->info.boundary.position.x != boundary.position.x || it->info.boundary.position.y != boundary.position.y
-    || it->info.boundary.size.x     != boundary.size.x     || it->info.boundary.size.y     != boundary.size.y
+    if( it->info.boundary.top_left.x != boundary.top_left.x
+     || it->info.boundary.top_left.y != boundary.top_left.y
+     || it->info.boundary.bottom_right.x != boundary.bottom_right.x
+     || it->info.boundary.bottom_right.y != boundary.bottom_right.y
     ) for(struct screenchange_listener* it2=screenchange_listener_list; it2; it2=it2->next)
         it2->callback(it2->ptr, DPAWIN_SCREENCHANGE_SCREEN_CHANGED, &it->info);
   }else{
@@ -90,13 +96,13 @@ static int check_screens_xinerama(void){
   invalidate_screen_info();
   for(int i=0; i<screen_count; i++)
     commit_screen_info(info[i].screen_number, (struct dpawin_rect){
-      .size = {
-        .x  = info[i].width,
-        .y = info[i].height
-      },
-      .position = {
+      .top_left = {
         .x  = info[i].x_org,
         .y  = info[i].y_org
+      },
+      .bottom_right = {
+        .x  = (long)info[i].x_org + info[i].width,
+        .y  = (long)info[i].y_org + info[i].height
       }
     });
   finalize_screen_info();
