@@ -49,6 +49,8 @@ struct dpawindow {
   }; \
   int dpawindow_ ## NAME ## _init_super(struct dpawindow_ ## NAME* w){ \
     w->window.type = &dpawindow_type_ ## NAME; \
+    if(dpawindow_register(&w->window)) \
+      return -1; \
     return 0; \
   }
 

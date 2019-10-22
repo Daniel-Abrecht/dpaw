@@ -3,6 +3,7 @@
 #include <screenchange.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 static struct dpawin_workspace_type* workspace_type_list;
 
@@ -77,6 +78,24 @@ static int update_workspace(struct dpawin_workspace* workspace){
       if( boundary.bottom_right.y < it->info->boundary.bottom_right.y )
         boundary.bottom_right.y = it->info->boundary.bottom_right.y;
     }
+    long width  = boundary.bottom_right.x-boundary.top_left.x;
+    long height = boundary.bottom_right.y-boundary.top_left.y;
+    // In case of an invalid, negative or zero size, make it one pixel big at the origin, almost hiding it
+    // Sadly, X doesn't allow 0 width windows
+    if(width <= 0 || height <= 0){
+      boundary.top_left.x = 0;
+      boundary.top_left.y = 0;
+      width = 1;
+      height = 1;
+    }
+    XMoveResizeWindow(
+      workspace->workspace_manager->root->display,
+      workspace->window->xwindow,
+      boundary.top_left.x,
+      boundary.top_left.y,
+      width,
+      height
+    );
   }
   return 0;
 }
@@ -109,7 +128,7 @@ int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, 
     workspace->screen = screen;
     update_workspace(workspace);
     if(workspace->type->screen_added)
-      if(workspace->type->screen_added(workspace->window, screen) != 0)
+      if(workspace->type->screen_added(workspace->window, screen))
         return -1;
   }
   return 0;
@@ -144,7 +163,7 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
 
   Window window = XCreateWindow(
     wmgr->root->display, wmgr->root->window.xwindow,
-    0, 0, 0, 0, 0,
+    0, 0, 1, 1, 0,
     depth,  InputOutput,
     visual, 0, 0
   );
@@ -154,10 +173,22 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
   }
   workspace->window->xwindow = window;
 
-  workspace->type->init_window_super(workspace->window);
-  if(type->init)
-    if(workspace->type->init(workspace->window) != 0)
+  if(workspace->type->init_window_super(workspace->window)){
+    fprintf(stderr, "%s::init_window_super failed\n", workspace->type->name);
+    goto error;
+  }
+
+  if(type->init){
+    if(workspace->type->init(workspace->window)){
+      fprintf(stderr, "%s::init failed\n", workspace->type->name);
       goto error;
+    }
+  }
+
+  XMapWindow(wmgr->root->display, window);
+
+  workspace->next = wmgr->workspace;
+  wmgr->workspace = workspace;
 
   return workspace;
 
@@ -222,13 +253,24 @@ void dpawin_workspace_type_unregister(struct dpawin_workspace_type* type){
   type->next = 0;
 }
 
+int dpawin_workspace_manager_manage_window(struct dpawin_workspace_manager* wmgr, Window window){
+  struct dpawin_workspace* workspace = wmgr->workspace;
+  if(!workspace){
+    fprintf(stderr, "Error: No workspaces available\n");
+    return -1;
+  }
+  if(!workspace->type->take_window)
+    return -1;
+  return workspace->type->take_window(workspace->window, window);
+}
+
 int dpawin_workspace_manager_init(struct dpawin_workspace_manager* wmgr, struct dpawindow_root* root){
   wmgr->root = root;
-  if(dpawin_screenchange_check() == -1){
+  if(dpawin_screenchange_check()){
     fprintf(stderr, "dpawin_screenchange_check failed\n");
     goto error;
   }
-  if(dpawin_screenchange_listener_register(screenchange_handler, wmgr) == -1){
+  if(dpawin_screenchange_listener_register(screenchange_handler, wmgr)){
     fprintf(stderr, "dpawin_screenchange_listener_register failed\n");
     goto error;
   }

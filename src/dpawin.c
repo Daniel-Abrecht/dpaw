@@ -51,10 +51,6 @@ int dpawin_init(void){
     goto error;
   }
   XSetErrorHandler(&dpawin_error_handler);
-  if(dpawindow_register(&dpawin.root.window) == -1){
-    fprintf(stderr, "Failed to register root window\n");
-    return -1;
-  }
   return 0;
 error:
   dpawin_cleanup();
@@ -63,7 +59,7 @@ error:
 
 int dpawin_error_handler(Display* display, XErrorEvent* error){
   char error_message[1024];
-  if(!XGetErrorText(display, error->error_code, error_message, sizeof(error_message)))
+  if(XGetErrorText(display, error->error_code, error_message, sizeof(error_message)))
     *error_message = 0;
   fprintf(stderr, "XErrorEvent(serial=%ld, request_code=%d, minor_code=%d, error_code=%d): %s\n",
     error->serial,
@@ -81,6 +77,7 @@ int dpawin_run(void){
     XNextEvent(dpawin.root.display, &event);
     struct dpawindow* it;
     for(it = &dpawin.root.window; it; it=it->next)
+      // Note: Unlike with any other event, xany.window is actually the parent window
       if(event.xany.window == it->xwindow)
         break;
     if(it){
@@ -98,7 +95,7 @@ int dpawin_run(void){
         } break;
       }
     }else{
-      fprintf(stderr, "Got event %d (%s) for unknown window\n", event.type, dpawin_get_event_name(event.type));
+      fprintf(stderr, "Got event %d (%s) for unknown window (%lu)\n", event.type, dpawin_get_event_name(event.type), event.xany.window);
     }
   }
   return 0;

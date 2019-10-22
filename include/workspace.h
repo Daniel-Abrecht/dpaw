@@ -17,8 +17,11 @@ struct dpawin_workspace_manager {
     size_t size; \
     size_t derived_offset; \
     int (*init_window_super)(U*); \
+    \
     int (*init)(U*); \
     void(*cleanup)(U*); \
+    int (*take_window)(U*, Window); \
+    int (*abandon_window)(struct dpawindow*); \
     int (*screen_make_bid)(U*, struct dpawin_workspace_screen*); \
     int (*screen_added  )(U*, struct dpawin_workspace_screen*); \
     int (*screen_changed)(U*, struct dpawin_workspace_screen*); \
@@ -50,6 +53,7 @@ int dpawin_workspace_screen_init(struct dpawin_workspace_manager*, struct dpawin
 int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspace_manager*, struct dpawin_workspace_screen*);
 void dpawin_workspace_screen_cleanup(struct dpawin_workspace_screen*);
 int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, struct dpawin_workspace* workspace);
+int dpawin_workspace_manager_manage_window(struct dpawin_workspace_manager* wmgr, Window window);
 
 void dpawin_workspace_type_register(struct dpawin_workspace_type* type);
 void dpawin_workspace_type_unregister(struct dpawin_workspace_type* type);

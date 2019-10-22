@@ -19,15 +19,17 @@ enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, XEv
 int dpawindow_register(struct dpawindow* window){
   if(!window || !window->type || window->next || window->prev)
     return -1;
-  bool isroot = strcmp(window->type->name, "root") == 0;
+  puts(window->type->name);
+  bool isroot = !strcmp(window->type->name, "root");
   if(isroot != !first)
     return -1;
   if(!first){
     first = window;
     last = window;
   }else{
-    window->prev = last;
     last->next = window;
+    window->prev = last;
+    last = window;
   }
   return 0;
 }

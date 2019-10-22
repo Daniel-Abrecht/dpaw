@@ -1,4 +1,5 @@
 #include <dpawindow/root.h>
+#include <workspace.h>
 #include <stdio.h>
 
 DEFINE_DPAWIN_DERIVED_WINDOW(root)
@@ -20,22 +21,15 @@ int dpawindow_root_cleanup(struct dpawindow_root* window){
   return 0;
 }
 
-EV_ON(root, MapRequest){
-  XMapWindow(window->display, event->window);
+EV_ON(root, CreateNotify){
+  printf("CreateNotify %lu\n", event->window);
+  if(dpawin_workspace_manager_manage_window(&window->workspace_manager, event->window) != 0)
+    return EHR_ERROR;
   return EHR_OK;
 }
 
-EV_ON(root, ConfigureRequest){
-  puts("ConfigureRequest");
-  XWindowChanges changes = {
-    .x = event->x,
-    .y = event->y,
-    .width  = event->width,
-    .height = event->height,
-    .border_width = event->border_width,
-    .sibling      = event->above,
-    .stack_mode   = event->detail
-  };
-  XConfigureWindow(window->display, event->window, event->value_mask, &changes);
+EV_ON(root, ReparentNotify){
+  (void)window;
+  printf("ReparentNotify %lu\n", event->window);
   return EHR_OK;
 }
