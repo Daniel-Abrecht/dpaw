@@ -1,4 +1,5 @@
 #include <dpawindow/root.h>
+#include <dpawindow/app.h>
 #include <workspace.h>
 #include <screenchange.h>
 #include <stdio.h>
@@ -87,6 +88,9 @@ static int update_workspace(struct dpawin_workspace* workspace){
       boundary.top_left.y = 0;
       width = 1;
       height = 1;
+      workspace->boundary = (struct dpawin_rect){{0,0},{1,1}};
+    }else{
+      workspace->boundary = boundary;
     }
     XMoveResizeWindow(
       workspace->workspace_manager->root->display,
@@ -157,15 +161,11 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
   workspace->workspace_manager = wmgr;
   workspace->window = memory;
 
-  int xscreen = DefaultScreen(wmgr->root->display);
-  Visual* visual = DefaultVisual(wmgr->root->display, xscreen);
-  int depth  = DefaultDepth(wmgr->root->display, xscreen);
-
   Window window = XCreateWindow(
     wmgr->root->display, wmgr->root->window.xwindow,
     0, 0, 1, 1, 0,
-    depth,  InputOutput,
-    visual, 0, 0
+    CopyFromParent,  InputOutput,
+    CopyFromParent, 0, 0
   );
   if(!window){
     fprintf(stderr, "XCreateWindow failed\n");
@@ -253,15 +253,48 @@ void dpawin_workspace_type_unregister(struct dpawin_workspace_type* type){
   type->next = 0;
 }
 
+struct dpawindow_app* dpawin_workspace_lookup_xwindow(struct dpawin_workspace* workspace, Window xwindow){
+  for(struct dpawindow_app* it = workspace->first_window; it; it=it->next)
+    if(it->window.xwindow == xwindow)
+      return it;
+  return 0;
+}
+
+int dpawin_workspace_add_window(struct dpawin_workspace* workspace, struct dpawindow_app* app_window){
+  if(app_window->workspace == workspace)
+    return 0;
+  if(app_window->workspace){
+    // TODO
+  }
+  app_window->workspace = workspace;
+  app_window->workspace_private = 0;
+  if(!workspace->first_window){
+    workspace->first_window = app_window;
+    workspace->last_window  = app_window;
+  }else{
+    app_window->next = workspace->first_window;
+    workspace->first_window->previous = app_window;
+    workspace->first_window = app_window;
+  }
+  if(!workspace->type->take_window)
+    return -1;
+  return workspace->type->take_window(workspace->window, app_window);
+}
+
 int dpawin_workspace_manager_manage_window(struct dpawin_workspace_manager* wmgr, Window window){
   struct dpawin_workspace* workspace = wmgr->workspace;
   if(!workspace){
     fprintf(stderr, "Error: No workspaces available\n");
     return -1;
   }
-  if(!workspace->type->take_window)
+  struct dpawindow_app* app_window = calloc(sizeof(struct dpawindow_app), 1);
+  if(!app_window){
+    perror("calloc failed");
     return -1;
-  return workspace->type->take_window(workspace->window, window);
+  }
+  if(dpawindow_app_init(app_window, window))
+    return -1;
+  return dpawin_workspace_add_window(workspace, app_window);
 }
 
 int dpawin_workspace_manager_init(struct dpawin_workspace_manager* wmgr, struct dpawindow_root* root){

@@ -1,6 +1,7 @@
 #ifndef WORKSPACE_H
 #define WORKSPACE_H
 
+#include <primitives.h>
 #include <dpawindow.h>
 #include <stddef.h>
 
@@ -20,8 +21,8 @@ struct dpawin_workspace_manager {
     \
     int (*init)(U*); \
     void(*cleanup)(U*); \
-    int (*take_window)(U*, Window); \
-    int (*abandon_window)(struct dpawindow*); \
+    int (*take_window)(U*, struct dpawindow_app*); \
+    int (*abandon_window)(struct dpawindow_app*); \
     int (*screen_make_bid)(U*, struct dpawin_workspace_screen*); \
     int (*screen_added  )(U*, struct dpawin_workspace_screen*); \
     int (*screen_changed)(U*, struct dpawin_workspace_screen*); \
@@ -29,6 +30,7 @@ struct dpawin_workspace_manager {
   };
 
 struct dpawindow;
+struct dpawindow_app;
 struct dpawin_workspace_screen;
 
 DPAWIN_WORKSPACE_TYPE(workspace, struct dpawindow)
@@ -39,6 +41,8 @@ struct dpawin_workspace {
   struct dpawindow* window;
   struct dpawin_workspace_manager* workspace_manager;
   struct dpawin_workspace_screen* screen;
+  struct dpawindow_app *first_window, *last_window;
+  struct dpawin_rect boundary;
 };
 
 struct dpawin_workspace_screen {
@@ -54,6 +58,8 @@ int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspa
 void dpawin_workspace_screen_cleanup(struct dpawin_workspace_screen*);
 int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, struct dpawin_workspace* workspace);
 int dpawin_workspace_manager_manage_window(struct dpawin_workspace_manager* wmgr, Window window);
+int dpawin_workspace_add_window(struct dpawin_workspace*, struct dpawindow_app*);
+struct dpawindow_app* dpawin_workspace_lookup_xwindow(struct dpawin_workspace*, Window);
 
 void dpawin_workspace_type_register(struct dpawin_workspace_type* type);
 void dpawin_workspace_type_unregister(struct dpawin_workspace_type* type);
