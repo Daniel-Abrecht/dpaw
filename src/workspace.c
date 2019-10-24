@@ -80,27 +80,9 @@ static int update_workspace(struct dpawin_workspace* workspace){
       if( boundary.bottom_right.y < it->info->boundary.bottom_right.y )
         boundary.bottom_right.y = it->info->boundary.bottom_right.y;
     }
-    long width  = boundary.bottom_right.x-boundary.top_left.x;
-    long height = boundary.bottom_right.y-boundary.top_left.y;
-    // In case of an invalid, negative or zero size, make it one pixel big at the origin, almost hiding it
-    // Sadly, X doesn't allow 0 width windows
-    if(width <= 0 || height <= 0){
-      boundary.top_left.x = 0;
-      boundary.top_left.y = 0;
-      width = 1;
-      height = 1;
-      workspace->boundary = (struct dpawin_rect){{0,0},{1,1}};
-    }else{
-      workspace->boundary = boundary;
-    }
-    XMoveResizeWindow(
-      workspace->window->dpawin->root.display,
-      workspace->window->xwindow,
-      boundary.top_left.x,
-      boundary.top_left.y,
-      width,
-      height
-    );
+    if(dpawindow_place_window(workspace->window, boundary))
+      return -1;
+    workspace->boundary = boundary;
   }
   return 0;
 }
@@ -186,6 +168,7 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
     }
   }
 
+  dpawindow_set_mapping(workspace->window, true);
   XMapWindow(wmgr->dpawin->root.display, window);
 
   workspace->next = wmgr->workspace;
