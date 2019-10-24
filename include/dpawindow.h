@@ -62,6 +62,8 @@ struct dpawindow {
   }
 
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, XEvent* event);
+int dpawindow_hide(struct dpawindow* window, bool hidden);
+int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpawin_rect boundary);
 int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);

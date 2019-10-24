@@ -1,6 +1,7 @@
 #include <dpawindow/workspace/handheld.h>
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>
+#include <dpawindow.h>
 #include <dpawin.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,19 +29,7 @@ static struct dpawin_rect determine_window_position(struct dpawindow_handheld_wi
 
 static int update_window_area(struct dpawindow_handheld_window* child){
   struct dpawin_rect boundary = determine_window_position(child);
-  XWindowChanges changes = {
-    .x = boundary.top_left.x,
-    .y = boundary.top_left.y,
-    .width  = boundary.bottom_right.x - boundary.top_left.x,
-    .height = boundary.bottom_right.y - boundary.top_left.y,
-  };
-  XConfigureWindow(
-    child->app_window->window.dpawin->root.display,
-    child->app_window->window.xwindow,
-    CWX | CWY | CWWidth | CWHeight,
-    &changes
-  );
-  return 0;
+  return dpawindow_place_window(&child->app_window->window, boundary);
 }
 
 static int init(struct dpawindow_workspace_handheld* workspace){
@@ -103,8 +92,9 @@ EV_ON(workspace_handheld, MapRequest){
   if(!child)
     return EHR_ERROR;
   if(update_window_area(child))
-    return -1;
-  XMapWindow(window->window.dpawin->root.display, event->window);
+    return EHR_ERROR;
+  if(dpawindow_set_mapping(&child->app_window->window, true))
+    return EHR_ERROR;
   return EHR_OK;
 }
 
