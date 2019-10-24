@@ -6,11 +6,11 @@
 
 struct dpawin dpawin;
 
-int dpawin_cleanup(void){
-  if(dpawin.root.display)
-    XCloseDisplay(dpawin.root.display);
-  if(dpawin.root.window.xwindow)
-    dpawindow_root_cleanup(&dpawin.root);
+int dpawin_cleanup(struct dpawin* dpawin){
+  if(dpawin->root.display)
+    XCloseDisplay(dpawin->root.display);
+  if(dpawin->root.window.xwindow)
+    dpawindow_root_cleanup(&dpawin->root);
   return 0;
 }
 
@@ -23,29 +23,29 @@ static int wm_check(Display* display, XErrorEvent* error){
   return 0;
 }
 
-int dpawin_init(void){
-  memset(&dpawin, 0, sizeof(dpawin));
-  dpawin.root.display = XOpenDisplay(0);
-  if(!dpawin.root.display){
+int dpawin_init(struct dpawin* dpawin){
+  memset(dpawin, 0, sizeof(*dpawin));
+  dpawin->root.display = XOpenDisplay(0);
+  if(!dpawin->root.display){
     fprintf(stderr, "Failed to open X display %s\n", XDisplayName(0));
     goto error;
   }
-  dpawin.root.window.xwindow = DefaultRootWindow(dpawin.root.display);
-  if(!dpawin.root.window.xwindow){
+  dpawin->root.window.xwindow = DefaultRootWindow(dpawin->root.display);
+  if(!dpawin->root.window.xwindow){
     fprintf(stderr, "DefaultRootWindow failed\n");
     goto error;
   }
-  if(dpawindow_root_init(&dpawin.root) == -1){
+  if(dpawindow_root_init(dpawin, &dpawin->root) == -1){
     fprintf(stderr, "dpawindow_root_init failed\n");
     goto error;
   }
   wm_detected = false;
   XSetErrorHandler(&wm_check);
   XSelectInput(
-      dpawin.root.display,
-      dpawin.root.window.xwindow,
+      dpawin->root.display,
+      dpawin->root.window.xwindow,
       SubstructureRedirectMask | SubstructureNotifyMask);
-  XSync(dpawin.root.display, false);
+  XSync(dpawin->root.display, false);
   if(wm_detected){
     fprintf(stderr, "Detected another window manager on display %s\n", XDisplayName(0));
     goto error;
@@ -53,7 +53,7 @@ int dpawin_init(void){
   XSetErrorHandler(&dpawin_error_handler);
   return 0;
 error:
-  dpawin_cleanup();
+  dpawin_cleanup(dpawin);
   return -1;
 }
 
@@ -71,12 +71,12 @@ int dpawin_error_handler(Display* display, XErrorEvent* error){
   return 0;
 }
 
-int dpawin_run(void){
+int dpawin_run(struct dpawin* dpawin){
   while(true){
     XEvent event;
-    XNextEvent(dpawin.root.display, &event);
+    XNextEvent(dpawin->root.display, &event);
     struct dpawindow* it;
-    for(it = &dpawin.root.window; it; it=it->next)
+    for(it = &dpawin->root.window; it; it=it->next)
       // Note: Unlike with any other event, xany.window is actually the parent window
       if(event.xany.window == it->xwindow)
         break;

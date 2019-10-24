@@ -10,7 +10,7 @@ DECLARE_DPAWIN_DERIVED_WINDOW( app,
   void* workspace_private;
 )
 
-int dpawindow_app_init(struct dpawindow_app*, Window);
+int dpawindow_app_init(struct dpawin*, struct dpawindow_app*, Window);
 int dpawindow_app_cleanup(struct dpawindow_app*);
 
 #endif

@@ -1,3 +1,4 @@
+#include <dpawin.h>
 #include <dpawindow.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +15,63 @@ enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, XEv
   if(!handler)
     return EHR_UNHANDLED;
   return handler(window, event);
+}
+
+int dpawindow_hide(struct dpawindow* window, bool hidden){
+  if(hidden == window->hidden)
+    return 0;
+  if(window->mapped){
+    if(hidden){
+      XUnmapWindow(window->dpawin->root.display, window->xwindow);
+    }else{
+      XMapWindow(window->dpawin->root.display, window->xwindow);
+    }
+  }
+  window->hidden = hidden;
+  return 0;
+}
+
+int dpawindow_set_mapping(struct dpawindow* window, bool mapping){
+  if(mapping == window->mapped)
+    return 0;
+  if(!window->hidden){
+    if(mapping){
+      if(window->hidden)
+        XMapWindow(window->dpawin->root.display, window->xwindow);
+    }else{
+      if(window->hidden)
+        XUnmapWindow(window->dpawin->root.display, window->xwindow);
+    }
+  }
+  window->mapped = mapping;
+  return 0;
+}
+
+int dpawindow_place_window(struct dpawindow* window, struct dpawin_rect boundary){
+  bool was_visible = window->mapped && !window->hidden && (window->boundary.top_left.x != 0 || window->boundary.bottom_right.x != 0);
+  if( boundary.top_left.x >= boundary.bottom_right.x
+   || boundary.top_left.y >= boundary.bottom_right.y
+  ){
+    memset(&boundary, 0, sizeof(boundary));
+    if(was_visible)
+      XUnmapWindow(window->dpawin->root.display, window->xwindow);
+  }else{
+    bool is_visible = window->mapped && !window->hidden;
+    if(was_visible && !is_visible)
+      XUnmapWindow(window->dpawin->root.display, window->xwindow);
+    XMoveResizeWindow(
+      window->dpawin->root.display,
+      window->xwindow,
+      boundary.top_left.x,
+      boundary.top_left.y,
+      boundary.bottom_right.x - boundary.top_left.x,
+      boundary.bottom_right.y - boundary.top_left.y
+    );
+    if(!was_visible && is_visible)
+      XMapWindow(window->dpawin->root.display, window->xwindow);
+  }
+  window->boundary = boundary;
+  return 0;
 }
 
 int dpawindow_register(struct dpawindow* window){

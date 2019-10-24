@@ -1,61 +1,9 @@
 #include <dpawindow/workspace/handheld.h>
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>
+#include <dpawin.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-static int init(struct dpawindow_workspace_handheld* workspace){
-  (void)workspace;
-  puts("workspace init");
-  XSelectInput(
-    workspace->workspace.workspace_manager->root->display,
-    workspace->window.xwindow,
-    SubstructureRedirectMask | SubstructureNotifyMask);
-  return 0;
-}
-
-static void cleanup(struct dpawindow_workspace_handheld* workspace){
-  (void)workspace;
-  puts("workspace cleanup");
-}
-
-static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
-  (void)workspace;
-  (void)screen;
-  puts("workspace screen_added");
-  return 0;
-}
-
-static int screen_changed(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
-  (void)workspace;
-  (void)screen;
-  puts("workspace screen_changed");
-  return 0;
-}
-
-static void screen_removed(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
-  (void)workspace;
-  (void)screen;
-  puts("workspace screen_removed");
-}
-
-static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
-  (void)workspace;
-  (void)screen;
-  puts("workspace screen_make_bid");
-  return 0;
-}
-
-static int take_window(struct dpawindow_workspace_handheld* workspace, struct dpawindow_app* window){
-  struct dpawindow_handheld_window* child = calloc(sizeof(struct dpawindow_handheld_window), 1);
-  if(!child)
-    return -1;
-  child->app_window = window;
-  child->workspace = workspace;
-  window->workspace_private = child;
-  XReparentWindow(workspace->workspace.workspace_manager->root->display, window->window.xwindow, workspace->window.xwindow, 0, 0);
-  return 0;
-}
 
 static struct dpawindow_handheld_window* lookup_xwindow(struct dpawindow_workspace_handheld* handheld_workspace, Window xwindow){
   struct dpawindow_app* app_window = dpawin_workspace_lookup_xwindow(&handheld_workspace->workspace, xwindow);
@@ -87,11 +35,66 @@ static int update_window_area(struct dpawindow_handheld_window* child){
     .height = boundary.bottom_right.y - boundary.top_left.y,
   };
   XConfigureWindow(
-    child->workspace->workspace.workspace_manager->root->display,
+    child->app_window->window.dpawin->root.display,
     child->app_window->window.xwindow,
     CWX | CWY | CWWidth | CWHeight,
     &changes
   );
+  return 0;
+}
+
+static int init(struct dpawindow_workspace_handheld* workspace){
+  (void)workspace;
+  puts("workspace init");
+  XSelectInput(
+    workspace->window.dpawin->root.display,
+    workspace->window.xwindow,
+    SubstructureRedirectMask | SubstructureNotifyMask);
+  return 0;
+}
+
+static void cleanup(struct dpawindow_workspace_handheld* workspace){
+  (void)workspace;
+  puts("workspace cleanup");
+}
+
+static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
+  (void)workspace;
+  (void)screen;
+  puts("workspace screen_added");
+  for(struct dpawindow_app* it = workspace->workspace.first_window; it; it++)
+    update_window_area(it->workspace_private);
+  return 0;
+}
+
+static int screen_changed(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
+  (void)workspace;
+  (void)screen;
+  puts("workspace screen_changed");
+  return 0;
+}
+
+static void screen_removed(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
+  (void)workspace;
+  (void)screen;
+  puts("workspace screen_removed");
+}
+
+static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
+  (void)workspace;
+  (void)screen;
+  puts("workspace screen_make_bid");
+  return 0;
+}
+
+static int take_window(struct dpawindow_workspace_handheld* workspace, struct dpawindow_app* window){
+  struct dpawindow_handheld_window* child = calloc(sizeof(struct dpawindow_handheld_window), 1);
+  if(!child)
+    return -1;
+  child->app_window = window;
+  child->workspace = workspace;
+  window->workspace_private = child;
+  XReparentWindow(workspace->window.dpawin->root.display, window->window.xwindow, workspace->window.xwindow, 0, 0);
   return 0;
 }
 
@@ -101,7 +104,7 @@ EV_ON(workspace_handheld, MapRequest){
     return EHR_ERROR;
   if(update_window_area(child))
     return -1;
-  XMapWindow(window->workspace.workspace_manager->root->display, event->window);
+  XMapWindow(window->window.dpawin->root.display, event->window);
   return EHR_OK;
 }
 
@@ -120,7 +123,7 @@ EV_ON(workspace_handheld, ConfigureRequest){
     .sibling      = event->above,
     .stack_mode   = event->detail
   };
-  XConfigureWindow(window->workspace.workspace_manager->root->display, event->window, event->value_mask | CWX | CWY | CWWidth | CWHeight, &changes);
+  XConfigureWindow(window->window.dpawin->root.display, event->window, event->value_mask | CWX | CWY | CWWidth | CWHeight, &changes);
   return EHR_OK;
 }
 

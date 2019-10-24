@@ -1,8 +1,10 @@
 #ifndef DPAWINDOW_H
 #define DPAWINDOW_H
 
-#include <X11/Xlib.h>
 #include <xevent_aliases.h>
+#include <primitives.h>
+#include <X11/Xlib.h>
+#include <stdbool.h>
 
 enum event_handler_result {
   EHR_FATAL_ERROR = -1,
@@ -21,8 +23,12 @@ struct dpawindow_type {
 
 struct dpawindow {
   const struct dpawindow_type* type;
+  struct dpawin* dpawin;
   struct dpawindow *prev, *next;
   Window xwindow;
+  struct dpawin_rect boundary;
+  bool mapped : 1;
+  bool hidden : 1;
 };
 
 #define EV_ON(TYPE, EVENT) \
@@ -41,20 +47,22 @@ struct dpawindow {
     __VA_ARGS__ \
   }; \
   extern struct dpawindow_type dpawindow_type_ ## TYPE; \
-  int dpawindow_ ## NAME ## _init_super(struct dpawindow_ ## NAME*);
+  int dpawindow_ ## NAME ## _init_super(struct dpawin* dpawin, struct dpawindow_ ## NAME*);
 
 #define DEFINE_DPAWIN_DERIVED_WINDOW(NAME) \
   struct dpawindow_type dpawindow_type_ ## NAME = { \
     .name = #NAME \
   }; \
-  int dpawindow_ ## NAME ## _init_super(struct dpawindow_ ## NAME* w){ \
+  int dpawindow_ ## NAME ## _init_super(struct dpawin* dpawin, struct dpawindow_ ## NAME* w){ \
     w->window.type = &dpawindow_type_ ## NAME; \
+    w->window.dpawin = dpawin; \
     if(dpawindow_register(&w->window)) \
       return -1; \
     return 0; \
   }
 
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, XEvent* event);
+int dpawindow_place_window(struct dpawindow*, struct dpawin_rect boundary);
 int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);
 

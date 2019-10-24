@@ -1,6 +1,7 @@
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>
 #include <workspace.h>
+#include <dpawin.h>
 #include <screenchange.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,7 +94,7 @@ static int update_workspace(struct dpawin_workspace* workspace){
       workspace->boundary = boundary;
     }
     XMoveResizeWindow(
-      workspace->workspace_manager->root->display,
+      workspace->window->dpawin->root.display,
       workspace->window->xwindow,
       boundary.top_left.x,
       boundary.top_left.y,
@@ -162,7 +163,7 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
   workspace->window = memory;
 
   Window window = XCreateWindow(
-    wmgr->root->display, wmgr->root->window.xwindow,
+    wmgr->dpawin->root.display, wmgr->dpawin->root.window.xwindow,
     0, 0, 1, 1, 0,
     CopyFromParent,  InputOutput,
     CopyFromParent, 0, 0
@@ -173,7 +174,7 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
   }
   workspace->window->xwindow = window;
 
-  if(workspace->type->init_window_super(workspace->window)){
+  if(workspace->type->init_window_super(wmgr->dpawin, workspace->window)){
     fprintf(stderr, "%s::init_window_super failed\n", workspace->type->name);
     goto error;
   }
@@ -185,7 +186,7 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
     }
   }
 
-  XMapWindow(wmgr->root->display, window);
+  XMapWindow(wmgr->dpawin->root.display, window);
 
   workspace->next = wmgr->workspace;
   wmgr->workspace = workspace;
@@ -292,18 +293,14 @@ int dpawin_workspace_manager_manage_window(struct dpawin_workspace_manager* wmgr
     perror("calloc failed");
     return -1;
   }
-  if(dpawindow_app_init(app_window, window))
+  if(dpawindow_app_init(wmgr->dpawin, app_window, window))
     return -1;
   return dpawin_workspace_add_window(workspace, app_window);
 }
 
-int dpawin_workspace_manager_init(struct dpawin_workspace_manager* wmgr, struct dpawindow_root* root){
-  wmgr->root = root;
-  if(dpawin_screenchange_check()){
-    fprintf(stderr, "dpawin_screenchange_check failed\n");
-    goto error;
-  }
-  if(dpawin_screenchange_listener_register(screenchange_handler, wmgr)){
+int dpawin_workspace_manager_init(struct dpawin* dpawin, struct dpawin_workspace_manager* wmgr){
+  wmgr->dpawin = dpawin;
+  if(dpawin_screenchange_listener_register(&wmgr->dpawin->root.screenchange_detector, screenchange_handler, wmgr)){
     fprintf(stderr, "dpawin_screenchange_listener_register failed\n");
     goto error;
   }
@@ -314,6 +311,6 @@ error:
 }
 
 void dpawin_workspace_manager_destroy(struct dpawin_workspace_manager* wmgr){
-  dpawin_screenchange_listener_unregister(screenchange_handler, wmgr);
-  wmgr->root = 0;
+  dpawin_screenchange_listener_unregister(&wmgr->dpawin->root.screenchange_detector, screenchange_handler, wmgr);
+  wmgr->dpawin = 0;
 }

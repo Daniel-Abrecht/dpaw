@@ -1,15 +1,21 @@
 #include <dpawindow/root.h>
+#include <screenchange.h>
 #include <workspace.h>
+#include <dpawin.h>
 #include <stdio.h>
 
 DEFINE_DPAWIN_DERIVED_WINDOW(root)
 
-int dpawindow_root_init(struct dpawindow_root* window){
-  if(dpawindow_root_init_super(window) != 0){
+int dpawindow_root_init(struct dpawin* dpawin, struct dpawindow_root* window){
+  if(dpawindow_root_init_super(dpawin, window) != 0){
     fprintf(stderr, "dpawindow_root_init_super failed\n");
     return -1;
   }
-  if(dpawin_workspace_manager_init(&window->workspace_manager, window) == -1){
+  if(dpawin_screenchange_init(&window->screenchange_detector, dpawin->root.display)){
+    fprintf(stderr, "dpawin_screenchange_init failed\n");
+    return -1;
+  }
+  if(dpawin_workspace_manager_init(dpawin, &window->workspace_manager) == -1){
     fprintf(stderr, "dpawin_workspace_init failed\n");
     return -1;
   }
