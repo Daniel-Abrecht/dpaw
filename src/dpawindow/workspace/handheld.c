@@ -17,7 +17,7 @@ static struct dpawin_rect determine_window_position(struct dpawindow_handheld_wi
   struct dpawin_rect boundary = {
     .top_left = {0,0}
   };
-  struct dpawin_rect workspace_boundary = child->workspace->workspace.boundary;
+  struct dpawin_rect workspace_boundary = child->workspace->window.boundary;
   struct dpawin_point wh = {
     .x = workspace_boundary.bottom_right.x - workspace_boundary.top_left.x,
     .y = workspace_boundary.bottom_right.y - workspace_boundary.top_left.y
@@ -32,9 +32,25 @@ static int update_window_area(struct dpawindow_handheld_window* child){
   return dpawindow_place_window(&child->app_window->window, boundary);
 }
 
+static int make_current(struct dpawindow_handheld_window* child){
+  printf("make_current %p -> %p\n", (void*)child->workspace->current, (void*)child);
+  if(child->workspace->current)
+    if(dpawindow_hide(&child->workspace->current->app_window->window, true))
+      return -1;
+  child->workspace->current = child;
+  if(child){
+    if(update_window_area(child))
+      return -1;
+    if(dpawindow_hide(&child->app_window->window, false))
+      return -1;
+  }
+  return 0;
+}
+
+
 static int init(struct dpawindow_workspace_handheld* workspace){
   (void)workspace;
-  puts("workspace init");
+  puts("handheld_workspace init");
   XSelectInput(
     workspace->window.dpawin->root.display,
     workspace->window.xwindow,
@@ -44,13 +60,13 @@ static int init(struct dpawindow_workspace_handheld* workspace){
 
 static void cleanup(struct dpawindow_workspace_handheld* workspace){
   (void)workspace;
-  puts("workspace cleanup");
+  puts("handheld_workspace cleanup");
 }
 
 static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
   (void)workspace;
   (void)screen;
-  puts("workspace screen_added");
+  puts("handheld_workspace screen_added");
   for(struct dpawindow_app* it = workspace->workspace.first_window; it; it++)
     update_window_area(it->workspace_private);
   return 0;
@@ -59,20 +75,20 @@ static int screen_added(struct dpawindow_workspace_handheld* workspace, struct d
 static int screen_changed(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
   (void)workspace;
   (void)screen;
-  puts("workspace screen_changed");
+  puts("handheld_workspace screen_changed");
   return 0;
 }
 
 static void screen_removed(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
   (void)workspace;
   (void)screen;
-  puts("workspace screen_removed");
+  puts("handheld_workspace screen_removed");
 }
 
 static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
   (void)workspace;
   (void)screen;
-  puts("workspace screen_make_bid");
+  puts("handheld_workspace screen_make_bid");
   return 0;
 }
 
@@ -84,6 +100,16 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   child->workspace = workspace;
   window->workspace_private = child;
   XReparentWindow(workspace->window.dpawin->root.display, window->window.xwindow, workspace->window.xwindow, 0, 0);
+  if(make_current(child))
+    return EHR_ERROR;
+  if(window->window.mapped)
+    dpawindow_set_mapping(&child->app_window->window, true);
+  return 0;
+}
+
+static int abandon_window(struct dpawindow_app* window){
+  if(window->next)
+    make_current(window->next->workspace_private);
   return 0;
 }
 
@@ -91,15 +117,32 @@ EV_ON(workspace_handheld, MapRequest){
   struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
   if(!child)
     return EHR_ERROR;
-  if(update_window_area(child))
+  if(make_current(child))
     return EHR_ERROR;
   if(dpawindow_set_mapping(&child->app_window->window, true))
     return EHR_ERROR;
   return EHR_OK;
 }
 
+EV_ON(workspace_handheld, UnmapNotify){
+  struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
+  if(!child)
+    return EHR_ERROR;
+  fprintf(stderr, "Window tried to unmap itself, trying to re-map it. May fail because window may have been unmapped due to it's destruction.\n");
+  dpawindow_set_mapping(&child->app_window->window, true);
+  return EHR_OK;
+}
+
+EV_ON(workspace_handheld, DestroyNotify){
+  struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
+  if(!child)
+    return EHR_ERROR;
+  if(dpawin_workspace_manager_abandon_window(child->app_window))
+    return EHR_ERROR;
+  return EHR_OK;
+}
+
 EV_ON(workspace_handheld, ConfigureRequest){
-  puts("ConfigureRequest");
   struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
   if(!child)
     return EHR_ERROR;
@@ -121,7 +164,8 @@ EV_ON(workspace_handheld, ConfigureRequest){
 DEFINE_DPAWIN_WORKSPACE( handheld,
   .init = init,
   .cleanup = cleanup,
-  .take_window = take_window, \
+  .take_window = take_window,
+  .abandon_window = abandon_window,
   .screen_make_bid = screen_make_bid,
   .screen_added = screen_added,
   .screen_changed = screen_changed,

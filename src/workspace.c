@@ -82,7 +82,6 @@ static int update_workspace(struct dpawin_workspace* workspace){
     }
     if(dpawindow_place_window(workspace->window, boundary))
       return -1;
-    workspace->boundary = boundary;
   }
   return 0;
 }
@@ -169,7 +168,6 @@ struct dpawin_workspace* create_workspace(struct dpawin_workspace_manager* wmgr,
   }
 
   dpawindow_set_mapping(workspace->window, true);
-  XMapWindow(wmgr->dpawin->root.display, window);
 
   workspace->next = wmgr->workspace;
   wmgr->workspace = workspace;
@@ -244,12 +242,33 @@ struct dpawindow_app* dpawin_workspace_lookup_xwindow(struct dpawin_workspace* w
   return 0;
 }
 
+int dpawin_workspace_remove_window(struct dpawindow_app* window){
+  struct dpawin_workspace* workspace = window->workspace;
+  if(!workspace)
+    return 0;
+  if(workspace->type->abandon_window)
+    if(workspace->type->abandon_window(window))
+      return -1;
+  window->workspace = 0;
+  window->workspace_private = 0;
+  if(window->previous)
+    window->previous->next = window->next;
+  if(window->next)
+    window->next->previous = window->previous;
+  if(workspace->first_window == window)
+    workspace->first_window = window->next;
+  if(workspace->last_window == window)
+    workspace->last_window = window->previous;
+  XReparentWindow(window->window.dpawin->root.display, window->window.xwindow, window->window.dpawin->root.window.xwindow, 0, 0);
+  return 0;
+}
+
 int dpawin_workspace_add_window(struct dpawin_workspace* workspace, struct dpawindow_app* app_window){
   if(app_window->workspace == workspace)
     return 0;
-  if(app_window->workspace){
-    // TODO
-  }
+  if(app_window->workspace)
+    if(dpawin_workspace_remove_window(app_window))
+      return -1;
   app_window->workspace = workspace;
   app_window->workspace_private = 0;
   if(!workspace->first_window){
@@ -280,6 +299,16 @@ int dpawin_workspace_manager_manage_window(struct dpawin_workspace_manager* wmgr
     return -1;
   return dpawin_workspace_add_window(workspace, app_window);
 }
+
+int dpawin_workspace_manager_abandon_window(struct dpawindow_app* window){
+  if(window->workspace)
+    dpawin_workspace_remove_window(window);
+  if(dpawindow_app_cleanup(window))
+    return -1;
+  free(window);
+  return 0;
+}
+
 
 int dpawin_workspace_manager_init(struct dpawin* dpawin, struct dpawin_workspace_manager* wmgr){
   wmgr->dpawin = dpawin;

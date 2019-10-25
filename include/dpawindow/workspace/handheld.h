@@ -4,7 +4,7 @@
 #include <workspace.h>
 
 DECLARE_DPAWIN_WORKSPACE( handheld,
-  int temp;
+  struct dpawindow_handheld_window* current;
 )
 
 struct dpawindow_handheld_window {

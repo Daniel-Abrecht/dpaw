@@ -44,7 +44,6 @@ struct dpawin_workspace {
   struct dpawin_workspace_manager* workspace_manager;
   struct dpawin_workspace_screen* screen;
   struct dpawindow_app *first_window, *last_window;
-  struct dpawin_rect boundary;
 };
 
 struct dpawin_workspace_screen {
@@ -60,7 +59,9 @@ int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspa
 void dpawin_workspace_screen_cleanup(struct dpawin_workspace_screen*);
 int dpawin_reassign_screen_to_workspace(struct dpawin_workspace_screen* screen, struct dpawin_workspace* workspace);
 int dpawin_workspace_manager_manage_window(struct dpawin_workspace_manager* wmgr, Window window);
+int dpawin_workspace_manager_abandon_window(struct dpawindow_app* window);
 int dpawin_workspace_add_window(struct dpawin_workspace*, struct dpawindow_app*);
+int dpawin_workspace_remove_window(struct dpawindow_app* window);
 struct dpawindow_app* dpawin_workspace_lookup_xwindow(struct dpawin_workspace*, Window);
 
 void dpawin_workspace_type_register(struct dpawin_workspace_type* type);

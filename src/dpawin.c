@@ -4,8 +4,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-struct dpawin dpawin;
-
 int dpawin_cleanup(struct dpawin* dpawin){
   if(dpawin->root.display)
     XCloseDisplay(dpawin->root.display);
