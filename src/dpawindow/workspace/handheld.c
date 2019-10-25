@@ -34,6 +34,8 @@ static int update_window_area(struct dpawindow_handheld_window* child){
 
 static int make_current(struct dpawindow_handheld_window* child){
   printf("make_current %p -> %p\n", (void*)child->workspace->current, (void*)child);
+  if(child->workspace->current == child)
+    return 0;
   if(child->workspace->current)
     if(dpawindow_hide(&child->workspace->current->app_window->window, true))
       return -1;

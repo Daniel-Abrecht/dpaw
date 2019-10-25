@@ -18,7 +18,7 @@ enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, XEv
 }
 
 int dpawindow_hide(struct dpawindow* window, bool hidden){
-  if(!hidden && !window->mapped){
+  if(!hidden && window->mapped){
     XMapWindow(window->dpawin->root.display, window->xwindow);
   }else{
     XUnmapWindow(window->dpawin->root.display, window->xwindow);
