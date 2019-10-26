@@ -20,6 +20,7 @@ struct dpawin_workspace_manager {
     size_t size; \
     size_t derived_offset; \
     int (*init_window_super)(struct dpawin*, U*); \
+    int (*cleanup_window_super)(U*); \
     \
     int (*init)(U*); \
     void(*cleanup)(U*); \
@@ -83,6 +84,7 @@ void dpawin_workspace_type_unregister(struct dpawin_workspace_type* type);
       .size = sizeof(struct dpawindow_workspace_ ## NAME), \
       .derived_offset = offsetof(struct dpawindow_workspace_ ## NAME, workspace), \
       .init_window_super = dpawindow_workspace_ ## NAME ## _init_super, \
+      .cleanup_window_super = dpawindow_workspace_ ## NAME ## _cleanup_super, \
       __VA_ARGS__ \
     }; \
     dpawin_workspace_type_register((struct dpawin_workspace_type*)&type); \

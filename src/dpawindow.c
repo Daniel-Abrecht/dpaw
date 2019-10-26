@@ -63,11 +63,13 @@ int dpawindow_place_window(struct dpawindow* window, struct dpawin_rect boundary
 }
 
 int dpawindow_register(struct dpawindow* window){
+  printf("dpawindow_register %p\n", (void*)window);
   if(!window || !window->type || window->next || window->prev)
     return -1;
   bool isroot = !strcmp(window->type->name, "root");
   if(isroot != !first)
     return -1;
+  printf("dpawindow_register...\n");
   if(!first){
     first = window;
     last = window;
@@ -80,17 +82,19 @@ int dpawindow_register(struct dpawindow* window){
 }
 
 int dpawindow_unregister(struct dpawindow* window){
-  if(!window || !window->type)
+  printf("dpawindow_unregister %p\n", (void*)window);
+  if(!window)
     return -1;
   if(!window->prev && !window->next && first)
     return -1;
+  printf("dpawindow_unregister...\n");
   if(window->prev)
     window->prev->next = window->next;
   if(window->next)
     window->next->prev = window->prev;
-  if(window->prev == first)
+  if(window == first)
     first = window->next;
-  if(window->next == last)
+  if(window == last)
     last = window->prev;
   window->prev = 0;
   window->next = 0;

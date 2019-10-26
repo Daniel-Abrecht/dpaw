@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 int dpawin_cleanup(struct dpawin* dpawin){
@@ -48,6 +49,7 @@ int dpawin_init(struct dpawin* dpawin){
     fprintf(stderr, "Detected another window manager on display %s\n", XDisplayName(0));
     goto error;
   }
+//  XSynchronize(dpawin->root.display, True);
   XSetErrorHandler(&dpawin_error_handler);
   return 0;
 error:
@@ -70,9 +72,12 @@ int dpawin_error_handler(Display* display, XErrorEvent* error){
 }
 
 int dpawin_run(struct dpawin* dpawin){
+  bool debug_x_events = !!getenv("DEBUG_X_EVENTS");
   while(true){
     XEvent event;
     XNextEvent(dpawin->root.display, &event);
+    if(debug_x_events)
+      printf("XEvent: %d %s serial: %lu window: %lu %lu\n", event.type, dpawin_get_event_name(event.type), event.xany.serial, event.xany.window, (&event.xany.window)[1]);
     struct dpawindow* it;
     for(it = &dpawin->root.window; it; it=it->next)
       // Note: Unlike with any other event, xany.window is actually the parent window

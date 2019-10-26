@@ -102,10 +102,11 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   child->workspace = workspace;
   window->workspace_private = child;
   XReparentWindow(workspace->window.dpawin->root.display, window->window.xwindow, workspace->window.xwindow, 0, 0);
-  if(make_current(child))
-    return EHR_ERROR;
-  if(window->window.mapped)
+  if(window->window.mapped){
+    if(make_current(child))
+      return EHR_ERROR;
     dpawindow_set_mapping(&child->app_window->window, true);
+  }
   return 0;
 }
 

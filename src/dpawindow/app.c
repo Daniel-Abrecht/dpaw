@@ -14,6 +14,5 @@ int dpawindow_app_init(struct dpawin* dpawin, struct dpawindow_app* window, Wind
 }
 
 int dpawindow_app_cleanup(struct dpawindow_app* window){
-  (void)window;
-  return 0;
+  return dpawindow_app_cleanup_super(window);
 }

@@ -323,6 +323,7 @@ error:
 }
 
 void dpawin_workspace_manager_destroy(struct dpawin_workspace_manager* wmgr){
+  // TODO: Reparent all windows to root & remove all workspaces
   dpawin_screenchange_listener_unregister(&wmgr->dpawin->root.screenchange_detector, screenchange_handler, wmgr);
   wmgr->dpawin = 0;
 }

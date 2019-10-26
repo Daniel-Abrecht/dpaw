@@ -47,7 +47,8 @@ struct dpawindow {
     __VA_ARGS__ \
   }; \
   extern struct dpawindow_type dpawindow_type_ ## TYPE; \
-  int dpawindow_ ## NAME ## _init_super(struct dpawin* dpawin, struct dpawindow_ ## NAME*);
+  int dpawindow_ ## NAME ## _init_super(struct dpawin*, struct dpawindow_ ## NAME*); \
+  int dpawindow_ ## NAME ## _cleanup_super(struct dpawindow_ ## NAME*);
 
 #define DEFINE_DPAWIN_DERIVED_WINDOW(NAME) \
   struct dpawindow_type dpawindow_type_ ## NAME = { \
@@ -57,6 +58,11 @@ struct dpawindow {
     w->window.type = &dpawindow_type_ ## NAME; \
     w->window.dpawin = dpawin; \
     if(dpawindow_register(&w->window)) \
+      return -1; \
+    return 0; \
+  } \
+  int dpawindow_ ## NAME ## _cleanup_super(struct dpawindow_ ## NAME* w){ \
+    if(dpawindow_unregister(&w->window)) \
       return -1; \
     return 0; \
   }
