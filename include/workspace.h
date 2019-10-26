@@ -53,7 +53,7 @@ struct dpawin_workspace_screen {
   const struct dpawin_screen_info* info;
 };
 
-int dpawin_workspace_manager_init(struct dpawin*, struct dpawin_workspace_manager*);
+int dpawin_workspace_manager_init(struct dpawin_workspace_manager*, struct dpawin*);
 void dpawin_workspace_manager_destroy(struct dpawin_workspace_manager*);
 int dpawin_workspace_screen_init(struct dpawin_workspace_manager*, struct dpawin_workspace_screen*, const struct dpawin_screen_info* info);
 int dpawin_workspace_manager_designate_screen_to_workspace(struct dpawin_workspace_manager*, struct dpawin_workspace_screen*);

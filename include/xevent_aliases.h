@@ -36,12 +36,13 @@
   X(SelectionNotify, XSelectionEvent, xselection) \
   X(ColormapNotify, XColormapEvent, xcolormap) \
   X(ClientMessage, XClientMessageEvent, xclient) \
-  X(MappingNotify, XMappingEvent, xmapping)
+  X(MappingNotify, XMappingEvent, xmapping) \
+  X(GenericEvent, XGenericEvent, xgeneric)
 
 #define X(C, T, F) typedef T xev_ ## C ## _t;
   XEVENT_ALIAS_LIST // Define event types consistent with constant names
 #undef X
 
-const char* dpawin_get_event_name(int type);
+const char* dpawin_get_event_name(int type, int extension); // set extension=-1 for non-generic events
 
 #endif

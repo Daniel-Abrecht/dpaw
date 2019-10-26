@@ -1,4 +1,6 @@
+#!/bin/sh
+
 xclock &
 xeyes &
 sleep 2 && xterm &
-exec ./bin/dpawin
+exec "$(dirname "$(realpath "$0")")/bin/dpawin"

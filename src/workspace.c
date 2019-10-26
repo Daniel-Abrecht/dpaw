@@ -310,7 +310,7 @@ int dpawin_workspace_manager_abandon_window(struct dpawindow_app* window){
 }
 
 
-int dpawin_workspace_manager_init(struct dpawin* dpawin, struct dpawin_workspace_manager* wmgr){
+int dpawin_workspace_manager_init(struct dpawin_workspace_manager* wmgr, struct dpawin* dpawin){
   wmgr->dpawin = dpawin;
   if(dpawin_screenchange_listener_register(&wmgr->dpawin->root.screenchange_detector, screenchange_handler, wmgr)){
     fprintf(stderr, "dpawin_screenchange_listener_register failed\n");
