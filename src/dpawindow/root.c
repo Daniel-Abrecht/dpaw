@@ -3,7 +3,6 @@
 #include <screenchange.h>
 #include <workspace.h>
 #include <dpawin.h>
-#include <touch.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -33,10 +32,6 @@ int dpawindow_root_init(struct dpawin* dpawin, struct dpawindow_root* window){
   if(dpawin_screenchange_init(&window->screenchange_detector, window->display)){
     fprintf(stderr, "dpawin_screenchange_init failed\n");
     goto error;
-  }
-  if(dpawin_touch_init(&window->touch_manager, dpawin)){
-    printf("dpawin_touch_init failed\n");
-    // Not fatal
   }
   if(dpawin_workspace_manager_init(&window->workspace_manager, dpawin) == -1){
     fprintf(stderr, "dpawin_workspace_init failed\n");

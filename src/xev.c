@@ -63,7 +63,7 @@ int dpawin_xev_add_event_handler(struct xev_event_lookup_table** lookup_table, c
     }
     size_t offset = 0;
     for(const struct xev_event_extension* it = dpawin_event_extension_list; it; it=it->next){
-      table->handler = handler + offset;
+      table[it->extension_index].handler = handler + offset;
       offset += it->info_size;
     }
     *lookup_table = table;

@@ -1,23 +1,20 @@
 #include <dpawin.h>
-#include <touch.h>
 #include <X11/extensions/XInput2.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int dpawin_touch_init(struct dpawin_touch_manager* tmgr, struct dpawin* dpawin){
-  tmgr->dpawin = dpawin;
-
+int dpawin_xinput2_init(struct dpawin* dpawin, struct dpawin_xev* xev){
   int major_opcode = 0;
-  int first_event = 0; // Note: the last one is XI2LASTEVENT, which should be the same as XI_LASTEVENT for backwards compat.
+  int first_event = 0;
   int first_error = 0;
 
-  if(!XQueryExtension(tmgr->dpawin->root.display, "XInputExtension", &major_opcode, &first_event, &first_error)) {
+  if(!XQueryExtension(dpawin->root.display, "XInputExtension", &major_opcode, &first_event, &first_error)) {
     printf("X Input extension not available.\n");
-    return 1;
+    return -1;
   }
 
   int major = 2, minor = 2;
-  XIQueryVersion(tmgr->dpawin->root.display, &major, &minor);
+  XIQueryVersion(dpawin->root.display, &major, &minor);
   if(major < 2 || (major == 2 && minor < 2)){
     printf("Server does not support XI 2.2 or newer\n");
     return -1;
@@ -54,9 +51,16 @@ int dpawin_touch_init(struct dpawin_touch_manager* tmgr, struct dpawin* dpawin){
 #undef X
 #undef EVENTS
 
-  XISelectEvents(tmgr->dpawin->root.display, tmgr->dpawin->root.window.xwindow, &mask, 1);
+  XISelectEvents(dpawin->root.display, dpawin->root.window.xwindow, &mask, 1);
 
   free(mask.mask);
 
+  xev->extension = major_opcode;
+
+  return 0;
+}
+
+int dpawin_xinput2_cleanup(struct dpawin_xev* xev){
+  (void)xev;
   return 0;
 }

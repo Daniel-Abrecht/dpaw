@@ -33,20 +33,20 @@ struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
 #undef X
 
 __attribute__((used,constructor(1000)))
-void xev_constructor(void){
-  if(dpawin_event_extension_list)
-    DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).next = dpawin_event_extension_list;
-  dpawin_event_extension_list = &DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+static void xev_constructor(void){
+  struct xev_event_extension* extension = &DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+  extension->next = dpawin_event_extension_list;
+  dpawin_event_extension_list = extension;
 
   extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _init)(struct dpawin*, struct dpawin_xev* xev);
   extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _cleanup)(struct dpawin_xev* xev);
 
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).name = DPAWIN_STR(XEV_EXT);
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).init = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _init);
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).cleanup = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _cleanup);
+  extension->name = DPAWIN_STR(XEV_EXT);
+  extension->init = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _init);
+  extension->cleanup = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _cleanup);
 
 #ifndef XEV_OPTIONAL
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).required = true;
+  extension->required = true;
 #endif
 
   static unsigned info_index[] = {
@@ -66,11 +66,11 @@ void xev_constructor(void){
     XEV_EVENTS
 #undef X
   };
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info_index = info_index;
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info_index_size = sizeof(info_index)/sizeof(*info_index);
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info = info;
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info_size = sizeof(info)/sizeof(*info);
-  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).extension_index = dpawin_event_extension_count;
+  extension->info_index = info_index;
+  extension->info_index_size = sizeof(info_index)/sizeof(*info_index);
+  extension->info = info;
+  extension->info_size = sizeof(info)/sizeof(*info);
+  extension->extension_index = dpawin_event_extension_count;
   dpawin_event_extension_count += 1;
 }
 #endif
