@@ -6,15 +6,11 @@
 
 static struct dpawindow *first, *last;
 
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, XEvent* event){
-  if(event->type < 0 || event->type > LASTEvent){
-    fprintf(stderr, "Got invalid event type %d!!!\n", event->type);
-    return EHR_UNHANDLED;
-  }
-  dpawin_event_handler_t handler = window->type->event_handler_list[event->type];
-  if(!handler)
-    return EHR_UNHANDLED;
-  return handler(window, event);
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, int extension, int type, void* event){
+  const struct xev_event_extension* ext = dpawin_get_event_extension(window->dpawin, extension);
+  if(!ext)
+    return EHR_INVALID;
+  return dpawin_xev_dispatch(window->type->extension_lookup_table_list, ext, type, window, event);
 }
 
 int dpawindow_hide(struct dpawindow* window, bool hidden){

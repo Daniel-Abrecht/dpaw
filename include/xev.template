@@ -1,0 +1,82 @@
+#include <xev.h>
+#include <dpawin_macros.h>
+
+// Look into the xev folder for an example on how to use this.
+
+#define X(C, T) typedef T xev_ ## C ## _t;
+  XEV_EVENTS // Define event types consistent with constant names
+#undef X
+
+struct dpawin;
+
+extern struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+
+// This is a bit ugly, but I need a way to get the extension from the event identifier
+#define X(C, T) extern const struct xev_event_extension* dpawin_xev_ev2ext_ ## C;
+  XEV_EVENTS // Enumerate events
+#undef X
+
+enum DPAWIN_CONCAT(dpawin_xev_index_, XEV_EXT) {
+  // Skip 0, the empty index array entries will be implicitly filled with this.
+  DPAWIN_CONCAT(DPAWIN_CONCAT(XEV_INDEX__, XEV_EXT), _NONE),
+#define X(C, T) XEV_INDEX_ ## C,
+  XEV_EVENTS // Enumerate events
+#undef X
+  DPAWIN_CONCAT(DPAWIN_CONCAT(XEV_INDEX__, XEV_EXT), _COUNT)
+};
+
+#ifdef GENERATE_DEFINITIONS
+struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+
+#define X(C, T) const struct xev_event_extension* dpawin_xev_ev2ext_ ## C = &DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+  XEV_EVENTS // Enumerate events
+#undef X
+
+__attribute__((used,constructor(1000)))
+void xev_constructor(void){
+  if(dpawin_event_extension_list)
+    DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).next = dpawin_event_extension_list;
+  dpawin_event_extension_list = &DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+
+  extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _init)(struct dpawin*, struct dpawin_xev* xev);
+  extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _cleanup)(struct dpawin_xev* xev);
+
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).name = DPAWIN_STR(XEV_EXT);
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).init = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _init);
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).cleanup = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_, XEV_EXT), _cleanup);
+
+#ifndef XEV_OPTIONAL
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).required = true;
+#endif
+
+  static unsigned info_index[] = {
+  // map possibly sparse event list to consecutive indeces better suited for small arrays.
+#define X(C, T) [C] = XEV_INDEX_ ## C,
+    XEV_EVENTS
+#undef X
+  };
+  static struct xev_event_info info[] = {
+    {0,-1},
+    // additional infos about all (or at least most) events of the extension
+#define X(C, T) \
+  { \
+    .name = #C, \
+    .type = C, \
+  },
+    XEV_EVENTS
+#undef X
+  };
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info_index = info_index;
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info_index_size = sizeof(info_index)/sizeof(*info_index);
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info = info;
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).info_size = sizeof(info)/sizeof(*info);
+  DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT).extension_index = dpawin_event_extension_count;
+  dpawin_event_extension_count += 1;
+}
+#endif
+
+#undef XEV_EXT
+#undef XEV_EVENTS
+#ifdef XEV_OPTIONAL
+#undef XEV_OPTIONAL
+#endif

@@ -1,5 +1,6 @@
 #include <dpawin.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static struct dpawin dpawin;
 

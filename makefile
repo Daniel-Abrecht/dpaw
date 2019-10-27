@@ -1,7 +1,7 @@
 
 CC_OPTS += -Wall -Wextra -pedantic -std=c99
 CC_OPTS += -Iinclude/ -Ibuild/include/
-CC_OPTS += -Werror -g -Og
+CC_OPTS += -Werror -g -O0
 LD_OPTS += -g
 
 CC_OPTS += -fsanitize=address
@@ -9,10 +9,10 @@ LD_OPTS += -fsanitize=address
 
 LD_OPTS += -lX11 -lXinerama -lXi
 
-SOURCES = $(shell find src/ -iname "*.c")
-HEADERS = $(shell find include/ -iname "*.h")
+SOURCES = $(shell find src/ -iname "*.c") $(shell find include/ -iname "*.c")
+HEADERS = $(shell find include/ -type f)
 
-OBJECTS = $(patsubst src/%.c,build/%.c.o,$(SOURCES))
+OBJECTS = $(patsubst %.c,build/%.c.o,$(SOURCES))
 
 all: bin/dpawin
 
@@ -20,7 +20,8 @@ bin/dpawin: $(OBJECTS)
 	mkdir -p "$(dir $@)"
 	$(CC) -o "$@" $(LD_OPTS) $^
 
-build/%.c.o: src/%.c $(HEADERS)
+build/include/%.c.o: CC_OPTS += -DGENERATE_DEFINITIONS
+build/%.c.o: %.c $(HEADERS)
 	mkdir -p "$(dir $@)"
 	$(CC) -c -o "$@" $(CC_OPTS) $(CFLAGS) $(CPPFLAGS) "$<"
 

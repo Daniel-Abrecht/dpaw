@@ -1,3 +1,4 @@
+#include <xev/X.c>
 #include <dpawindow/workspace/handheld.h>
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>

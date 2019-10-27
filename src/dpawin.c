@@ -72,15 +72,21 @@ int dpawin_error_handler(Display* display, XErrorEvent* error){
 }
 
 static enum event_handler_result dispatch_event(struct dpawindow* window, int extension, int type, XEvent* event){
-  enum event_handler_result result = dpawindow_dispatch_event(window, event);
+  void* data = 0;
+  // See manpage xgenericeventcookie(3) which gives this kind of use as example
+  if(XGetEventData(window->dpawin->root.display, &event->xcookie))
+    data = event->xcookie.data;
+  enum event_handler_result result = dpawindow_dispatch_event(window, extension, type, data ? data : event);
+  XFreeEventData(window->dpawin->root.display, &event->xcookie);
   switch(result){
     case EHR_FATAL_ERROR: {
       fprintf(
         stderr,
-        "A fatal error occured while trying to handle event %d:%d (%s) for a %s-window.\n",
+        "A fatal error occured while trying to handle event %d::%d %s::%s for a %s-window.\n",
         extension,
         type,
-        dpawin_get_event_name(type, extension),
+        dpawin_get_extension_name(window->dpawin, extension),
+        dpawin_get_event_name(window->dpawin, extension, type),
         window->type->name
       );
     } return -1;
@@ -88,20 +94,33 @@ static enum event_handler_result dispatch_event(struct dpawindow* window, int ex
     case EHR_ERROR: {
       fprintf(
         stderr,
-        "An error occured while trying to handle event %d:%d (%s) for a %s-window.\n",
+        "An error occured while trying to handle event %d::%d %s::%s for a %s-window.\n",
         extension,
         type,
-        dpawin_get_event_name(type, extension),
+        dpawin_get_extension_name(window->dpawin, extension),
+        dpawin_get_event_name(window->dpawin, extension, type),
         window->type->name
       );
     } break;
     case EHR_UNHANDLED: {
       fprintf(
         stderr,
-        "Got unhandled event %d:%d (%s) for a %s-window.\n",
+        "Got unhandled event %d::%d %s::%s for a %s-window.\n",
         extension,
         type,
-        dpawin_get_event_name(type, extension),
+        dpawin_get_extension_name(window->dpawin, extension),
+        dpawin_get_event_name(window->dpawin, extension, type),
+        window->type->name
+      );
+    } break;
+    case EHR_INVALID: {
+      fprintf(
+        stderr,
+        "Got invalid event %d::%d %s::%s for a %s-window.\n",
+        extension,
+        type,
+        dpawin_get_extension_name(window->dpawin, extension),
+        dpawin_get_event_name(window->dpawin, extension, type),
         window->type->name
       );
     } break;
@@ -117,14 +136,18 @@ int dpawin_run(struct dpawin* dpawin){
     int extension = -1;
     int event_type = event.type;
     if(event_type == GenericEvent){
-      extension = event.xgeneric.extension;
-      event_type = event.xgeneric.evtype;
+      if(event.xgeneric.extension == -1){
+        fprintf(stderr, "Warning: Got generic event with extension -1. Can't handle this, I have choosen -1 as a sentinel for no extension, assuming that to be an invalid extension number\n");
+      }else{
+        extension = event.xgeneric.extension;
+        event_type = event.xgeneric.evtype;
+      }
     }
     if(debug_x_events){
       printf(
         "XEvent: %d %s serial: %lu window: %lu %lu\n",
         event.type,
-        dpawin_get_event_name(event.type, extension),
+        dpawin_get_event_name(dpawin, extension, event.type),
         event.xany.serial,
         event.xany.window, // This is actually the parent window. It should be there for every event, but like always, there are exceptions, like keyboard and generic events...
         (&event.xany.window)[1] // This may not be a window, but it often is, and the XEvent is always big enough for this, so whatever...
@@ -159,7 +182,7 @@ int dpawin_run(struct dpawin* dpawin){
           stderr,
           "Got event %d (%s) for unknown window (%lu)\n",
           event.type,
-          dpawin_get_event_name(event.type, extension),
+          dpawin_get_event_name(dpawin, extension, event.type),
           event.xany.window
         );
       }

@@ -1,24 +1,17 @@
 #ifndef DPAWINDOW_H
 #define DPAWINDOW_H
 
-#include <xevent_aliases.h>
+#include <xev.h>
 #include <primitives.h>
 #include <X11/Xlib.h>
 #include <stdbool.h>
-
-enum event_handler_result {
-  EHR_FATAL_ERROR = -1,
-  EHR_OK = 0,
-  EHR_ERROR = 1,
-  EHR_UNHANDLED = 2,
-};
+#include <stdlib.h>
 
 struct dpawindow;
-typedef enum event_handler_result (*dpawin_event_handler_t)(struct dpawindow*, XEvent*);
 
 struct dpawindow_type {
   const char* name;
-  dpawin_event_handler_t event_handler_list[LASTEvent];
+  struct xev_event_lookup_table* extension_lookup_table_list;
 };
 
 struct dpawindow {
@@ -33,11 +26,15 @@ struct dpawindow {
 
 #define EV_ON(TYPE, EVENT) \
   enum event_handler_result dpawin_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event); \
-  __attribute__((used,constructor)) \
+  __attribute__((used,constructor(1001))) \
   void dpawin_ev_init__ ## TYPE ## __ ## EVENT (void) { \
     extern struct dpawindow_type dpawindow_type_ ## TYPE; \
-    typedef enum event_handler_result(*handler_type)(struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event); \
-    *(handler_type*)&dpawindow_type_ ## TYPE.event_handler_list[EVENT] = dpawin_ev_on__ ## TYPE ## __ ## EVENT; \
+    if(dpawin_xev_add_event_handler( \
+      &dpawindow_type_ ## TYPE.extension_lookup_table_list, \
+      dpawin_xev_ev2ext_ ## EVENT, \
+      EVENT, \
+      (dpawin_event_handler_t)dpawin_ev_on__ ## TYPE ## __ ## EVENT \
+    )) _Exit(1); \
   } \
   enum event_handler_result dpawin_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event)
 
@@ -67,7 +64,7 @@ struct dpawindow {
     return 0; \
   }
 
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, XEvent* event);
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, int extension, int type, void* event);
 int dpawindow_hide(struct dpawindow* window, bool hidden);
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpawin_rect boundary);
