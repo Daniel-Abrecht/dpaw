@@ -5,20 +5,20 @@
 size_t dpawin_event_extension_count;
 struct xev_event_extension* dpawin_event_extension_list;
 
-const struct xev_event_extension* dpawin_get_event_extension(const struct dpawin* dpawin, int extension){
+struct dpawin_xev* dpawin_get_event_extension(const struct dpawin* dpawin, int extension){
   for(size_t i=0; i<dpawin_event_extension_count; i++){
-    const struct dpawin_xev* xev = dpawin->root.xev_list + i;
+    struct dpawin_xev* xev = dpawin->root.xev_list + i;
     if(xev->extension == extension)
-      return xev->xev;
+      return xev;
   }
   return 0;
 }
 
 const char* dpawin_get_extension_name(const struct dpawin* dpawin, int extension){
-  const struct xev_event_extension* xev = dpawin_get_event_extension(dpawin, extension);
-  if(!xev)
+  const struct dpawin_xev* xev = dpawin_get_event_extension(dpawin, extension);
+  if(!xev || !xev->xev)
     return "unknown";
-  return xev->name;
+  return xev->xev->name;
 }
 
 const struct xev_event_info* dpawin_get_event_info(const struct xev_event_extension* extension, int event){
@@ -33,10 +33,10 @@ const struct xev_event_info* dpawin_get_event_info(const struct xev_event_extens
 }
 
 const char* dpawin_get_event_name(const struct dpawin* dpawin, int extension, int event){
-  const struct xev_event_extension* xev = dpawin_get_event_extension(dpawin, extension);
-  if(!xev)
+  const struct dpawin_xev* xev = dpawin_get_event_extension(dpawin, extension);
+  if(!xev || !xev->xev)
     return "unknown";
-  const struct xev_event_info* info = dpawin_get_event_info(xev, event);
+  const struct xev_event_info* info = dpawin_get_event_info(xev->xev, event);
   if(!info)
     return "unknown";
   return info->name;

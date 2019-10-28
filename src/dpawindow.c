@@ -4,13 +4,15 @@
 #include <string.h>
 #include <stdbool.h>
 
-static struct dpawindow *first, *last;
+struct dpawindow* dpawindow_lookup(struct dpawin* dpawin, Window window){
+  for(struct dpawindow* it = dpawin->first; it; it=it->next)
+    if(it->xwindow == window)
+      return it;
+  return 0;
+}
 
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, int extension, int type, void* event){
-  const struct xev_event_extension* ext = dpawin_get_event_extension(window->dpawin, extension);
-  if(!ext)
-    return EHR_INVALID;
-  return dpawin_xev_dispatch(window->type->extension_lookup_table_list, ext, type, window, event);
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event_extension* extension, int event, void* data){
+  return dpawin_xev_dispatch(window->type->extension_lookup_table_list, extension, event, window, data);
 }
 
 int dpawindow_hide(struct dpawindow* window, bool hidden){
@@ -63,35 +65,35 @@ int dpawindow_register(struct dpawindow* window){
   if(!window || !window->type || window->next || window->prev)
     return -1;
   bool isroot = !strcmp(window->type->name, "root");
-  if(isroot != !first)
+  if(isroot != !window->dpawin->first)
     return -1;
   printf("dpawindow_register...\n");
-  if(!first){
-    first = window;
-    last = window;
+  if(!window->dpawin->first){
+    window->dpawin->first = window;
+    window->dpawin->last = window;
   }else{
-    last->next = window;
-    window->prev = last;
-    last = window;
+    window->dpawin->last->next = window;
+    window->prev = window->dpawin->last;
+    window->dpawin->last = window;
   }
   return 0;
 }
 
 int dpawindow_unregister(struct dpawindow* window){
   printf("dpawindow_unregister %p\n", (void*)window);
-  if(!window)
+  if(!window || !window->dpawin)
     return -1;
-  if(!window->prev && !window->next && first)
+  if(!window->prev && !window->next && window->dpawin->first)
     return -1;
   printf("dpawindow_unregister...\n");
   if(window->prev)
     window->prev->next = window->next;
   if(window->next)
     window->next->prev = window->prev;
-  if(window == first)
-    first = window->next;
-  if(window == last)
-    last = window->prev;
+  if(window == window->dpawin->first)
+    window->dpawin->first = window->next;
+  if(window == window->dpawin->last)
+    window->dpawin->last = window->prev;
   window->prev = 0;
   window->next = 0;
   return 0;

@@ -71,63 +71,6 @@ int dpawin_error_handler(Display* display, XErrorEvent* error){
   return 0;
 }
 
-static enum event_handler_result dispatch_event(struct dpawindow* window, int extension, int type, XEvent* event){
-  void* data = 0;
-  // See manpage xgenericeventcookie(3) which gives this kind of use as example
-  if(XGetEventData(window->dpawin->root.display, &event->xcookie))
-    data = event->xcookie.data;
-  enum event_handler_result result = dpawindow_dispatch_event(window, extension, type, data ? data : event);
-  XFreeEventData(window->dpawin->root.display, &event->xcookie);
-  switch(result){
-    case EHR_FATAL_ERROR: {
-      fprintf(
-        stderr,
-        "A fatal error occured while trying to handle event %d::%d %s::%s for a %s-window.\n",
-        extension,
-        type,
-        dpawin_get_extension_name(window->dpawin, extension),
-        dpawin_get_event_name(window->dpawin, extension, type),
-        window->type->name
-      );
-    } return -1;
-    case EHR_OK: break;
-    case EHR_ERROR: {
-      fprintf(
-        stderr,
-        "An error occured while trying to handle event %d::%d %s::%s for a %s-window.\n",
-        extension,
-        type,
-        dpawin_get_extension_name(window->dpawin, extension),
-        dpawin_get_event_name(window->dpawin, extension, type),
-        window->type->name
-      );
-    } break;
-    case EHR_UNHANDLED: {
-      fprintf(
-        stderr,
-        "Got unhandled event %d::%d %s::%s for a %s-window.\n",
-        extension,
-        type,
-        dpawin_get_extension_name(window->dpawin, extension),
-        dpawin_get_event_name(window->dpawin, extension, type),
-        window->type->name
-      );
-    } break;
-    case EHR_INVALID: {
-      fprintf(
-        stderr,
-        "Got invalid event %d::%d %s::%s for a %s-window.\n",
-        extension,
-        type,
-        dpawin_get_extension_name(window->dpawin, extension),
-        dpawin_get_event_name(window->dpawin, extension, type),
-        window->type->name
-      );
-    } break;
-  }
-  return result;
-}
-
 int dpawin_run(struct dpawin* dpawin){
   bool debug_x_events = !!getenv("DEBUG_X_EVENTS");
   while(true){
@@ -138,6 +81,7 @@ int dpawin_run(struct dpawin* dpawin){
     if(event_type == GenericEvent){
       if(event.xgeneric.extension == -1){
         fprintf(stderr, "Warning: Got generic event with extension -1. Can't handle this, I have choosen -1 as a sentinel for no extension, assuming that to be an invalid extension number\n");
+        continue;
       }else{
         extension = event.xgeneric.extension;
         event_type = event.xgeneric.evtype;
@@ -153,40 +97,67 @@ int dpawin_run(struct dpawin* dpawin){
         (&event.xany.window)[1] // This may not be a window, but it often is, and the XEvent is always big enough for this, so whatever...
       );
     }
-    // Handle special events which don't specify the parent window
-    // Let's dispatch those to the root window, which may further dispatch them
-    bool next_switch = false;
-    switch(event.type){
-      default: next_switch = true; break;
-      case KeyPress:
-      case KeyRelease:
-      case GenericEvent: {
-        enum event_handler_result result = dispatch_event(&dpawin->root.window, extension, event_type, &event);
-        if(result == EHR_FATAL_ERROR)
-          return -1;
-      } break;
+
+    enum event_handler_result result = EHR_FATAL_ERROR;
+    struct dpawin_xev* xev = dpawin_get_event_extension(dpawin, extension);
+    if(!xev || !xev->xev){
+      result = EHR_INVALID;
+    }else{
+      // Let's first try to dispatch it on the root window
+      void* data = &event;
+      if(XGetEventData(dpawin->root.display, &event.xcookie))
+        data = event.xcookie.data;
+      result = dpawindow_dispatch_event(&dpawin->root.window, xev->xev, event_type, data);
+      if(xev->xev->dispatch && (result == EHR_UNHANDLED || result == EHR_NEXT))
+        result = xev->xev->dispatch(dpawin, xev, event_type, data);
+      XFreeEventData(dpawin->root.display, &event.xcookie);
     }
-    if(next_switch){
-      // The root window is quaranteed to be the first one, this is enforced in the window registration function
-      struct dpawindow* it;
-      for(it = &dpawin->root.window; it; it=it->next)
-        // Note: Unlike with any other event, xany.window is actually the parent window
-        if(event.xany.window == it->xwindow)
-          break;
-      if(it){
-        enum event_handler_result result = dispatch_event(it, extension, event_type, &event);
-        if(result == EHR_FATAL_ERROR)
-          return -1;
-      }else{
+
+    switch(result){
+      case EHR_FATAL_ERROR: {
         fprintf(
           stderr,
-          "Got event %d (%s) for unknown window (%lu)\n",
-          event.type,
-          dpawin_get_event_name(dpawin, extension, event.type),
-          event.xany.window
+          "A fatal error occured while trying to handle event %d::%d %s::%s.\n",
+          extension,
+          event_type,
+          dpawin_get_extension_name(dpawin, extension),
+          dpawin_get_event_name(dpawin, extension, event_type)
         );
-      }
+      } return -1;
+      case EHR_OK: break;
+      case EHR_NEXT: break;
+      case EHR_ERROR: {
+        fprintf(
+          stderr,
+          "An error occured while trying to handle event %d::%d %s::%s.\n",
+          extension,
+          event_type,
+          dpawin_get_extension_name(dpawin, extension),
+          dpawin_get_event_name(dpawin, extension, event_type)
+        );
+      } break;
+      case EHR_UNHANDLED: {
+        fprintf(
+          stderr,
+          "Got unhandled event %d::%d %s::%s.\n",
+          extension,
+          event_type,
+          dpawin_get_extension_name(dpawin, extension),
+          dpawin_get_event_name(dpawin, extension, event_type)
+        );
+      } break;
+      case EHR_INVALID: {
+        fprintf(
+          stderr,
+          "Got invalid event %d::%d %s::%s.\n",
+          extension,
+          event_type,
+          dpawin_get_extension_name(dpawin, extension),
+          dpawin_get_event_name(dpawin, extension, event_type)
+        );
+      } break;
     }
+
   }
   return 0;
 }

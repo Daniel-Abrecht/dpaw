@@ -64,7 +64,8 @@ struct dpawindow {
     return 0; \
   }
 
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, int extension, int type, void* event);
+struct dpawindow* dpawindow_lookup(struct dpawin*, Window);
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event_extension*, int event, void* data);
 int dpawindow_hide(struct dpawindow* window, bool hidden);
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpawin_rect boundary);

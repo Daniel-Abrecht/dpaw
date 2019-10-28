@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int dpawin_xinput2_init(struct dpawin* dpawin, struct dpawin_xev* xev){
+int dpawin_xev_xinput2_init(struct dpawin* dpawin, struct dpawin_xev* xev){
   int major_opcode = 0;
   int first_event = 0;
   int first_error = 0;
@@ -60,7 +60,17 @@ int dpawin_xinput2_init(struct dpawin* dpawin, struct dpawin_xev* xev){
   return 0;
 }
 
-int dpawin_xinput2_cleanup(struct dpawin_xev* xev){
+int dpawin_xev_xinput2_cleanup(struct dpawin* dpawin, struct dpawin_xev* xev){
+  (void)dpawin;
   (void)xev;
   return 0;
 }
+
+enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, struct dpawin_xev* xev, int event, void* data){
+  (void)dpawin;
+  (void)xev;
+  (void)event;
+  (void)data;
+  return EHR_UNHANDLED;
+}
+

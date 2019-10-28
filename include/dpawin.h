@@ -5,6 +5,7 @@
 
 struct dpawin {
   struct dpawindow_root root;
+  struct dpawindow *first, *last;
 };
 
 int dpawin_cleanup(struct dpawin*);

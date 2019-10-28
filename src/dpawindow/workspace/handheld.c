@@ -103,11 +103,9 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   child->workspace = workspace;
   window->workspace_private = child;
   XReparentWindow(workspace->window.dpawin->root.display, window->window.xwindow, workspace->window.xwindow, 0, 0);
-  if(window->window.mapped){
-    if(make_current(child))
-      return EHR_ERROR;
-    dpawindow_set_mapping(&child->app_window->window, true);
-  }
+  if(make_current(child))
+    return -1;
+  dpawindow_set_mapping(&child->app_window->window, true);
   return 0;
 }
 
@@ -115,35 +113,6 @@ static int abandon_window(struct dpawindow_app* window){
   if(window->next)
     make_current(window->next->workspace_private);
   return 0;
-}
-
-EV_ON(workspace_handheld, MapRequest){
-  struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
-  if(!child)
-    return EHR_ERROR;
-  if(make_current(child))
-    return EHR_ERROR;
-  if(dpawindow_set_mapping(&child->app_window->window, true))
-    return EHR_ERROR;
-  return EHR_OK;
-}
-
-EV_ON(workspace_handheld, UnmapNotify){
-  struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
-  if(!child)
-    return EHR_ERROR;
-  fprintf(stderr, "Window tried to unmap itself, trying to re-map it. May fail because window may have been unmapped due to it's destruction.\n");
-  dpawindow_set_mapping(&child->app_window->window, true);
-  return EHR_OK;
-}
-
-EV_ON(workspace_handheld, DestroyNotify){
-  struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
-  if(!child)
-    return EHR_ERROR;
-  if(dpawin_workspace_manager_abandon_window(child->app_window))
-    return EHR_ERROR;
-  return EHR_OK;
 }
 
 EV_ON(workspace_handheld, ConfigureRequest){
