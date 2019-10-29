@@ -20,41 +20,6 @@ int dpawin_xev_xinput2_init(struct dpawin* dpawin, struct dpawin_xev* xev){
     return -1;
   }
 
-  XIEventMask mask = {
-    .deviceid = XIAllMasterDevices,
-  };
-#define EVENTS \
-  X(XI_TouchBegin) \
-  X(XI_TouchUpdate) \
-  X(XI_TouchEnd)
-#define X(Y) { \
-    int len = XIMaskLen(Y); \
-    if(mask.mask_len < len) \
-      mask.mask_len = len; \
-  }
-  EVENTS
-#undef X
-
-  if(mask.mask_len <= 0){
-    printf("Impossible mask_len\n");
-    return -1;
-  }
-
-  mask.mask = calloc(mask.mask_len, sizeof(char));
-  if(!mask.mask){
-    fprintf(stderr, "calloc failed\n");
-    return -1;
-  }
-
-#define X(Y) XISetMask(mask.mask, Y);
-  EVENTS
-#undef X
-#undef EVENTS
-
-  XISelectEvents(dpawin->root.display, dpawin->root.window.xwindow, &mask, 1);
-
-  free(mask.mask);
-
   xev->extension = major_opcode;
 
   return 0;
@@ -67,10 +32,82 @@ int dpawin_xev_xinput2_cleanup(struct dpawin* dpawin, struct dpawin_xev* xev){
 }
 
 enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, struct dpawin_xev* xev, int event, void* data){
-  (void)dpawin;
-  (void)xev;
-  (void)event;
-  (void)data;
+  switch(event){
+    case XI_KeyPress:
+    case XI_KeyRelease:
+    case XI_ButtonPress:
+    case XI_ButtonRelease:
+    case XI_Motion:
+    case XI_TouchBegin:
+    case XI_TouchUpdate:
+    case XI_TouchEnd: {
+      XIDeviceEvent* ev = data;
+      struct dpawindow* it = 0;
+      for(it = &dpawin->root.window; it; it=it->next)
+        if(ev->event == it->xwindow)
+          break;
+      if(!it)
+        break;
+      return dpawindow_dispatch_event(it, xev->xev, event, ev);
+    } break;
+  }
   return EHR_UNHANDLED;
+}
+
+int dpawin_xev_xinput2_listen(struct dpawin_xev* xev, struct dpawindow* window){
+  XIEventMask mask = {
+    .deviceid = XIAllMasterDevices,
+  };
+
+  struct dpawindow* set[] = {window};
+
+  for(size_t i=0; i<sizeof(set)/sizeof(*set); i++){
+    struct dpawindow* it = set[i];
+    struct xev_event_lookup_table* table = it->type->extension_lookup_table_list;
+    if(table && table->handler){
+      table += xev->xev->extension_index;
+      size_t size = xev->xev->info_size;
+      for(size_t j=1; j<size; j++){
+        if(!table->handler[j])
+          continue;
+        int len = XIMaskLen(xev->xev->info[j].type);
+        if(mask.mask_len < len)
+          mask.mask_len = len;
+      }
+    }
+  }
+
+  if(mask.mask_len < 0){
+    printf("Impossible mask_len\n");
+    return -1;
+  }
+
+  if(mask.mask_len){
+    mask.mask = calloc(mask.mask_len, sizeof(char));
+    if(!mask.mask){
+      fprintf(stderr, "calloc failed\n");
+      return -1;
+    }
+  }
+
+  for(size_t i=0; i<sizeof(set)/sizeof(*set); i++){
+    struct dpawindow* it = set[i];
+    struct xev_event_lookup_table* table = it->type->extension_lookup_table_list;
+    if(table && table->handler){
+      table += xev->xev->extension_index;
+      size_t size = xev->xev->info_size;
+      for(size_t j=1; j<size; j++){
+        if(table->handler[j])
+          XISetMask(mask.mask, xev->xev->info[j].type);
+      }
+    }
+  }
+
+  dpawindow_has_error_occured(window->dpawin->root.display);
+  XISelectEvents(window->dpawin->root.display, window->xwindow, &mask, 1);
+  if(mask.mask)
+    free(mask.mask);
+
+  return dpawindow_has_error_occured(window->dpawin->root.display);
 }
 

@@ -1,4 +1,5 @@
 #include <xev/X.c>
+#include <xev/xinput2.c>
 #include <dpawindow/workspace/handheld.h>
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>
@@ -54,10 +55,6 @@ static int make_current(struct dpawindow_handheld_window* child){
 static int init(struct dpawindow_workspace_handheld* workspace){
   (void)workspace;
   puts("handheld_workspace init");
-  XSelectInput(
-    workspace->window.dpawin->root.display,
-    workspace->window.xwindow,
-    SubstructureRedirectMask | SubstructureNotifyMask);
   return 0;
 }
 
@@ -133,6 +130,26 @@ EV_ON(workspace_handheld, ConfigureRequest){
   return EHR_OK;
 }
 
+EV_ON(workspace_handheld, XI_TouchBegin){
+  puts("TouchBegin");
+  (void)event;
+  (void)window;
+  return EHR_OK;
+}
+
+EV_ON(workspace_handheld, XI_TouchUpdate){
+  puts("TouchUpdate");
+  (void)event;
+  (void)window;
+  return EHR_OK;
+}
+
+EV_ON(workspace_handheld, XI_TouchEnd){
+  puts("TouchEnd");
+  (void)event;
+  (void)window;
+  return EHR_OK;
+}
 
 DEFINE_DPAWIN_WORKSPACE( handheld,
   .init = init,

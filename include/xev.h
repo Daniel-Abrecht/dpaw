@@ -35,6 +35,7 @@ struct xev_event_extension {
   int extension_index;
   bool required;
   int(*init)(struct dpawin*, struct dpawin_xev*);
+  int(*listen)(struct dpawin_xev*, struct dpawindow*);
   int(*cleanup)(struct dpawin*, struct dpawin_xev*);
   int(*dispatch)(struct dpawin*, struct dpawin_xev*, int event, void* data);
 };

@@ -27,3 +27,26 @@ enum event_handler_result dpawin_xev_X_dispatch(struct dpawin* dpawin, struct dp
     return EHR_UNHANDLED;
   return dpawindow_dispatch_event(it, xev->xev, event, data);
 }
+
+int dpawin_xev_X_listen(struct dpawin_xev* xev, struct dpawindow* window){
+  unsigned long mask = 0;
+  struct dpawindow* set[] = {
+    window,
+    &window->dpawin->root.window
+  };
+  for(size_t i=0; i<sizeof(set)/sizeof(*set); i++){
+    struct dpawindow* it = set[i];
+    struct xev_event_lookup_table* table = it->type->extension_lookup_table_list;
+    if(table && table->handler){
+      table += xev->xev->extension_index;
+      size_t size = xev->xev->info_size;
+      for(size_t j=1; j<size; j++)
+        if(table->handler[j])
+          mask |= 1lu << xev->xev->info[j].type;
+    }
+  }
+  // Flush previouse errors
+  dpawindow_has_error_occured(window->dpawin->root.display);
+  XSelectInput(window->dpawin->root.display, window->xwindow, mask);
+  return dpawindow_has_error_occured(window->dpawin->root.display);
+}

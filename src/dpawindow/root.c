@@ -14,10 +14,6 @@ int dpawindow_root_init(struct dpawin* dpawin, struct dpawindow_root* window){
     perror("calloc failed");
     goto error;
   }
-  if(dpawindow_root_init_super(dpawin, window) != 0){
-    fprintf(stderr, "dpawindow_root_init_super failed\n");
-    goto error;
-  }
   for(const struct xev_event_extension* extension=dpawin_event_extension_list; extension; extension=extension->next){
     struct dpawin_xev* xev = &dpawin->root.xev_list[extension->extension_index];
     xev->extension = -2; // Sentinel to check if initialisation worked properly. -1 is alredy used for the X fake extension
@@ -28,6 +24,10 @@ int dpawindow_root_init(struct dpawin* dpawin, struct dpawindow_root* window){
       continue;
     }
     xev->xev = extension;
+  }
+  if(dpawindow_root_init_super(dpawin, window) != 0){
+    fprintf(stderr, "dpawindow_root_init_super failed\n");
+    goto error;
   }
   if(dpawin_screenchange_init(&window->screenchange_detector, window->display)){
     fprintf(stderr, "dpawin_screenchange_init failed\n");

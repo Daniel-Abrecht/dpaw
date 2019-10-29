@@ -26,6 +26,7 @@ enum DPAWIN_CONCAT(dpawin_xev_index_, XEV_EXT) {
 };
 
 extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _init)(struct dpawin*, struct dpawin_xev*);
+extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _listen)(struct dpawin_xev*, struct dpawindow*);
 extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _cleanup)(struct dpawin*, struct dpawin_xev*);
 extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _dispatch)(struct dpawin*, struct dpawin_xev*, int event, void* data);
 
@@ -44,6 +45,7 @@ static void xev_constructor(void){
 
   extension->name = DPAWIN_STR(XEV_EXT);
   extension->init = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _init);
+  extension->listen = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _listen);
   extension->cleanup = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _cleanup);
   extension->dispatch = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _dispatch);
 

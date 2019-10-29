@@ -64,6 +64,7 @@ struct dpawindow {
     return 0; \
   }
 
+bool dpawindow_has_error_occured(Display* display);
 struct dpawindow* dpawindow_lookup(struct dpawin*, Window);
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event_extension*, int event, void* data);
 int dpawindow_hide(struct dpawindow* window, bool hidden);

@@ -81,7 +81,10 @@ enum event_handler_result dpawin_xev_dispatch(const struct xev_event_lookup_tabl
   int index = extension->info_index[event];
   if(index <= 0 || (size_t)index >= extension->info_size)
     return EHR_INVALID;
-  dpawin_event_handler_t handler = lookup_table[extension->extension_index].handler[index];
+  dpawin_event_handler_t* handler_list = lookup_table[extension->extension_index].handler;
+  if(!handler_list)
+    return EHR_UNHANDLED;
+  dpawin_event_handler_t handler = handler_list[index];
   if(!handler)
     return EHR_UNHANDLED;
   return handler(window, arg);

@@ -13,16 +13,8 @@ int dpawin_cleanup(struct dpawin* dpawin){
   return 0;
 }
 
-static bool wm_detected;
-
-static int wm_check(Display* display, XErrorEvent* error){
-  (void)display;
-  if(error->error_code == BadAccess)
-    wm_detected = true;
-  return 0;
-}
-
 int dpawin_init(struct dpawin* dpawin){
+  XSetErrorHandler(&dpawin_error_handler);
   memset(dpawin, 0, sizeof(*dpawin));
   dpawin->root.display = XOpenDisplay(0);
   if(!dpawin->root.display){
@@ -38,19 +30,6 @@ int dpawin_init(struct dpawin* dpawin){
     fprintf(stderr, "dpawindow_root_init failed\n");
     goto error;
   }
-  wm_detected = false;
-  XSetErrorHandler(&wm_check);
-  XSelectInput(
-      dpawin->root.display,
-      dpawin->root.window.xwindow,
-      SubstructureRedirectMask | SubstructureNotifyMask);
-  XSync(dpawin->root.display, false);
-  if(wm_detected){
-    fprintf(stderr, "Detected another window manager on display %s\n", XDisplayName(0));
-    goto error;
-  }
-//  XSynchronize(dpawin->root.display, True);
-  XSetErrorHandler(&dpawin_error_handler);
   return 0;
 error:
   dpawin_cleanup(dpawin);
@@ -58,6 +37,8 @@ error:
 }
 
 int dpawin_error_handler(Display* display, XErrorEvent* error){
+  extern bool dpawin_xerror_occured;
+  dpawin_xerror_occured = true;
   char error_message[1024];
   if(XGetErrorText(display, error->error_code, error_message, sizeof(error_message)))
     *error_message = 0;

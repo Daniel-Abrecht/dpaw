@@ -4,6 +4,16 @@
 #include <string.h>
 #include <stdbool.h>
 
+extern bool dpawin_xerror_occured;
+bool dpawin_xerror_occured;
+
+bool dpawindow_has_error_occured(Display* display){
+  XSync(display, false);
+  bool result = dpawin_xerror_occured;
+  dpawin_xerror_occured = false;
+  return result;
+}
+
 struct dpawindow* dpawindow_lookup(struct dpawin* dpawin, Window window){
   for(struct dpawindow* it = dpawin->first; it; it=it->next)
     if(it->xwindow == window)
@@ -61,13 +71,19 @@ int dpawindow_place_window(struct dpawindow* window, struct dpawin_rect boundary
 }
 
 int dpawindow_register(struct dpawindow* window){
-  printf("dpawindow_register %p\n", (void*)window);
   if(!window || !window->type || window->next || window->prev)
     return -1;
   bool isroot = !strcmp(window->type->name, "root");
   if(isroot != !window->dpawin->first)
     return -1;
-  printf("dpawindow_register...\n");
+  for(const struct xev_event_extension* extension=dpawin_event_extension_list; extension; extension=extension->next){
+    struct dpawin_xev* xev = &window->dpawin->root.xev_list[extension->extension_index];
+    if(extension->listen(xev, window)){
+      fprintf(stderr, "Failed to listen for events of extension %s on window of type %s\n", extension->name, window->type->name);
+      if(extension->required)
+        return -1;
+    }
+  }
   if(!window->dpawin->first){
     window->dpawin->first = window;
     window->dpawin->last = window;
@@ -80,12 +96,10 @@ int dpawindow_register(struct dpawindow* window){
 }
 
 int dpawindow_unregister(struct dpawindow* window){
-  printf("dpawindow_unregister %p\n", (void*)window);
   if(!window || !window->dpawin)
     return -1;
   if(!window->prev && !window->next && window->dpawin->first)
     return -1;
-  printf("dpawindow_unregister...\n");
   if(window->prev)
     window->prev->next = window->next;
   if(window->next)
