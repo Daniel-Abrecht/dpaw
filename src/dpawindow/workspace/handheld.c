@@ -134,21 +134,21 @@ EV_ON(workspace_handheld, XI_TouchBegin){
   puts("TouchBegin");
   (void)event;
   (void)window;
-  return EHR_OK;
+  return EHR_UNHANDLED;
 }
 
 EV_ON(workspace_handheld, XI_TouchUpdate){
   puts("TouchUpdate");
   (void)event;
   (void)window;
-  return EHR_OK;
+  return EHR_NEXT;
 }
 
 EV_ON(workspace_handheld, XI_TouchEnd){
   puts("TouchEnd");
   (void)event;
   (void)window;
-  return EHR_OK;
+  return EHR_NEXT;
 }
 
 DEFINE_DPAWIN_WORKSPACE( handheld,

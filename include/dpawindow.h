@@ -6,11 +6,13 @@
 #include <X11/Xlib.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct dpawindow;
 
 struct dpawindow_type {
   const char* name;
+  bool is_workspace;
   struct xev_event_lookup_table* extension_lookup_table_list;
 };
 
@@ -51,6 +53,10 @@ struct dpawindow {
   struct dpawindow_type dpawindow_type_ ## NAME = { \
     .name = #NAME \
   }; \
+  __attribute__((constructor)) \
+  static void dpawindow_type_constructor_ ## NAME(void){ \
+    dpawindow_type_ ## NAME.is_workspace = !strncmp("workspace_", #NAME, 10); \
+  } \
   int dpawindow_ ## NAME ## _init_super(struct dpawin* dpawin, struct dpawindow_ ## NAME* w){ \
     w->window.type = &dpawindow_type_ ## NAME; \
     w->window.dpawin = dpawin; \

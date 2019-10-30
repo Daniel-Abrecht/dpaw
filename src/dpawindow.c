@@ -78,6 +78,10 @@ int dpawindow_register(struct dpawindow* window){
     return -1;
   for(const struct xev_event_extension* extension=dpawin_event_extension_list; extension; extension=extension->next){
     struct dpawin_xev* xev = &window->dpawin->root.xev_list[extension->extension_index];
+    if(xev->extension < -1)
+      continue;
+    if(!extension->listen)
+      continue;
     if(extension->listen(xev, window)){
       fprintf(stderr, "Failed to listen for events of extension %s on window of type %s\n", extension->name, window->type->name);
       if(extension->required)
