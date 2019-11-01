@@ -53,8 +53,9 @@ static int make_current(struct dpawindow_handheld_window* child){
 
 
 static int init(struct dpawindow_workspace_handheld* workspace){
-  (void)workspace;
   puts("handheld_workspace init");
+  workspace->sideswipe.touchid = -1;
+  workspace->sideswipe.mask = (1<<DPAWIN_DIRECTION_LEFT_TO_RIGHT) | (1<<DPAWIN_DIRECTION_RIGHT_TO_LEFT);
   return 0;
 }
 
@@ -132,23 +133,107 @@ EV_ON(workspace_handheld, ConfigureRequest){
 
 EV_ON(workspace_handheld, XI_TouchBegin){
   puts("TouchBegin");
-  (void)event;
-  (void)window;
+  if(!window->current)
+    return EHR_UNHANDLED;
+  if(window->sideswipe.touchid != -1)
+    return EHR_UNHANDLED;
+  const long boundary[] = {
+    window->workspace.window->boundary.top_left.x,
+    window->workspace.window->boundary.top_left.y,
+    window->workspace.window->boundary.bottom_right.x,
+    window->workspace.window->boundary.bottom_right.y
+  };
+  for(enum dpawin_direction direction=0; direction<4; direction++){
+    if(!(window->sideswipe.mask & (1<<direction)))
+      continue;
+    long point = (direction % 2 ? event->root_y : event->root_x) + 0.5;
+    long bound = boundary[direction];
+    long distance = direction < 2 ? point - bound : bound - point;
+    if(distance < 10 && distance >= -5){
+      window->sideswipe.direction = direction;
+      window->sideswipe.touchid = event->detail;
+      window->sideswipe.confirmed = false;
+      window->sideswipe.initial_position.x = event->root_x;
+      window->sideswipe.initial_position.y = event->root_y;
+      return EHR_NEXT;
+    }
+  }
   return EHR_UNHANDLED;
 }
 
 EV_ON(workspace_handheld, XI_TouchUpdate){
-  puts("TouchUpdate");
   (void)event;
-  (void)window;
-  return EHR_NEXT;
+  puts("TouchUpdate");
+  if(!window->current){
+    window->sideswipe.touchid = -1;
+    window->sideswipe.match = false;
+    window->sideswipe.last = 0;
+    return EHR_UNHANDLED;
+  }
+  // TODO: Convert everything to physical units
+  const long boundary[] = {
+    window->workspace.window->boundary.top_left.x,
+    window->workspace.window->boundary.top_left.y,
+    window->workspace.window->boundary.bottom_right.x,
+    window->workspace.window->boundary.bottom_right.y
+  };
+  enum dpawin_direction direction = window->sideswipe.direction;
+  long switch_distance = 150; //window->sideswipe.switch_distance;
+  long point = (direction % 2 ? event->root_y : event->root_x) + 0.5;
+  long bound = boundary[direction];
+  long distance = direction < 2 ? point - bound : bound - point;
+  // Note: The since negative numbers are rounded down too, the previous
+  long last = 0;
+  if(window->sideswipe.match)
+    last = window->sideswipe.last;
+  long diff = (distance - last * switch_distance) / switch_distance;
+  if(diff)
+    window->sideswipe.last = (distance + (switch_distance/2)) / switch_distance;
+  long offset = direction % 2 ? event->root_x - window->sideswipe.initial_position.x : event->root_y - window->sideswipe.initial_position.y;
+#define MYABS(X) ((X)<0?-(X):(X))
+  float ratio = distance ? (float)MYABS(offset) / MYABS(distance) : 0.0f;
+#undef MYABS
+  printf("point(%ld) bound(%ld) distance(%ld) last(%ld) diff(%ld) offset(%ld) ratio(%f)\n", point, bound, distance, last, diff, offset, ratio);
+  bool firstmatch = false;
+  if(!window->sideswipe.match){
+    bool reasonable_distance = offset*offset + distance*distance > 15*15;
+    if(distance < -5 || diff < 0 || (reasonable_distance && ratio > 0.5)){
+      window->sideswipe.touchid = -1;
+      window->sideswipe.match = false;
+      window->sideswipe.last = 0;
+      return EHR_UNHANDLED;
+    }
+    if(!diff && reasonable_distance)
+      diff = distance < 0 ? -1 : 1;
+    if(diff){
+      window->sideswipe.match = true;
+      window->sideswipe.last += 1;
+      firstmatch = true;
+    }
+  }
+  if(window->current && diff){
+    struct dpawindow_app* appwin = window->current->app_window;
+    if(diff > 0){
+      while(diff-- > 0)
+        appwin = appwin->next ? appwin->next : window->workspace.first_window;
+    }else{
+      while(diff++ < 0)
+        appwin = appwin->previous ? appwin->previous : window->workspace.last_window;
+    }
+    make_current(appwin->workspace_private);
+  }
+  return firstmatch ? EHR_OK : EHR_NEXT;
 }
 
 EV_ON(workspace_handheld, XI_TouchEnd){
   puts("TouchEnd");
-  (void)event;
-  (void)window;
-  return EHR_NEXT;
+  if(window->sideswipe.touchid == event->detail){
+    window->sideswipe.touchid = -1;
+    window->sideswipe.match = false;
+    window->sideswipe.last = 0;
+    return EHR_OK;
+  }
+  return EHR_UNHANDLED;
 }
 
 DEFINE_DPAWIN_WORKSPACE( handheld,

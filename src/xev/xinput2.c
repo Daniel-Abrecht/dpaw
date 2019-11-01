@@ -104,6 +104,10 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
           ev->event_x -= twm->window->boundary.top_left.x;
           ev->event_y -= twm->window->boundary.top_left.y;
           enum event_handler_result result = dpawindow_dispatch_event(twm->window, xev->xev, event, ev);
+          // Make sure to always accept or reject events at some point
+          // TODO: Also reject them if it hasn't been accepted in a certain amount of time
+          if(event == XI_TouchEnd && result == EHR_NEXT)
+            result = EHR_UNHANDLED;
           if(result != EHR_OK && result != EHR_NEXT){
             twm->window = 0;
             XIAllowTouchEvents(
@@ -114,10 +118,7 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
               XIRejectTouch
             );
           }else{
-            if(event == XI_TouchEnd)
-              twm->window = 0;
             if(result == EHR_OK){
-              if(event == XI_TouchBegin)
               XIAllowTouchEvents(
                 dpawin->root.display,
                 ev->deviceid,
@@ -126,6 +127,8 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
                 XIAcceptTouch
               );
             }
+            if(event == XI_TouchEnd)
+              twm->window = 0;
           }
           if(!twm->window && dpawin->last_touch == twm-dpawin->touch_source+1)
             while(dpawin->last_touch && dpawin->touch_source[dpawin->last_touch-1].window)
@@ -142,15 +145,6 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
           );
           return EHR_UNHANDLED;
         }
-      }else{
-        // just in case
-        XIAllowTouchEvents(
-          dpawin->root.display,
-          ev->deviceid,
-          ev->detail,
-          dpawin->root.window.xwindow,
-          XIRejectTouch
-        );
       }
     } // fallthrough
     case XI_KeyPress:
