@@ -19,6 +19,8 @@ struct dpawin_sideswipe_state {
   long last;
   enum dpawin_direction direction;
   struct dpawin_point initial_position;
+  void* private;
+  void (*onswipe)(void*, enum dpawin_direction, long);
 };
 
 DECLARE_DPAWIN_WORKSPACE( handheld,
