@@ -1,4 +1,5 @@
 #ifndef XEV_X_H
+#define XEV_X_H
 
 #include <X11/Xlib.h>
 

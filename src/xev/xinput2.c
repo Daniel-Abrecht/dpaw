@@ -55,6 +55,12 @@ int dpawin_xev_xinput2_cleanup(struct dpawin* dpawin, struct dpawin_xev* xev){
 }
 
 enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, struct dpawin_xev* xev, int event, void* data){
+  {
+    // Let's ignore any fake events
+    XAnyEvent* xany = data;
+    if(xany->send_event)
+      return EHR_UNHANDLED;
+  }
   switch(event){
     case XI_TouchBegin:
     case XI_TouchUpdate:

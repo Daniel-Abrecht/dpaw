@@ -1,5 +1,5 @@
 
-CC_OPTS += -Wall -Wextra -pedantic -std=c99
+CC_OPTS += -Wall -Wextra -pedantic -std=c11
 CC_OPTS += -Iinclude/ -Ibuild/include/
 CC_OPTS += -Werror -g -O0
 LD_OPTS += -g

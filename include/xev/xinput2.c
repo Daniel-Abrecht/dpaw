@@ -1,4 +1,5 @@
-#ifndef XEV_X_H
+#ifndef XEV_XINPUT2_H
+#define XEV_XINPUT2_H
 
 #include <X11/extensions/XInput2.h>
 
