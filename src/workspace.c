@@ -236,9 +236,11 @@ void dpawin_workspace_type_unregister(struct dpawin_workspace_type* type){
 }
 
 struct dpawindow_app* dpawin_workspace_lookup_xwindow(struct dpawin_workspace* workspace, Window xwindow){
-  for(struct dpawindow_app* it = workspace->first_window; it; it=it->next)
-    if(it->window.xwindow == xwindow)
-      return it;
+  for(struct dpawin_list_entry* it=workspace->window_list.first; it; it=it->next){
+    struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
+    if(app->window.xwindow == xwindow)
+      return app;
+  }
   return 0;
 }
 
@@ -251,14 +253,7 @@ int dpawin_workspace_remove_window(struct dpawindow_app* window){
       return -1;
   window->workspace = 0;
   window->workspace_private = 0;
-  if(window->previous)
-    window->previous->next = window->next;
-  if(window->next)
-    window->next->previous = window->previous;
-  if(workspace->first_window == window)
-    workspace->first_window = window->next;
-  if(workspace->last_window == window)
-    workspace->last_window = window->previous;
+  dpawin_linked_list_set(0, &window->workspace_window_entry, 0);
   XReparentWindow(window->window.dpawin->root.display, window->window.xwindow, window->window.dpawin->root.window.xwindow, 0, 0);
   return 0;
 }
@@ -271,14 +266,7 @@ int dpawin_workspace_add_window(struct dpawin_workspace* workspace, struct dpawi
       return -1;
   app_window->workspace = workspace;
   app_window->workspace_private = 0;
-  if(!workspace->first_window){
-    workspace->first_window = app_window;
-    workspace->last_window  = app_window;
-  }else{
-    app_window->next = workspace->first_window;
-    workspace->first_window->previous = app_window;
-    workspace->first_window = app_window;
-  }
+  dpawin_linked_list_set(&workspace->window_list, &app_window->workspace_window_entry, workspace->window_list.first);
   if(!workspace->type->take_window)
     return -1;
   return workspace->type->take_window(workspace->window, app_window);

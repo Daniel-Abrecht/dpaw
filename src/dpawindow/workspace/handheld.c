@@ -58,11 +58,23 @@ static void sideswipe_handler(void* private, enum dpawin_direction direction, lo
   struct dpawindow_workspace_handheld* workspace = private;
   struct dpawindow_app* appwin = workspace->current->app_window;
   if(diff > 0){
-    while(diff-- > 0)
-      appwin = appwin->next ? appwin->next : workspace->workspace.first_window;
+    while(diff-- > 0){
+      appwin = container_of(
+        appwin->workspace_window_entry.next
+         ? appwin->workspace_window_entry.next
+         : workspace->workspace.window_list.first,
+        struct dpawindow_app, workspace_window_entry
+      );
+    }
   }else{
-    while(diff++ < 0)
-      appwin = appwin->previous ? appwin->previous : workspace->workspace.last_window;
+    while(diff++ < 0){
+      appwin = container_of(
+        appwin->workspace_window_entry.previous
+         ? appwin->workspace_window_entry.previous
+         : workspace->workspace.window_list.last,
+        struct dpawindow_app, workspace_window_entry
+      );
+    }
   }
   make_current(appwin->workspace_private);
 }
@@ -104,8 +116,10 @@ static void cleanup(struct dpawindow_workspace_handheld* workspace){
 static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpawin_workspace_screen* screen){
   (void)screen;
   puts("handheld_workspace screen_added");
-  for(struct dpawindow_app* it = workspace->workspace.first_window; it; it++)
-    update_window_area(it->workspace_private);
+  for(struct dpawin_list_entry* it=workspace->workspace.window_list.first; it; it=it->next){
+    struct dpawindow_app* appwin = container_of(it, struct dpawindow_app, workspace_window_entry);
+    update_window_area(appwin->workspace_private);
+  }
   return 0;
 }
 
@@ -144,8 +158,8 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
 }
 
 static int abandon_window(struct dpawindow_app* window){
-  if(window->next)
-    make_current(window->next->workspace_private);
+  if(window->workspace_window_entry.next)
+    make_current(container_of(window->workspace_window_entry.next, struct dpawindow_app, workspace_window_entry)->workspace_private);
   return 0;
 }
 

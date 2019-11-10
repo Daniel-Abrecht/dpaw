@@ -1,6 +1,7 @@
 #ifndef WORKSPACE_H
 #define WORKSPACE_H
 
+#include <linked_list.h>
 #include <primitives.h>
 #include <dpawindow.h>
 #include <stddef.h>
@@ -44,7 +45,7 @@ struct dpawin_workspace {
   struct dpawindow* window;
   struct dpawin_workspace_manager* workspace_manager;
   struct dpawin_workspace_screen* screen;
-  struct dpawindow_app *first_window, *last_window;
+  struct dpawin_list window_list;
 };
 
 struct dpawin_workspace_screen {
