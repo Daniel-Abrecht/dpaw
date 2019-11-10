@@ -159,13 +159,17 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
     case XI_ButtonRelease:
     case XI_Motion: {
       XIDeviceEvent* ev = data;
-      struct dpawindow* it = 0;
-      for(it = &dpawin->root.window; it; it=it->next)
-        if(ev->event == it->xwindow)
-          break;
-      if(!it)
+      struct dpawindow* window = 0;
+      for(struct dpawin_list_entry* it=dpawin->window_list.first; it; it=it->next){
+        struct dpawindow* wit = container_of(it, struct dpawindow, dpawin_window_entry);
+        if(ev->event != wit->xwindow)
+          continue;
+        window = wit;
         break;
-      return dpawindow_dispatch_event(it, xev->xev, event, ev);
+      }
+      if(!window)
+        break;
+      return dpawindow_dispatch_event(window, xev->xev, event, ev);
     } break;
   }
   return EHR_UNHANDLED;

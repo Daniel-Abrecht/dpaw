@@ -19,13 +19,17 @@ enum event_handler_result dpawin_xev_X_dispatch(struct dpawin* dpawin, struct dp
   if(event == GenericEvent || event == KeyPress || event == KeyRelease)
     return EHR_UNHANDLED;
   XEvent* ev = data;
-  struct dpawindow* it = 0;
-  for(it = &dpawin->root.window; it; it=it->next)
-    if(ev->xany.window == it->xwindow)
-      break;
-  if(!it || it == &dpawin->root.window)
+  struct dpawindow* window = 0;
+  for(struct dpawin_list_entry* it=dpawin->window_list.first; it; it=it->next){
+    struct dpawindow* wit = container_of(it, struct dpawindow, dpawin_window_entry);
+    if(ev->xany.window != wit->xwindow)
+      continue;
+    window = wit;
+    break;
+  }
+  if(!window || window->dpawin_window_entry.next == dpawin->window_list.first)
     return EHR_UNHANDLED;
-  return dpawindow_dispatch_event(it, xev->xev, event, data);
+  return dpawindow_dispatch_event(window, xev->xev, event, data);
 }
 
 int dpawin_xev_X_listen(struct dpawin_xev* xev, struct dpawindow* window){

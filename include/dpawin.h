@@ -2,6 +2,7 @@
 #define DPAWIN_H
 
 #include <dpawindow/root.h>
+#include <linked_list.h>
 
 enum {
   DPAWIN_WORKSPACE_MAX_TOUCH_SOURCES = 256
@@ -14,7 +15,7 @@ struct dpawin_touchevent_window_map {
 
 struct dpawin {
   struct dpawindow_root root;
-  struct dpawindow *first, *last;
+  struct dpawin_list window_list;
   int last_touch;
   struct dpawin_touchevent_window_map touch_source[DPAWIN_WORKSPACE_MAX_TOUCH_SOURCES];
 };

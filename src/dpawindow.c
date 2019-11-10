@@ -15,9 +15,11 @@ bool dpawindow_has_error_occured(Display* display){
 }
 
 struct dpawindow* dpawindow_lookup(struct dpawin* dpawin, Window window){
-  for(struct dpawindow* it = dpawin->first; it; it=it->next)
-    if(it->xwindow == window)
-      return it;
+  for(struct dpawin_list_entry* it = dpawin->window_list.first; it; it=it->next){
+    struct dpawindow* wit = container_of(it, struct dpawindow, dpawin_window_entry);
+    if(wit->xwindow == window)
+      return wit;
+  }
   return 0;
 }
 
@@ -71,10 +73,10 @@ int dpawindow_place_window(struct dpawindow* window, struct dpawin_rect boundary
 }
 
 int dpawindow_register(struct dpawindow* window){
-  if(!window || !window->type || window->next || window->prev)
+  if(!window || !window->type || window->dpawin_window_entry.list)
     return -1;
   bool isroot = !strcmp(window->type->name, "root");
-  if(isroot != !window->dpawin->first)
+  if(isroot != !window->dpawin->window_list.first)
     return -1;
   for(const struct xev_event_extension* extension=dpawin_event_extension_list; extension; extension=extension->next){
     struct dpawin_xev* xev = &window->dpawin->root.xev_list[extension->extension_index];
@@ -88,31 +90,13 @@ int dpawindow_register(struct dpawindow* window){
         return -1;
     }
   }
-  if(!window->dpawin->first){
-    window->dpawin->first = window;
-    window->dpawin->last = window;
-  }else{
-    window->dpawin->last->next = window;
-    window->prev = window->dpawin->last;
-    window->dpawin->last = window;
-  }
+  dpawin_linked_list_set(&window->dpawin->window_list, &window->dpawin_window_entry, 0);
   return 0;
 }
 
 int dpawindow_unregister(struct dpawindow* window){
   if(!window || !window->dpawin)
     return -1;
-  if(!window->prev && !window->next && window->dpawin->first)
-    return -1;
-  if(window->prev)
-    window->prev->next = window->next;
-  if(window->next)
-    window->next->prev = window->prev;
-  if(window == window->dpawin->first)
-    window->dpawin->first = window->next;
-  if(window == window->dpawin->last)
-    window->dpawin->last = window->prev;
-  window->prev = 0;
-  window->next = 0;
+  dpawin_linked_list_set(0, &window->dpawin_window_entry, 0);
   return 0;
 }

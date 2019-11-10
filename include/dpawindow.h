@@ -3,6 +3,7 @@
 
 #include <xev.h>
 #include <primitives.h>
+#include <linked_list.h>
 #include <X11/Xlib.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -19,7 +20,7 @@ struct dpawindow_type {
 struct dpawindow {
   const struct dpawindow_type* type;
   struct dpawin* dpawin;
-  struct dpawindow *prev, *next;
+  struct dpawin_list_entry dpawin_window_entry;
   Window xwindow;
   struct dpawin_rect boundary;
   bool mapped : 1;
