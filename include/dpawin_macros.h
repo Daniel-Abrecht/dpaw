@@ -5,6 +5,7 @@
 
 #define DPAWIN_STR(A) DPAWIN_STR_EVAL(A)
 #define DPAWIN_STR_EVAL(A) #A
+#define DPAWIN_UNPACK(...) __VA_ARGS__
 #define DPAWIN_CONCAT(A, B) DPAWIN_CONCAT_EVAL(A, B)
 #define DPAWIN_CONCAT_EVAL(A, B) A ## B
 

@@ -3,39 +3,73 @@
 
 // Look into the xev folder for an example on how to use this.
 
-#define X(C, T) typedef T xev_ ## C ## _t;
-  XEV_EVENTS // Define event types consistent with constant names
+#define X(A, B) DPAWIN_UNPACK B
+#define Y(C, T) typedef T xev_ ## C ## _t;
+  XEV_EVENTS
+#undef Y
+#undef X
+
+// This should catch any event list with a base event without 
+#define X(A, B) \
+  __attribute__((used, constructor)) \
+  static void DPAWIN_CONCAT(dpawin_xev_check__ ## A ## _, __LINE__)(void){ \
+    extern struct xev_event_specializer dpawin_xev_spec_ ## A; \
+    assert(dpawin_xev_spec_ ## A.type_size); \
+  }
+  XEV_EVENTS
 #undef X
 
 struct dpawin;
 
 extern struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
 
-// This is a bit ugly, but I need a way to get the extension from the event identifier
-#define X(C, T) extern const struct xev_event_extension* dpawin_xev_ev2ext_ ## C;
-  XEV_EVENTS // Enumerate events
+#define X(A, B) DPAWIN_UNPACK B
+#define Y(C, T) extern struct xev_event_info dpawin_xev_ev2ext_ ## C;
+  XEV_EVENTS
+#undef Y
 #undef X
 
-enum DPAWIN_CONCAT(dpawin_xev_index_, XEV_EXT) {
-  // Skip 0, the empty index array entries will be implicitly filled with this.
-  DPAWIN_CONCAT(DPAWIN_CONCAT(XEV_INDEX__, XEV_EXT), _NONE),
-#define X(C, T) XEV_INDEX_ ## C,
-  XEV_EVENTS // Enumerate events
-#undef X
-  DPAWIN_CONCAT(DPAWIN_CONCAT(XEV_INDEX__, XEV_EXT), _COUNT)
-};
-
-extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _init)(struct dpawin*, struct dpawin_xev*);
-extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _listen)(struct dpawin_xev*, struct dpawindow*);
-extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _cleanup)(struct dpawin*, struct dpawin_xev*);
-extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _dispatch)(struct dpawin*, struct dpawin_xev*, int event, void* data);
+extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _init)(struct dpawin*, struct xev_event_extension*);
+extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _listen)(struct xev_event_extension*, struct dpawindow*);
+extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _cleanup)(struct dpawin*, struct xev_event_extension*);
+extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _dispatch)(struct dpawin*, struct xev_event*);
 
 #ifdef GENERATE_DEFINITIONS
 struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
 
-#define X(C, T) const struct xev_event_extension* dpawin_xev_ev2ext_ ## C = &DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+#define X(A, B) DPAWIN_UNPACK B
+#define Y(C, T) \
+  extern struct xev_event_specializer dpawin_xev_spec_ ## C __attribute__((weak)); \
+  struct xev_event_info dpawin_xev_ev2ext_ ## C = { \
+    .name = #C, \
+    .type = C, \
+    .spec = &dpawin_xev_spec_ ## C, \
+  };
   XEV_EVENTS // Enumerate events
+#undef Y
 #undef X
+
+#define Y(C, T) [1+(C)] = &dpawin_xev_ev2ext_ ## C,
+#define X(A, B) \
+  extern struct xev_event_info dpawin_xev_ev2ext_ ## A; \
+  struct xev_event_list DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_list__, XEV_EXT), __ ## A) = { \
+    .parent_event = &dpawin_xev_ev2ext_ ## A, \
+    .extension = &DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT), \
+    .list = (struct xev_event_info*const[]){ DPAWIN_UNPACK B }, \
+    .size = sizeof((struct xev_event_info*const[]){ DPAWIN_UNPACK B })/sizeof(void*), \
+    .handler_list_index = -1, \
+  };
+    XEV_EVENTS // Enumerate events
+#undef X
+#undef Y
+
+struct xev_event_list*const DPAWIN_CONCAT(dpawin_xev_list__, XEV_EXT)[] = {
+#define Y(C, T)
+#define X(A, B) &DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_list__, XEV_EXT), __ ## A),
+    XEV_EVENTS // Enumerate events
+#undef X
+#undef Y
+};
 
 __attribute__((used,constructor(1000)))
 static void xev_constructor(void){
@@ -53,30 +87,35 @@ static void xev_constructor(void){
   extension->required = true;
 #endif
 
-  static unsigned info_index[] = {
-  // map possibly sparse event list to consecutive indeces better suited for small arrays.
-#define X(C, T) [C] = XEV_INDEX_ ## C,
-    XEV_EVENTS
-#undef X
-  };
-  static struct xev_event_info info[] = {
-    {0,-1},
-    // additional infos about all (or at least most) events of the extension
-#define X(C, T) \
-  { \
-    .name = #C, \
-    .type = C, \
-  },
-    XEV_EVENTS
-#undef X
-  };
-  extension->info_index = info_index;
-  extension->info_index_size = sizeof(info_index)/sizeof(*info_index);
-  extension->info = info;
-  extension->info_size = sizeof(info)/sizeof(*info);
-  extension->extension_index = dpawin_event_extension_count;
-  dpawin_event_extension_count += 1;
+  extension->event_list = DPAWIN_CONCAT(dpawin_xev_list__, XEV_EXT);
+  extension->event_list_size = sizeof(DPAWIN_CONCAT(dpawin_xev_list__, XEV_EXT))/sizeof(*DPAWIN_CONCAT(dpawin_xev_list__, XEV_EXT));
+
+  for(size_t i=0; i<extension->event_list_size; i++){
+    struct xev_event_list* list = extension->event_list[i];
+    list->handler_list_index = dpawin_handler_list_count++;
+    size_t k = 0;
+    for(size_t j=0; j<list->size; j++){
+      struct xev_event_info* event = list->list[j];
+      if(!event)
+        continue;
+      event->index = k++;
+      event->event_list = list;
+    }
+    list->index_size = k;
+  }
+
 }
+
+__attribute__((used,constructor(1001)))
+static void xev_constructor_second_stage(void){
+  struct xev_event_extension* extension = &DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+  for(size_t i=0; i<extension->event_list_size; i++){
+    struct xev_event_list* list = extension->event_list[i];
+    list->next = list->parent_event->children;
+    list->parent_event->children = list;
+  }
+}
+
 #endif
 
 #undef XEV_EXT

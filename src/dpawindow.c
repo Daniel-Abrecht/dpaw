@@ -23,8 +23,8 @@ struct dpawindow* dpawindow_lookup(struct dpawin* dpawin, Window window){
   return 0;
 }
 
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event_extension* extension, int event, void* data){
-  return dpawin_xev_dispatch(window->type->extension_lookup_table_list, extension, event, window, data);
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, struct xev_event* event){
+  return dpawin_xev_dispatch(&window->type->event_lookup_table, window, event);
 }
 
 int dpawindow_hide(struct dpawindow* window, bool hidden){
@@ -78,13 +78,12 @@ int dpawindow_register(struct dpawindow* window){
   bool isroot = !strcmp(window->type->name, "root");
   if(isroot != !window->dpawin->window_list.first)
     return -1;
-  for(const struct xev_event_extension* extension=dpawin_event_extension_list; extension; extension=extension->next){
-    struct dpawin_xev* xev = &window->dpawin->root.xev_list[extension->extension_index];
-    if(xev->extension < -1)
+  for(struct xev_event_extension* extension=dpawin_event_extension_list; extension; extension=extension->next){
+    if(!extension->initialised)
       continue;
     if(!extension->listen)
       continue;
-    if(extension->listen(xev, window)){
+    if(extension->listen(extension, window)){
       fprintf(stderr, "Failed to listen for events of extension %s on window of type %s\n", extension->name, window->type->name);
       if(extension->required)
         return -1;

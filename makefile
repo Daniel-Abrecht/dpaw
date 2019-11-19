@@ -7,7 +7,7 @@ LD_OPTS += -g
 CC_OPTS += -fsanitize=address
 LD_OPTS += -fsanitize=address
 
-LD_OPTS += -lX11 -lXinerama -lXi
+LD_OPTS += -lX11 -lXinerama -lXi -lXrandr
 
 SOURCES = $(shell find src/ -iname "*.c") $(shell find include/ -iname "*.c")
 HEADERS = $(shell find include/ -type f)

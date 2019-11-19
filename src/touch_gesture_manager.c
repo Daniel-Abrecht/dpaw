@@ -43,7 +43,7 @@ int dpawin_touch_gesture_manager_add_detector(
   return 0;
 }
 
-// TODO: Allow detection on a per-touchpoint basis.
+// TODO: Allow detecting multiple touchpoints at once.
 enum event_handler_result dpawin_touch_gesture_manager_dispatch_touch(
   struct dpawin_touch_gesture_manager* manager,
   XIDeviceEvent* event,

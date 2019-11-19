@@ -14,7 +14,7 @@ struct dpawindow;
 struct dpawindow_type {
   const char* name;
   bool is_workspace;
-  struct xev_event_lookup_table* extension_lookup_table_list;
+  struct xev_event_lookup_table event_lookup_table;
 };
 
 struct dpawindow {
@@ -29,13 +29,12 @@ struct dpawindow {
 
 #define EV_ON(TYPE, EVENT) \
   enum event_handler_result dpawin_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event); \
-  __attribute__((used,constructor(1001))) \
+  __attribute__((used,constructor(1010))) \
   void dpawin_ev_init__ ## TYPE ## __ ## EVENT (void) { \
     extern struct dpawindow_type dpawindow_type_ ## TYPE; \
-    if(dpawin_xev_add_event_handler( \
-      &dpawindow_type_ ## TYPE.extension_lookup_table_list, \
-      dpawin_xev_ev2ext_ ## EVENT, \
-      EVENT, \
+    if(dpawin_xev_set_event_handler( \
+      &dpawindow_type_ ## TYPE.event_lookup_table, \
+      &dpawin_xev_ev2ext_ ## EVENT, \
       (dpawin_event_handler_t)dpawin_ev_on__ ## TYPE ## __ ## EVENT \
     )) _Exit(1); \
   } \
@@ -73,7 +72,7 @@ struct dpawindow {
 
 bool dpawindow_has_error_occured(Display* display);
 struct dpawindow* dpawindow_lookup(struct dpawin*, Window);
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event_extension*, int event, void* data);
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, struct xev_event*);
 int dpawindow_hide(struct dpawindow* window, bool hidden);
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpawin_rect boundary);

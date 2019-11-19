@@ -1,43 +1,47 @@
 #ifndef XEV_X_H
 #define XEV_X_H
 
-#include <X11/Xlib.h>
+// Note: XEV_BaseEvent / XAnyEvent -> dpawin_xev_ev2ext_XEV_BaseEvent is the
+//       implicit root of the generated event type tree used for event type lookups
 
 #define XEV_EVENTS \
-  X(KeyPress, XKeyPressedEvent) \
-  X(KeyRelease, XKeyReleasedEvent) \
-  X(ButtonPress, XButtonPressedEvent) \
-  X(ButtonRelease, XButtonReleasedEvent) \
-  X(MotionNotify, XMotionEvent) \
-  X(EnterNotify, XEnterWindowEvent) \
-  X(LeaveNotify, XLeaveWindowEvent) \
-  X(FocusIn, XFocusInEvent) \
-  X(FocusOut, XFocusOutEvent) \
-  X(KeymapNotify, XKeymapEvent) \
-  X(Expose, XExposeEvent) \
-  X(GraphicsExpose, XGraphicsExposeEvent) \
-  X(NoExpose, XNoExposeEvent) \
-  X(VisibilityNotify, XVisibilityEvent) \
-  X(CreateNotify, XCreateWindowEvent) \
-  X(DestroyNotify, XDestroyWindowEvent) \
-  X(UnmapNotify, XUnmapEvent) \
-  X(MapNotify, XMapEvent) \
-  X(MapRequest, XMapRequestEvent) \
-  X(ReparentNotify, XReparentEvent) \
-  X(ConfigureNotify, XConfigureEvent) \
-  X(ConfigureRequest, XConfigureRequestEvent) \
-  X(GravityNotify, XGravityEvent) \
-  X(ResizeRequest, XResizeRequestEvent) \
-  X(CirculateNotify, XCirculateEvent) \
-  X(CirculateRequest, XCirculateRequestEvent) \
-  X(PropertyNotify, XPropertyEvent) \
-  X(SelectionClear, XSelectionClearEvent) \
-  X(SelectionRequest, XSelectionRequestEvent) \
-  X(SelectionNotify, XSelectionEvent) \
-  X(ColormapNotify, XColormapEvent) \
-  X(ClientMessage, XClientMessageEvent) \
-  X(MappingNotify, XMappingEvent) \
-  X(GenericEvent, XGenericEvent)
+  X(XEV_BaseEvent, ( \
+    Y(XEV_BaseEvent, XAnyEvent) \
+    Y(KeyPress, XKeyPressedEvent) \
+    Y(KeyRelease, XKeyReleasedEvent) \
+    Y(ButtonPress, XButtonPressedEvent) \
+    Y(ButtonRelease, XButtonReleasedEvent) \
+    Y(MotionNotify, XMotionEvent) \
+    Y(EnterNotify, XEnterWindowEvent) \
+    Y(LeaveNotify, XLeaveWindowEvent) \
+    Y(FocusIn, XFocusInEvent) \
+    Y(FocusOut, XFocusOutEvent) \
+    Y(KeymapNotify, XKeymapEvent) \
+    Y(Expose, XExposeEvent) \
+    Y(GraphicsExpose, XGraphicsExposeEvent) \
+    Y(NoExpose, XNoExposeEvent) \
+    Y(VisibilityNotify, XVisibilityEvent) \
+    Y(CreateNotify, XCreateWindowEvent) \
+    Y(DestroyNotify, XDestroyWindowEvent) \
+    Y(UnmapNotify, XUnmapEvent) \
+    Y(MapNotify, XMapEvent) \
+    Y(MapRequest, XMapRequestEvent) \
+    Y(ReparentNotify, XReparentEvent) \
+    Y(ConfigureNotify, XConfigureEvent) \
+    Y(ConfigureRequest, XConfigureRequestEvent) \
+    Y(GravityNotify, XGravityEvent) \
+    Y(ResizeRequest, XResizeRequestEvent) \
+    Y(CirculateNotify, XCirculateEvent) \
+    Y(CirculateRequest, XCirculateRequestEvent) \
+    Y(PropertyNotify, XPropertyEvent) \
+    Y(SelectionClear, XSelectionClearEvent) \
+    Y(SelectionRequest, XSelectionRequestEvent) \
+    Y(SelectionNotify, XSelectionEvent) \
+    Y(ColormapNotify, XColormapEvent) \
+    Y(ClientMessage, XClientMessageEvent) \
+    Y(MappingNotify, XMappingEvent) \
+    Y(GenericEvent, XGenericEvent) \
+  ))
 
 #define XEV_EXT X
 

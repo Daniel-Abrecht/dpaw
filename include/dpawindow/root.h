@@ -7,7 +7,6 @@
 
 DECLARE_DPAWIN_DERIVED_WINDOW( root,
   Display* display;
-  struct dpawin_xev* xev_list;
   struct dpawin_workspace_manager workspace_manager;
   struct dpawin_screenchange_detector screenchange_detector;
 )

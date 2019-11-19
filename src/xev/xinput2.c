@@ -1,14 +1,18 @@
 #include <dpawin.h>
+#include <xev/X.c>
+#include <xev/xinput2.c>
 #include <X11/extensions/XInput2.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int dpawin_xev_xinput2_init(struct dpawin* dpawin, struct dpawin_xev* xev){
-  int major_opcode = 0;
+int dpawin_xev_xinput2_init(struct dpawin* dpawin, struct xev_event_extension* extension){
+  (void)extension;
+
+  int opcode = 0;
   int first_event = 0;
   int first_error = 0;
 
-  if(!XQueryExtension(dpawin->root.display, "XInputExtension", &major_opcode, &first_event, &first_error)) {
+  if(!XQueryExtension(dpawin->root.display, "XInputExtension", &opcode, &first_event, &first_error)) {
     printf("X Input extension not available.\n");
     return -1;
   }
@@ -43,29 +47,30 @@ int dpawin_xev_xinput2_init(struct dpawin* dpawin, struct dpawin_xev* xev){
     sizeof(modifiers)/sizeof(*modifiers), modifiers
   );
 
-  xev->extension = major_opcode;
+  extension->opcode = opcode;
+  extension->first_error = first_error;
 
   return 0;
 }
 
-int dpawin_xev_xinput2_cleanup(struct dpawin* dpawin, struct dpawin_xev* xev){
+int dpawin_xev_xinput2_cleanup(struct dpawin* dpawin, struct xev_event_extension* extension){
   (void)dpawin;
-  (void)xev;
+  (void)extension;
   return 0;
 }
 
-enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, struct dpawin_xev* xev, int event, void* data){
+enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, struct xev_event* event){
   {
     // Let's ignore any fake events
-    XAnyEvent* xany = data;
+    XAnyEvent* xany = event->data;
     if(xany->send_event)
       return EHR_UNHANDLED;
   }
-  switch(event){
+  switch(event->info->type){
     case XI_TouchBegin:
     case XI_TouchUpdate:
     case XI_TouchEnd: {
-      XIDeviceEvent* ev = data;
+      XIDeviceEvent* ev = event->data;
       // We've a grab on the root window for these events, so I'll have to figure out manually where to put them, because event=root, ...
       if(ev->event == dpawin->root.window.xwindow){
         struct dpawin_touchevent_window_map* twm = 0;
@@ -77,7 +82,7 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
           twm = &dpawin->touch_source[i];
           break;
         }
-        if(!twm && event == XI_TouchBegin){
+        if(!twm && event->info->type == XI_TouchBegin){
           for(int i=0, n=dpawin->last_touch+1; i<DPAWIN_WORKSPACE_MAX_TOUCH_SOURCES && i<n; i++){
             if(dpawin->touch_source[i].window)
               continue;
@@ -109,10 +114,10 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
           ev->event = twm->window->xwindow;
           ev->event_x -= twm->window->boundary.top_left.x;
           ev->event_y -= twm->window->boundary.top_left.y;
-          enum event_handler_result result = dpawindow_dispatch_event(twm->window, xev->xev, event, ev);
+          enum event_handler_result result = dpawindow_dispatch_event(twm->window, event);
           // Make sure to always accept or reject events at some point
           // TODO: Also reject them if it hasn't been accepted in a certain amount of time
-          if(event == XI_TouchEnd && result == EHR_NEXT)
+          if(event->info->type == XI_TouchEnd && result == EHR_NEXT)
             result = EHR_UNHANDLED;
           if(result != EHR_OK && result != EHR_NEXT){
             twm->window = 0;
@@ -133,7 +138,7 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
                 XIAcceptTouch
               );
             }
-            if(event == XI_TouchEnd)
+            if(event->info->type == XI_TouchEnd)
               twm->window = 0;
           }
           if(!twm->window && dpawin->last_touch == twm-dpawin->touch_source+1)
@@ -158,7 +163,7 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
     case XI_ButtonPress:
     case XI_ButtonRelease:
     case XI_Motion: {
-      XIDeviceEvent* ev = data;
+      XIDeviceEvent* ev = event->data;
       struct dpawindow* window = 0;
       for(struct dpawin_list_entry* it=dpawin->window_list.first; it; it=it->next){
         struct dpawindow* wit = container_of(it, struct dpawindow, dpawin_window_entry);
@@ -169,13 +174,14 @@ enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, str
       }
       if(!window)
         break;
-      return dpawindow_dispatch_event(window, xev->xev, event, ev);
+      return dpawindow_dispatch_event(window, event);
     } break;
   }
   return EHR_UNHANDLED;
 }
 
-int dpawin_xev_xinput2_listen(struct dpawin_xev* xev, struct dpawindow* window){
+int dpawin_xev_xinput2_listen(struct xev_event_extension* extension, struct dpawindow* window){
+  (void)extension;
   XIEventMask mask = {
     .deviceid = XIAllMasterDevices,
   };
@@ -184,16 +190,25 @@ int dpawin_xev_xinput2_listen(struct dpawin_xev* xev, struct dpawindow* window){
 
   for(size_t i=0; i<sizeof(set)/sizeof(*set); i++){
     struct dpawindow* it = set[i];
-    struct xev_event_lookup_table* table = it->type->extension_lookup_table_list;
-    if(table && table->handler){
-      table += xev->xev->extension_index;
-      size_t size = xev->xev->info_size;
-      for(size_t j=1; j<size; j++){
-        if(!table->handler[j])
+    if(!it->type->event_lookup_table.event_handler_list)
+      continue;
+    for(size_t j=0; j<dpawin_handler_list_count; j++){
+      const struct dpawin_event_handler_list* list = &it->type->event_lookup_table.event_handler_list[j];
+      if(!list->handler || !list->event_list)
+        continue;
+      for(size_t k=0,n=list->event_list->index_size; k<n; k++){
+        const struct dpawin_event_handler* handler = &list->handler[k];
+        if(!handler->callback || !handler->info)
           continue;
-        int len = XIMaskLen(xev->xev->info[j].type);
-        if(mask.mask_len < len)
-          mask.mask_len = len;
+        for(const struct xev_event_info* evi=handler->info; evi && evi != &dpawin_xev_ev2ext_XEV_BaseEvent; evi=evi->event_list->parent_event){
+          if(evi->type < 0)
+            continue;
+          if(evi->event_list->extension != &dpawin_xev_ext_xinput2)
+            continue;
+          int len = XIMaskLen(evi->type);
+          if(mask.mask_len < len)
+            mask.mask_len = len;
+        }
       }
     }
   }
@@ -213,13 +228,22 @@ int dpawin_xev_xinput2_listen(struct dpawin_xev* xev, struct dpawindow* window){
 
   for(size_t i=0; i<sizeof(set)/sizeof(*set); i++){
     struct dpawindow* it = set[i];
-    struct xev_event_lookup_table* table = it->type->extension_lookup_table_list;
-    if(table && table->handler){
-      table += xev->xev->extension_index;
-      size_t size = xev->xev->info_size;
-      for(size_t j=1; j<size; j++){
-        if(table->handler[j]){
-          int type = xev->xev->info[j].type;
+    if(!it->type->event_lookup_table.event_handler_list)
+      continue;
+    for(size_t j=0; j<dpawin_handler_list_count; j++){
+      const struct dpawin_event_handler_list* list = &it->type->event_lookup_table.event_handler_list[j];
+      if(!list->handler || !list->event_list)
+        continue;
+      for(size_t k=0,n=list->event_list->index_size; k<n; k++){
+        const struct dpawin_event_handler* handler = &list->handler[k];
+        if(!handler->callback || !handler->info)
+          continue;
+        for(const struct xev_event_info* evi=handler->info; evi && evi != &dpawin_xev_ev2ext_XEV_BaseEvent; evi=evi->event_list->parent_event){
+          if(evi->type < 0)
+            continue;
+          if(evi->event_list->extension != &dpawin_xev_ext_xinput2)
+            continue;
+          int type = evi->type;
           if( window->type->is_workspace && (
               type == XI_TouchBegin
            || type == XI_TouchUpdate

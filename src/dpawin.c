@@ -57,88 +57,79 @@ int dpawin_run(struct dpawin* dpawin){
   while(true){
     XEvent event;
     XNextEvent(dpawin->root.display, &event);
-    int extension = -1;
-    int event_type = event.type;
-    if(event_type == GenericEvent){
-      if(event.xgeneric.extension == -1){
-        fprintf(stderr, "Warning: Got generic event with extension -1. Can't handle this, I have choosen -1 as a sentinel for no extension, assuming that to be an invalid extension number\n");
-        continue;
-      }else{
-        extension = event.xgeneric.extension;
-        event_type = event.xgeneric.evtype;
-      }
-    }
+
     if(debug_x_events){
       printf(
-        "XEvent: %d %s serial: %lu window: %lu %lu\n",
+        "XEvent: %d serial: %lu window: %lu %lu\n",
         event.type,
-        dpawin_get_event_name(dpawin, extension, event.type),
         event.xany.serial,
         event.xany.window, // This is actually the parent window. It should be there for every event, but like always, there are exceptions, like keyboard and generic events...
         (&event.xany.window)[1] // This may not be a window, but it often is, and the XEvent is always big enough for this, so whatever...
       );
     }
 
-    enum event_handler_result result = EHR_FATAL_ERROR;
-    struct dpawin_xev* xev = dpawin_get_event_extension(dpawin, extension);
-    if(!xev || !xev->xev){
-      result = EHR_INVALID;
-    }else{
-      // Let's first try to dispatch it on the root window
-      void* data = &event;
-      if(XGetEventData(dpawin->root.display, &event.xcookie))
-        data = event.xcookie.data;
-      result = dpawindow_dispatch_event(&dpawin->root.window, xev->xev, event_type, data);
-      if(xev->xev->dispatch && (result == EHR_UNHANDLED || result == EHR_NEXT))
-        result = xev->xev->dispatch(dpawin, xev, event_type, data);
-      XFreeEventData(dpawin->root.display, &event.xcookie);
+    struct xev_event xev;
+    if(dpawin_xevent_to_xev(dpawin, &xev, &event.xany) == -1){
+      fprintf(stderr, "dpawin_xevent_to_xev failed\n");
+      continue;
     }
+
+    if(debug_x_events){
+      printf(
+        "XEvent: %d %d %s serial: %lu window: %lu %lu\n",
+        event.type,
+        xev.info->type,
+        xev.info->name,
+        event.xany.serial,
+        event.xany.window, // This is actually the parent window. It should be there for every event, but like always, there are exceptions, like keyboard and generic events...
+        (&event.xany.window)[1] // This may not be a window, but it often is, and the XEvent is always big enough for this, so whatever...
+      );
+    }
+
+    enum event_handler_result result = dpawindow_dispatch_event(&dpawin->root.window, &xev);
+    if(xev.info->event_list->extension->dispatch && (result == EHR_UNHANDLED || result == EHR_NEXT))
+      result = xev.info->event_list->extension->dispatch(dpawin, &xev);
 
     switch(result){
       case EHR_FATAL_ERROR: {
         fprintf(
           stderr,
-          "A fatal error occured while trying to handle event %d::%d %s::%s.\n",
-          extension,
-          event_type,
-          dpawin_get_extension_name(dpawin, extension),
-          dpawin_get_event_name(dpawin, extension, event_type)
+          "A fatal error occured while trying to handle event %d %s.\n",
+          event.type,
+          xev.info->name
         );
+        dpawin_free_xev(&xev);
       } return -1;
       case EHR_OK: break;
       case EHR_NEXT: break;
       case EHR_ERROR: {
         fprintf(
           stderr,
-          "An error occured while trying to handle event %d::%d %s::%s.\n",
-          extension,
-          event_type,
-          dpawin_get_extension_name(dpawin, extension),
-          dpawin_get_event_name(dpawin, extension, event_type)
+          "An error occured while trying to handle event %d %s.\n",
+          event.type,
+          xev.info->name
         );
       } break;
       case EHR_UNHANDLED: {
         fprintf(
           stderr,
-          "Got unhandled event %d::%d %s::%s.\n",
-          extension,
-          event_type,
-          dpawin_get_extension_name(dpawin, extension),
-          dpawin_get_event_name(dpawin, extension, event_type)
+          "Got unhandled event %d %s.\n",
+          event.type,
+          xev.info->name
         );
       } break;
       case EHR_INVALID: {
         fprintf(
           stderr,
-          "Got invalid event %d::%d %s::%s.\n",
-          extension,
-          event_type,
-          dpawin_get_extension_name(dpawin, extension),
-          dpawin_get_event_name(dpawin, extension, event_type)
+          "Got invalid event %d %s.\n",
+          event.type,
+          xev.info->name
         );
       } break;
     }
 
+    dpawin_free_xev(&xev);
   }
   return 0;
 }
+
