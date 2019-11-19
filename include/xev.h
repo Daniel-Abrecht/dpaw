@@ -69,8 +69,9 @@ struct xev_event_extension {
   int opcode;
   int first_error;
   int(*init)(struct dpawin*, struct xev_event_extension*);
-  int(*listen)(struct xev_event_extension*, struct dpawindow*);
   int(*cleanup)(struct dpawin*, struct xev_event_extension*);
+  int(*listen)(struct xev_event_extension*, struct dpawindow*);
+  void(*preprocess_event)(struct dpawin*, XEvent*);
   int(*dispatch)(struct dpawin*, struct xev_event*);
 };
 

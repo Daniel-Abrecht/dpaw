@@ -59,6 +59,11 @@ int dpawin_xev_xinput2_cleanup(struct dpawin* dpawin, struct xev_event_extension
   return 0;
 }
 
+void dpawin_xev_xinput2_preprocess_event(struct dpawin* dpawin, XEvent* event){
+  (void)dpawin;
+  (void)event;
+}
+
 enum event_handler_result dpawin_xev_xinput2_dispatch(struct dpawin* dpawin, struct xev_event* event){
   {
     // Let's ignore any fake events
@@ -203,7 +208,7 @@ int dpawin_xev_xinput2_listen(struct xev_event_extension* extension, struct dpaw
         for(const struct xev_event_info* evi=handler->info; evi && evi != &dpawin_xev_ev2ext_XEV_BaseEvent; evi=evi->event_list->parent_event){
           if(evi->type < 0)
             continue;
-          if(evi->event_list->extension != &dpawin_xev_ext_xinput2)
+          if(evi->event_list->extension != extension)
             continue;
           int len = XIMaskLen(evi->type);
           if(mask.mask_len < len)

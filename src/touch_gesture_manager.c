@@ -59,11 +59,9 @@ enum event_handler_result dpawin_touch_gesture_manager_dispatch_touch(
     }
     return EHR_OK;
   }
-  printf("test\n");
   bool all_unhandled = true;
   for(struct dpawin_list_entry* it = manager->detector_list.first; it; it=it->next){
     struct dpawin_touch_gesture_detector* detector = container_of(it, struct dpawin_touch_gesture_detector, manager_entry);
-    printf("detector %p\n", (void*)detector);
     if(detector->type->ontouch){
       enum event_handler_result result = detector->type->ontouch(detector, event, bounds);
       if(result == EHR_OK){

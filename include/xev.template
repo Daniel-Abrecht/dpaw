@@ -9,16 +9,6 @@
 #undef Y
 #undef X
 
-// This should catch any event list with a base event without 
-#define X(A, B) \
-  __attribute__((used, constructor)) \
-  static void DPAWIN_CONCAT(dpawin_xev_check__ ## A ## _, __LINE__)(void){ \
-    extern struct xev_event_specializer dpawin_xev_spec_ ## A; \
-    assert(dpawin_xev_spec_ ## A.type_size); \
-  }
-  XEV_EVENTS
-#undef X
-
 struct dpawin;
 
 extern struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
@@ -30,12 +20,23 @@ extern struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
 #undef X
 
 extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _init)(struct dpawin*, struct xev_event_extension*);
-extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _listen)(struct xev_event_extension*, struct dpawindow*);
 extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _cleanup)(struct dpawin*, struct xev_event_extension*);
+extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _listen)(struct xev_event_extension*, struct dpawindow*);
+extern void DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _preprocess_event)(struct dpawin*, XEvent*);
 extern int DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _dispatch)(struct dpawin*, struct xev_event*);
 
 #ifdef GENERATE_DEFINITIONS
 struct xev_event_extension DPAWIN_CONCAT(dpawin_xev_ext_, XEV_EXT);
+
+// This should catch any event list with a base event without 
+#define X(A, B) \
+  __attribute__((used, constructor)) \
+  static void DPAWIN_CONCAT(dpawin_xev_check__ ## A ## _, __LINE__)(void){ \
+    extern struct xev_event_specializer dpawin_xev_spec_ ## A; \
+    assert(dpawin_xev_spec_ ## A.type_size); \
+  }
+  XEV_EVENTS
+#undef X
 
 #define X(A, B) DPAWIN_UNPACK B
 #define Y(C, T) \
@@ -82,6 +83,7 @@ static void xev_constructor(void){
   extension->listen = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _listen);
   extension->cleanup = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _cleanup);
   extension->dispatch = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _dispatch);
+  extension->preprocess_event = DPAWIN_CONCAT(DPAWIN_CONCAT(dpawin_xev_, XEV_EXT), _preprocess_event);
 
 #ifndef XEV_OPTIONAL
   extension->required = true;

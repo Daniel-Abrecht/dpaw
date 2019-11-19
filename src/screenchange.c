@@ -1,3 +1,5 @@
+#include <xev/randr.c>
+#include <dpawindow/root.h>
 #include <screenchange.h>
 #include <X11/extensions/Xinerama.h>
 #include <stdio.h>
@@ -109,6 +111,13 @@ static int xinerama_init(struct dpawin_screenchange_detector* detector){
 int dpawin_screenchange_init(struct dpawin_screenchange_detector* detector, Display* display){
   detector->display = display;
   return xinerama_init(detector);
+}
+
+EV_ON(root, RRScreenChangeNotify){
+  (void)window;
+  (void)event;
+  puts("RRScreenChangeNotify");
+  return EHR_OK;
 }
 
 int dpawin_screenchange_listener_register(struct dpawin_screenchange_detector* detector, dpawin_screenchange_handler_t callback, void* ptr){

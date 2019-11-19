@@ -68,6 +68,13 @@ int dpawin_run(struct dpawin* dpawin){
       );
     }
 
+    for(struct xev_event_extension* it=dpawin_event_extension_list; it; it=it->next){
+      if(!it->initialised)
+        continue;
+      if(it->preprocess_event)
+        it->preprocess_event(dpawin, &event);
+    }
+
     struct xev_event xev;
     if(dpawin_xevent_to_xev(dpawin, &xev, &event.xany) == -1){
       fprintf(stderr, "dpawin_xevent_to_xev failed\n");

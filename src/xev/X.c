@@ -16,6 +16,11 @@ int dpawin_xev_X_cleanup(struct dpawin* dpawin, struct xev_event_extension* exte
   return 0;
 }
 
+void dpawin_xev_X_preprocess_event(struct dpawin* dpawin, XEvent* event){
+  (void)dpawin;
+  (void)event;
+}
+
 enum event_handler_result dpawin_xev_X_dispatch(struct dpawin* dpawin, struct xev_event* event){
   if(event->info->type == GenericEvent || event->info->type == KeyPress || event->info->type == KeyRelease)
     return EHR_UNHANDLED;
