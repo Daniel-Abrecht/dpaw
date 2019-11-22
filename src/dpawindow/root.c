@@ -22,7 +22,7 @@ int dpawindow_root_init(struct dpawin* dpawin, struct dpawindow_root* window){
     fprintf(stderr, "dpawindow_root_init_super failed\n");
     return -1;
   }
-  if(dpawin_screenchange_init(&window->screenchange_detector, window->display)){
+  if(dpawin_screenchange_init(&window->screenchange_detector, dpawin)){
     fprintf(stderr, "dpawin_screenchange_init failed\n");
     return -1;
   }
@@ -35,6 +35,7 @@ int dpawindow_root_init(struct dpawin* dpawin, struct dpawindow_root* window){
 
 int dpawindow_root_cleanup(struct dpawindow_root* window){
   dpawin_workspace_manager_destroy(&window->workspace_manager);
+  dpawin_screenchange_destroy(&window->screenchange_detector);
   return 0;
 }
 

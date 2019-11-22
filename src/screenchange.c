@@ -1,7 +1,7 @@
-#include <xev/randr.c>
 #include <dpawindow/root.h>
 #include <screenchange.h>
-#include <X11/extensions/Xinerama.h>
+#include <xev/randr.c>
+#include <dpawin.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -15,7 +15,7 @@ struct screenchange_listener {
 
 struct dpawin_screen_info_list_entry {
   struct dpawin_screen_info info;
-  int id;
+  unsigned long id;
   bool lost;
   struct dpawin_screen_info_list_entry* next;
 };
@@ -25,13 +25,13 @@ static void invalidate_screen_info(struct dpawin_screenchange_detector* detector
     it->lost = true;
 }
 
-static int commit_screen_info(struct dpawin_screenchange_detector* detector, int id, struct dpawin_rect boundary){
+int commit_screen_info(struct dpawin_screenchange_detector* detector, unsigned long id, const char* name, struct dpawin_rect boundary){
   if( boundary.top_left.x > boundary.bottom_right.x
    || boundary.top_left.y > boundary.bottom_right.y
   ) memset(&boundary, 0, sizeof(boundary));
   struct dpawin_screen_info_list_entry* it;
   for(it=detector->screen_list; it; it=it->next){
-    if(id != -1){
+    if(!id){
       if(it->id != id)
         continue;
     }else if(it->lost || it->info.boundary.top_left.x != boundary.top_left.x || it->info.boundary.top_left.y != boundary.top_left.y)
@@ -52,6 +52,7 @@ static int commit_screen_info(struct dpawin_screenchange_detector* detector, int
       return -1;
     info->next = detector->screen_list;
     info->id = id;
+    info->info.name = name;
     info->info.boundary = boundary;
     detector->screen_list = info;
     for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
@@ -70,54 +71,90 @@ static void finalize_screen_info(struct dpawin_screenchange_detector* detector){
   }
 }
 
-static int xinerama_init(struct dpawin_screenchange_detector* detector){
-  int event_base_return, error_base_return;
-  if(!XineramaQueryExtension(detector->display, &event_base_return, &error_base_return)){
-    fprintf(stderr, "Warning: XineramaQueryExtension failed\n");
+struct dpawin_xrandr_name {
+  char* string;
+  XID id;
+};
+
+struct dpawin_xrandr_output {
+  struct dpawin_xrandr_name name;
+};
+
+struct dpawin_xrandr_private {
+  XRRScreenResources* screen_resources;
+};
+
+static int randr_init(struct dpawin_screenchange_detector* detector){
+  struct dpawin_xrandr_private* xrandr = calloc(sizeof(*xrandr), 1);
+  if(!xrandr){
+    perror("calloc failed");
     return -1;
   }
-  if(!XineramaIsActive(detector->display)){
-    fprintf(stderr, "Warning: Xinerama isn't active\n");
+  detector->xrandr = xrandr;
+  xrandr->screen_resources = XRRGetScreenResourcesCurrent(detector->dpawin->root.display, detector->dpawin->root.window.xwindow);
+  if(!xrandr->screen_resources){
+    fprintf(stderr, "XRRGetScreenResourcesCurrent failed");
     return -1;
   }
-  int screen_count = 0;
-  XineramaScreenInfo *info = XineramaQueryScreens(detector->display, &screen_count);
-  if(!info){
-    fprintf(stderr, "Warning: XineramaQueryScreens failed\n");
-    return -1;
-  }
-  if(!screen_count){
-    fprintf(stderr, "Error: XineramaQueryScreens failed in a way it's not supposed to\n");
-    XFree(info);
-    return -1;
-  }
+
   invalidate_screen_info(detector);
-  for(int i=0; i<screen_count; i++)
-    commit_screen_info(detector, info[i].screen_number, (struct dpawin_rect){
+  for(int i=0; i < xrandr->screen_resources->noutput; i++){
+    struct dpawin_xrandr_output output;
+    output.name.id = xrandr->screen_resources->outputs[i];
+    XRROutputInfo* output_info = XRRGetOutputInfo(detector->dpawin->root.display, xrandr->screen_resources, output.name.id);
+    if(!output_info){
+      fprintf(stderr, "XRRGetOutputInfo failed for output %lx\n", (long)output.name.id);
+      continue;
+    }
+    if(output_info->connection != RR_Connected){
+      XRRFreeOutputInfo(output_info);
+      continue;
+    }
+    XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(detector->dpawin->root.display, xrandr->screen_resources, output_info->crtc);
+    if(!crtc_info){
+      fprintf(stderr, "XRRFreeOutputInfo failed for crtc %lx\n", (long)output_info->crtc);
+      XRRFreeOutputInfo(output_info);
+      continue;
+    }
+    output.name.string = strdup(output_info->name);
+    if(!output.name.string){
+      perror("strdup failed");
+      continue;
+    }
+/*    output_info->mm_width,
+    output_info->mm_height,*/
+    commit_screen_info(detector, output.name.id, output.name.string, (struct dpawin_rect){
       .top_left = {
-        .x  = info[i].x_org,
-        .y  = info[i].y_org
+        .x = crtc_info->x,
+        .y = crtc_info->y,
       },
       .bottom_right = {
-        .x  = (long)info[i].x_org + info[i].width,
-        .y  = (long)info[i].y_org + info[i].height
+        .x = crtc_info->x + crtc_info->width,
+        .y = crtc_info->y + crtc_info->height,
       }
     });
+    XRRFreeCrtcInfo(crtc_info);
+    XRRFreeOutputInfo(output_info);
+  }
   finalize_screen_info(detector);
-  XFree(info);
   return 0;
 }
 
-int dpawin_screenchange_init(struct dpawin_screenchange_detector* detector, Display* display){
-  detector->display = display;
-  return xinerama_init(detector);
+static void randr_destroy(struct dpawin_screenchange_detector* detector){
+  if(!detector->xrandr)
+    return;
+  XRRFreeScreenResources(detector->xrandr->screen_resources);
+  free(detector->xrandr);
+  detector->xrandr = 0;
 }
 
-EV_ON(root, RRScreenChangeNotify){
-  (void)window;
-  (void)event;
-  puts("RRScreenChangeNotify");
-  return EHR_OK;
+int dpawin_screenchange_init(struct dpawin_screenchange_detector* detector, struct dpawin* dpawin){
+  detector->dpawin = dpawin;
+  return randr_init(detector);
+}
+
+void dpawin_screenchange_destroy(struct dpawin_screenchange_detector* detector){
+  randr_destroy(detector);
 }
 
 int dpawin_screenchange_listener_register(struct dpawin_screenchange_detector* detector, dpawin_screenchange_handler_t callback, void* ptr){
@@ -150,4 +187,53 @@ int dpawin_screenchange_listener_unregister(struct dpawin_screenchange_detector*
   }
   fprintf(stderr, "Warning: Failed to find screen change listener to be removed.\n");
   return -1;
+}
+
+EV_ON(root, RRScreenChangeNotify){
+  (void)window;
+  (void)event;
+  puts("RRScreenChangeNotify");
+  return EHR_OK;
+}
+
+EV_ON(root, RRNotify_CrtcChange){
+  (void)window;
+  (void)event;
+  puts("RRNotify_CrtcChange");
+  return EHR_OK;
+}
+
+EV_ON(root, RRNotify_OutputChange){
+  (void)window;
+  (void)event;
+  puts("RRNotify_OutputChange");
+  return EHR_OK;
+}
+
+EV_ON(root, RRNotify_OutputProperty){
+  (void)window;
+  (void)event;
+  puts("RRNotify_OutputProperty");
+  return EHR_OK;
+}
+
+EV_ON(root, RRNotify_ProviderChange){
+  (void)window;
+  (void)event;
+  puts("RRNotify_ProviderChange");
+  return EHR_OK;
+}
+
+EV_ON(root, RRNotify_ProviderProperty){
+  (void)window;
+  (void)event;
+  puts("RRNotify_ProviderProperty");
+  return EHR_OK;
+}
+
+EV_ON(root, RRNotify_ResourceChange){
+  (void)window;
+  (void)event;
+  puts("RRNotify_ResourceChange");
+  return EHR_OK;
 }

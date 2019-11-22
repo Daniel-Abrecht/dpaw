@@ -47,7 +47,7 @@ enum event_handler_result dpawin_xev_randr_dispatch(struct dpawin* dpawin, struc
 
 int dpawin_xev_randr_listen(struct xev_event_extension* extension, struct dpawindow* window){
   if(window != &window->dpawin->root.window)
-    return -1;
+    return 0;
   if(!window->type->event_lookup_table.event_handler_list)
     return 0;
   unsigned long mask = 0;

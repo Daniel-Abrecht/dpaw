@@ -18,7 +18,6 @@
   ))
 
 #define XEV_EXT randr
-#define XEV_OPTIONAL
 
 #include <xev.template>
 

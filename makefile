@@ -1,13 +1,13 @@
 
 CC_OPTS += -Wall -Wextra -pedantic -std=c11
 CC_OPTS += -Iinclude/ -Ibuild/include/
-CC_OPTS += -Werror -g -O0
+CC_OPTS += -Werror -g -O0 -D_DEFAULT_SOURCE
 LD_OPTS += -g
 
 CC_OPTS += -fsanitize=address
 LD_OPTS += -fsanitize=address
 
-LD_OPTS += -lX11 -lXinerama -lXi -lXrandr
+LD_OPTS += -lX11 -lXi -lXrandr
 
 SOURCES = $(shell find src/ -iname "*.c") $(shell find include/ -iname "*.c")
 HEADERS = $(shell find include/ -type f)
