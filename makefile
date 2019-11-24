@@ -29,4 +29,4 @@ clean:
 	rm -rf build bin
 
 test-run: all
-	xinit ./test-xinitrc -- "$$(which Xephyr)" :100 -ac +xinerama -screen 400x600 -host-cursor
+	xinit ./test-xinitrc -- "$$(which Xephyr)" :100 -ac -screen 400x600 -host-cursor

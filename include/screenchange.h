@@ -12,6 +12,7 @@ enum dpaw_screenchange_type {
 
 struct dpaw_screen_info {
   struct dpaw_rect boundary;
+  struct dpaw_point physical_size_mm;
   const char* name;
 };
 

@@ -16,59 +16,44 @@ struct screenchange_listener {
 struct dpaw_screen_info_list_entry {
   struct dpaw_screen_info info;
   unsigned long id;
-  bool lost;
   struct dpaw_screen_info_list_entry* next;
 };
 
-static void invalidate_screen_info(struct dpaw_screenchange_detector* detector){
-  for(struct dpaw_screen_info_list_entry* it=detector->screen_list; it; it=it->next)
-    it->lost = true;
-}
-
-int commit_screen_info(struct dpaw_screenchange_detector* detector, unsigned long id, const char* name, struct dpaw_rect boundary){
+int commit_screen_info(struct dpaw_screenchange_detector* detector, unsigned long id, const struct dpaw_screen_info* info){
+  struct dpaw_rect boundary = info->boundary;
   if( boundary.top_left.x > boundary.bottom_right.x
    || boundary.top_left.y > boundary.bottom_right.y
   ) memset(&boundary, 0, sizeof(boundary));
   struct dpaw_screen_info_list_entry* it;
-  for(it=detector->screen_list; it; it=it->next){
-    if(!id){
-      if(it->id != id)
-        continue;
-    }else if(it->lost || it->info.boundary.top_left.x != boundary.top_left.x || it->info.boundary.top_left.y != boundary.top_left.y)
-      continue;
-    break;
-  }
+  for(it=detector->screen_list; it; it=it->next)
+    if(it->id == id)
+      break;
   if(it){
-    it->lost = false;
-    if( it->info.boundary.top_left.x != boundary.top_left.x
+    bool changed = (
+        it->info.boundary.top_left.x != boundary.top_left.x
      || it->info.boundary.top_left.y != boundary.top_left.y
      || it->info.boundary.bottom_right.x != boundary.bottom_right.x
      || it->info.boundary.bottom_right.y != boundary.bottom_right.y
-    ) for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
+    );
+    it->info = *info;
+    it->info.boundary = boundary;
+    if(changed){
+      for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
         it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_CHANGED, &it->info);
+    }
   }else{
-    struct dpaw_screen_info_list_entry* info = calloc(sizeof(struct dpaw_screen_info_list_entry), 1);
-    if(!info)
+    struct dpaw_screen_info_list_entry* info_entry = calloc(sizeof(struct dpaw_screen_info_list_entry), 1);
+    if(!info_entry)
       return -1;
-    info->next = detector->screen_list;
-    info->id = id;
-    info->info.name = name;
-    info->info.boundary = boundary;
-    detector->screen_list = info;
+    info_entry->next = detector->screen_list;
+    info_entry->id = id;
+    info_entry->info = *info;
+    info_entry->info.boundary = boundary;
+    detector->screen_list = info_entry;
     for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
-      it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &info->info);
+      it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &info_entry->info);
   }
   return 0;
-}
-
-static void finalize_screen_info(struct dpaw_screenchange_detector* detector){
-  for(struct dpaw_screen_info_list_entry* it=detector->screen_list; it; it=it->next){
-    if(!it->lost)
-      continue;
-    for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
-      it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_REMOVED, &it->info);
-    free(it);
-  }
 }
 
 struct dpaw_xrandr_name {
@@ -84,6 +69,57 @@ struct dpaw_xrandr_private {
   XRRScreenResources* screen_resources;
 };
 
+static int randr_add_or_update_output(struct dpaw_screenchange_detector* detector, XID outputid){
+  struct dpaw_xrandr_private* xrandr = detector->xrandr;
+  int ret = -1;
+  struct dpaw_xrandr_output output;
+  output.name.id = outputid;
+  XRROutputInfo* output_info = XRRGetOutputInfo(detector->dpaw->root.display, xrandr->screen_resources, output.name.id);
+  if(!output_info){
+    fprintf(stderr, "XRRGetOutputInfo failed for output %lx\n", (long)output.name.id);
+    goto error;
+  }
+  if(output_info->connection != RR_Connected){
+    ret = 0;
+    goto error_after_XRRGetOutputInfo;
+  }
+  XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(detector->dpaw->root.display, xrandr->screen_resources, output_info->crtc);
+  if(!crtc_info){
+    fprintf(stderr, "XRRFreeOutputInfo failed for crtc %lx\n", (long)output_info->crtc);
+    goto error_after_XRRGetOutputInfo;
+  }
+  output.name.string = strdup(output_info->name);
+  if(!output.name.string){
+    perror("strdup failed");
+    goto error_after_XRRGetCrtcInfo;
+  }
+  struct dpaw_screen_info info = {
+    .name = output.name.string,
+    .boundary = {
+      .top_left = {
+        .x = crtc_info->x,
+        .y = crtc_info->y,
+      },
+      .bottom_right = {
+        .x = crtc_info->x + crtc_info->width,
+        .y = crtc_info->y + crtc_info->height,
+      }
+    },
+    .physical_size_mm = {
+      .x = output_info->mm_width,
+      .y = output_info->mm_height,
+    },
+  };
+  ret = commit_screen_info(detector, output.name.id, &info);
+
+error_after_XRRGetCrtcInfo:
+  XRRFreeCrtcInfo(crtc_info);
+error_after_XRRGetOutputInfo:
+  XRRFreeOutputInfo(output_info);
+error:
+  return ret;
+}
+
 static int randr_init(struct dpaw_screenchange_detector* detector){
   struct dpaw_xrandr_private* xrandr = calloc(sizeof(*xrandr), 1);
   if(!xrandr){
@@ -97,46 +133,10 @@ static int randr_init(struct dpaw_screenchange_detector* detector){
     return -1;
   }
 
-  invalidate_screen_info(detector);
-  for(int i=0; i < xrandr->screen_resources->noutput; i++){
-    struct dpaw_xrandr_output output;
-    output.name.id = xrandr->screen_resources->outputs[i];
-    XRROutputInfo* output_info = XRRGetOutputInfo(detector->dpaw->root.display, xrandr->screen_resources, output.name.id);
-    if(!output_info){
-      fprintf(stderr, "XRRGetOutputInfo failed for output %lx\n", (long)output.name.id);
-      continue;
-    }
-    if(output_info->connection != RR_Connected){
-      XRRFreeOutputInfo(output_info);
-      continue;
-    }
-    XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(detector->dpaw->root.display, xrandr->screen_resources, output_info->crtc);
-    if(!crtc_info){
-      fprintf(stderr, "XRRFreeOutputInfo failed for crtc %lx\n", (long)output_info->crtc);
-      XRRFreeOutputInfo(output_info);
-      continue;
-    }
-    output.name.string = strdup(output_info->name);
-    if(!output.name.string){
-      perror("strdup failed");
-      continue;
-    }
-/*    output_info->mm_width,
-    output_info->mm_height,*/
-    commit_screen_info(detector, output.name.id, output.name.string, (struct dpaw_rect){
-      .top_left = {
-        .x = crtc_info->x,
-        .y = crtc_info->y,
-      },
-      .bottom_right = {
-        .x = crtc_info->x + crtc_info->width,
-        .y = crtc_info->y + crtc_info->height,
-      }
-    });
-    XRRFreeCrtcInfo(crtc_info);
-    XRRFreeOutputInfo(output_info);
-  }
-  finalize_screen_info(detector);
+  for(int i=0; i < xrandr->screen_resources->noutput; i++)
+    if(randr_add_or_update_output(detector, xrandr->screen_resources->outputs[i]) != 0)
+      fprintf(stderr, "randr_add_or_update_output failed\n");
+
   return 0;
 }
 
@@ -204,8 +204,7 @@ EV_ON(root, RRNotify_CrtcChange){
 }
 
 EV_ON(root, RRNotify_OutputChange){
-  (void)window;
-  (void)event;
+  randr_add_or_update_output(&window->screenchange_detector, event->output);
   puts("RRNotify_OutputChange");
   return EHR_OK;
 }

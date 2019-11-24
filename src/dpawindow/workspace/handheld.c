@@ -127,6 +127,10 @@ static int screen_changed(struct dpawindow_workspace_handheld* workspace, struct
   (void)workspace;
   (void)screen;
   puts("handheld_workspace screen_changed");
+  for(struct dpaw_list_entry* it=workspace->workspace.window_list.first; it; it=it->next){
+    struct dpawindow_app* appwin = container_of(it, struct dpawindow_app, workspace_window_entry);
+    update_window_area(appwin->workspace_private);
+  }
   return 0;
 }
 

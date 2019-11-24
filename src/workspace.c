@@ -209,6 +209,8 @@ int dpaw_workspace_manager_designate_screen_to_workspace(struct dpaw_workspace_m
       }
     }
     return dpaw_reassign_screen_to_workspace(screen, target_workspace);
+  }else{
+    return dpaw_reassign_screen_to_workspace(screen, screen->workspace);
   }
   return 0;
 }

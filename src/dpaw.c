@@ -93,9 +93,13 @@ int dpaw_run(struct dpaw* dpaw){
       );
     }
 
-    enum event_handler_result result = dpawindow_dispatch_event(&dpaw->root.window, &xev);
-    if(xev.info->event_list->extension->dispatch && (result == EHR_UNHANDLED || result == EHR_NEXT))
+    enum event_handler_result result = EHR_UNHANDLED;
+    if(xev.info->event_list->extension->dispatch && (result == EHR_UNHANDLED || result == EHR_NEXT)){
       result = xev.info->event_list->extension->dispatch(dpaw, &xev);
+    }
+    if(result == EHR_UNHANDLED || result == EHR_NEXT){
+      result = dpawindow_dispatch_event(&dpaw->root.window, &xev);
+    }
 
     switch(result){
       case EHR_FATAL_ERROR: {

@@ -76,6 +76,7 @@ EV_ON(root, DestroyNotify){
 }
 
 EV_ON(root, ConfigureRequest){
+  printf("ConfigureRequest %lu\n", event->window);
   XWindowChanges changes = {
     .x = event->x,
     .y = event->y,
