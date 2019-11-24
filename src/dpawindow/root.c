@@ -40,12 +40,20 @@ int dpawindow_root_cleanup(struct dpawindow_root* window){
 }
 
 EV_ON(root, MapRequest){
-  if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window) != 0)
-    return EHR_ERROR;
+  printf("MapRequest %lx\n", event->window);
+  struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
+  if(!win){
+    if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window) != 0)
+      return EHR_ERROR;
+  }else{
+    // Probably already managed
+    return EHR_NEXT;
+  }
   return EHR_OK;
 }
 
 EV_ON(root, UnmapNotify){
+  printf("UnmapNotify %lx\n", event->window);
   extern struct dpawindow_type dpawindow_type_app;
   struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
   if(!win)
@@ -63,6 +71,7 @@ EV_ON(root, UnmapNotify){
 }
 
 EV_ON(root, DestroyNotify){
+  printf("DestroyNotify %lx\n", event->window);
   extern struct dpawindow_type dpawindow_type_app;
   struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
   if(!win)
@@ -76,7 +85,7 @@ EV_ON(root, DestroyNotify){
 }
 
 EV_ON(root, ConfigureRequest){
-  printf("ConfigureRequest %lu\n", event->window);
+  printf("ConfigureRequest %lx\n", event->window);
   XWindowChanges changes = {
     .x = event->x,
     .y = event->y,
@@ -92,7 +101,7 @@ EV_ON(root, ConfigureRequest){
 
 EV_ON(root, ReparentNotify){
   (void)window;
-  printf("ReparentNotify %lu\n", event->window);
+  printf("ReparentNotify %lx\n", event->window);
   return EHR_OK;
 }
 

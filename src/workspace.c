@@ -275,6 +275,13 @@ int dpaw_workspace_add_window(struct dpaw_workspace* workspace, struct dpawindow
 }
 
 int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window){
+  {
+    struct dpawindow* win = dpawindow_lookup(wmgr->dpaw, window);
+    if(win){
+      printf("dpaw_workspace_manager_manage_window called, but window was already managed! It's a known %s window\n", win->type->name);
+      return 0;
+    }
+  }
   struct dpaw_workspace* workspace = wmgr->workspace;
   if(!workspace){
     fprintf(stderr, "Error: No workspaces available\n");

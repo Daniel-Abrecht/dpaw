@@ -45,7 +45,7 @@ struct dpawindow {
     struct dpawindow window; /* Must be the first member */ \
     __VA_ARGS__ \
   }; \
-  extern struct dpawindow_type dpawindow_type_ ## TYPE; \
+  extern struct dpawindow_type dpawindow_type_ ## NAME; \
   int dpawindow_ ## NAME ## _init_super(struct dpaw*, struct dpawindow_ ## NAME*); \
   int dpawindow_ ## NAME ## _cleanup_super(struct dpawindow_ ## NAME*);
 

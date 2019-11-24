@@ -1,5 +1,6 @@
 #include <dpaw.h>
 #include <dpawindow.h>
+#include <dpawindow/root.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -73,11 +74,22 @@ int dpawindow_place_window(struct dpawindow* window, struct dpaw_rect boundary){
 }
 
 int dpawindow_register(struct dpawindow* window){
-  if(!window || !window->type || window->dpaw_window_entry.list)
+  if(!window || !window->type || window->dpaw_window_entry.list){
+    fprintf(stderr, "Procondition for dpawindow_register failed\n");
     return -1;
-  bool isroot = !strcmp(window->type->name, "root");
-  if(isroot != !window->dpaw->window_list.first)
+  }
+  bool isroot = window->type == &dpawindow_type_root;
+  if(isroot != !window->dpaw->window_list.first){
+    fprintf(stderr, "The first window to be registred must be the root window\n");
     return -1;
+  }
+  {
+    struct dpawindow* res = dpawindow_lookup(window->dpaw, window->xwindow);
+    if(res){
+      fprintf(stderr, "This %s window was already registred as an %s window\n", window->type->name, res->type->name);
+      return -1; // This window
+    }
+  }
   for(struct xev_event_extension* extension=dpaw_event_extension_list; extension; extension=extension->next){
     if(!extension->initialised)
       continue;

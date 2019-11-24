@@ -43,12 +43,10 @@ static int make_current(struct dpawindow_handheld_window* child){
     if(dpawindow_hide(&child->workspace->current->app_window->window, true))
       return -1;
   child->workspace->current = child;
-  if(child){
-    if(update_window_area(child))
-      return -1;
-    if(dpawindow_hide(&child->app_window->window, false))
-      return -1;
-  }
+  if(update_window_area(child))
+    return -1;
+  if(dpawindow_hide(&child->app_window->window, false))
+    return -1;
   return 0;
 }
 
@@ -148,6 +146,7 @@ static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struc
 }
 
 static int take_window(struct dpawindow_workspace_handheld* workspace, struct dpawindow_app* window){
+  printf("take_window %lx\n", window->window.xwindow);
   struct dpawindow_handheld_window* child = calloc(sizeof(struct dpawindow_handheld_window), 1);
   if(!child)
     return -1;
@@ -162,6 +161,7 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
 }
 
 static int abandon_window(struct dpawindow_app* window){
+  printf("abandon_window %lx\n", window->window.xwindow);
   if(window->workspace_window_entry.next)
     make_current(container_of(window->workspace_window_entry.next, struct dpawindow_app, workspace_window_entry)->workspace_private);
   return 0;
