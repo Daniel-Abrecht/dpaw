@@ -14,9 +14,9 @@ HEADERS = $(shell find include/ -type f)
 
 OBJECTS = $(patsubst %.c,build/%.c.o,$(SOURCES))
 
-all: bin/dpawin
+all: bin/dpaw
 
-bin/dpawin: $(OBJECTS)
+bin/dpaw: $(OBJECTS)
 	mkdir -p "$(dir $@)"
 	$(CC) -o "$@" $(LD_OPTS) $^
 

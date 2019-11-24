@@ -1,20 +1,20 @@
 #ifndef PRIMITIVES_H
 #define PRIMITIVES_H
 
-struct dpawin_point {
+struct dpaw_point {
   long x, y;
 };
 
-struct dpawin_rect {
-  struct dpawin_point top_left;
-  struct dpawin_point bottom_right;
+struct dpaw_rect {
+  struct dpaw_point top_left;
+  struct dpaw_point bottom_right;
 };
 
-enum dpawin_direction {
-  DPAWIN_DIRECTION_RIGHTWARDS,
-  DPAWIN_DIRECTION_DOWNWARDS,
-  DPAWIN_DIRECTION_LEFTWARDS,
-  DPAWIN_DIRECTION_UPWARDS
+enum dpaw_direction {
+  DPAW_DIRECTION_RIGHTWARDS,
+  DPAW_DIRECTION_DOWNWARDS,
+  DPAW_DIRECTION_LEFTWARDS,
+  DPAW_DIRECTION_UPWARDS
 };
 
 #endif

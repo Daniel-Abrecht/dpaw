@@ -1,44 +1,44 @@
-#include <dpawin.h>
+#include <dpaw.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-int dpawin_cleanup(struct dpawin* dpawin){
-  if(dpawin->root.display)
-    XCloseDisplay(dpawin->root.display);
-  if(dpawin->root.window.xwindow)
-    dpawindow_root_cleanup(&dpawin->root);
+int dpaw_cleanup(struct dpaw* dpaw){
+  if(dpaw->root.display)
+    XCloseDisplay(dpaw->root.display);
+  if(dpaw->root.window.xwindow)
+    dpawindow_root_cleanup(&dpaw->root);
   return 0;
 }
 
-int dpawin_init(struct dpawin* dpawin){
-  XSetErrorHandler(&dpawin_error_handler);
-  memset(dpawin, 0, sizeof(*dpawin));
-  dpawin->root.display = XOpenDisplay(0);
-  if(!dpawin->root.display){
+int dpaw_init(struct dpaw* dpaw){
+  XSetErrorHandler(&dpaw_error_handler);
+  memset(dpaw, 0, sizeof(*dpaw));
+  dpaw->root.display = XOpenDisplay(0);
+  if(!dpaw->root.display){
     fprintf(stderr, "Failed to open X display %s\n", XDisplayName(0));
     goto error;
   }
-  dpawin->root.window.xwindow = DefaultRootWindow(dpawin->root.display);
-  if(!dpawin->root.window.xwindow){
+  dpaw->root.window.xwindow = DefaultRootWindow(dpaw->root.display);
+  if(!dpaw->root.window.xwindow){
     fprintf(stderr, "DefaultRootWindow failed\n");
     goto error;
   }
-  if(dpawindow_root_init(dpawin, &dpawin->root) == -1){
+  if(dpawindow_root_init(dpaw, &dpaw->root) == -1){
     fprintf(stderr, "dpawindow_root_init failed\n");
     goto error;
   }
   return 0;
 error:
-  dpawin_cleanup(dpawin);
+  dpaw_cleanup(dpaw);
   return -1;
 }
 
-int dpawin_error_handler(Display* display, XErrorEvent* error){
-  extern bool dpawin_xerror_occured;
-  dpawin_xerror_occured = true;
+int dpaw_error_handler(Display* display, XErrorEvent* error){
+  extern bool dpaw_xerror_occured;
+  dpaw_xerror_occured = true;
   char error_message[1024];
   if(XGetErrorText(display, error->error_code, error_message, sizeof(error_message)))
     *error_message = 0;
@@ -52,11 +52,11 @@ int dpawin_error_handler(Display* display, XErrorEvent* error){
   return 0;
 }
 
-int dpawin_run(struct dpawin* dpawin){
+int dpaw_run(struct dpaw* dpaw){
   bool debug_x_events = !!getenv("DEBUG_X_EVENTS");
   while(true){
     XEvent event;
-    XNextEvent(dpawin->root.display, &event);
+    XNextEvent(dpaw->root.display, &event);
 
     if(debug_x_events){
       printf(
@@ -68,16 +68,16 @@ int dpawin_run(struct dpawin* dpawin){
       );
     }
 
-    for(struct xev_event_extension* it=dpawin_event_extension_list; it; it=it->next){
+    for(struct xev_event_extension* it=dpaw_event_extension_list; it; it=it->next){
       if(!it->initialised)
         continue;
       if(it->preprocess_event)
-        it->preprocess_event(dpawin, &event);
+        it->preprocess_event(dpaw, &event);
     }
 
     struct xev_event xev;
-    if(dpawin_xevent_to_xev(dpawin, &xev, &event.xany) == -1){
-      fprintf(stderr, "dpawin_xevent_to_xev failed\n");
+    if(dpaw_xevent_to_xev(dpaw, &xev, &event.xany) == -1){
+      fprintf(stderr, "dpaw_xevent_to_xev failed\n");
       continue;
     }
 
@@ -93,9 +93,9 @@ int dpawin_run(struct dpawin* dpawin){
       );
     }
 
-    enum event_handler_result result = dpawindow_dispatch_event(&dpawin->root.window, &xev);
+    enum event_handler_result result = dpawindow_dispatch_event(&dpaw->root.window, &xev);
     if(xev.info->event_list->extension->dispatch && (result == EHR_UNHANDLED || result == EHR_NEXT))
-      result = xev.info->event_list->extension->dispatch(dpawin, &xev);
+      result = xev.info->event_list->extension->dispatch(dpaw, &xev);
 
     switch(result){
       case EHR_FATAL_ERROR: {
@@ -105,7 +105,7 @@ int dpawin_run(struct dpawin* dpawin){
           event.type,
           xev.info->name
         );
-        dpawin_free_xev(&xev);
+        dpaw_free_xev(&xev);
       } return -1;
       case EHR_OK: break;
       case EHR_NEXT: break;
@@ -135,7 +135,7 @@ int dpawin_run(struct dpawin* dpawin){
       } break;
     }
 
-    dpawin_free_xev(&xev);
+    dpaw_free_xev(&xev);
   }
   return 0;
 }

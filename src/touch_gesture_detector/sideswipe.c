@@ -1,17 +1,17 @@
 #include <string.h>
 #include <touch_gesture_detector/sideswipe.h>
 
-static void reset(struct dpawin_touch_gesture_detector* detector){
-  struct dpawin_sideswipe_detector* sideswipe = container_of(detector, struct dpawin_sideswipe_detector, detector);
+static void reset(struct dpaw_touch_gesture_detector* detector){
+  struct dpaw_sideswipe_detector* sideswipe = container_of(detector, struct dpaw_sideswipe_detector, detector);
   sideswipe->touchid = -1;
 }
 
 static enum event_handler_result ontouch(
-  struct dpawin_touch_gesture_detector* detector,
+  struct dpaw_touch_gesture_detector* detector,
   XIDeviceEvent* event,
-  struct dpawin_rect bounds
+  struct dpaw_rect bounds
 ){
-  struct dpawin_sideswipe_detector* sideswipe = container_of(detector, struct dpawin_sideswipe_detector, detector);
+  struct dpaw_sideswipe_detector* sideswipe = container_of(detector, struct dpaw_sideswipe_detector, detector);
 
   const long boundary[] = {
     bounds.top_left.x,
@@ -25,7 +25,7 @@ static enum event_handler_result ontouch(
     case XI_TouchBegin: {
       if(sideswipe->touchid != -1)
         return EHR_UNHANDLED;
-      for(enum dpawin_direction direction=0; direction<4; direction++){
+      for(enum dpaw_direction direction=0; direction<4; direction++){
         if(!(sideswipe->params.mask & (1<<direction)))
           continue;
         long point = (direction % 2 ? event->root_y : event->root_x) + 0.5;
@@ -48,7 +48,7 @@ static enum event_handler_result ontouch(
       if(sideswipe->touchid != event->detail)
         return EHR_UNHANDLED;
       // TODO: Convert everything to physical units
-      enum dpawin_direction direction = sideswipe->direction;
+      enum dpaw_direction direction = sideswipe->direction;
       long switch_distance = 150; //sideswipe->switch_distance;
       long point = (direction % 2 ? event->root_y : event->root_x) + 0.5;
       long bound = boundary[direction];
@@ -96,14 +96,14 @@ static enum event_handler_result ontouch(
   return EHR_UNHANDLED;
 }
 
-static const struct dpawin_touch_gesture_detector_type sideswipe_detector = {
+static const struct dpaw_touch_gesture_detector_type sideswipe_detector = {
   .reset = reset,
   .ontouch = ontouch,
 };
 
-int dpawin_sideswipe_init(
-  struct dpawin_sideswipe_detector* sideswipe,
-  const struct dpawin_sideswipe_detector_params* params
+int dpaw_sideswipe_init(
+  struct dpaw_sideswipe_detector* sideswipe,
+  const struct dpaw_sideswipe_detector_params* params
 ){
   memset(sideswipe, 0, sizeof(*sideswipe));
   sideswipe->detector.type = &sideswipe_detector;

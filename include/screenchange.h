@@ -4,29 +4,29 @@
 #include <primitives.h>
 #include <X11/Xlib.h>
 
-enum dpawin_screenchange_type {
-  DPAWIN_SCREENCHANGE_SCREEN_ADDED,
-  DPAWIN_SCREENCHANGE_SCREEN_REMOVED,
-  DPAWIN_SCREENCHANGE_SCREEN_CHANGED,
+enum dpaw_screenchange_type {
+  DPAW_SCREENCHANGE_SCREEN_ADDED,
+  DPAW_SCREENCHANGE_SCREEN_REMOVED,
+  DPAW_SCREENCHANGE_SCREEN_CHANGED,
 };
 
-struct dpawin_screen_info {
-  struct dpawin_rect boundary;
+struct dpaw_screen_info {
+  struct dpaw_rect boundary;
   const char* name;
 };
 
-typedef void (*dpawin_screenchange_handler_t)(void*, enum dpawin_screenchange_type, const struct dpawin_screen_info*);
+typedef void (*dpaw_screenchange_handler_t)(void*, enum dpaw_screenchange_type, const struct dpaw_screen_info*);
 
-struct dpawin_screenchange_detector {
-  struct dpawin* dpawin;
+struct dpaw_screenchange_detector {
+  struct dpaw* dpaw;
   struct screenchange_listener* screenchange_listener_list;
-  struct dpawin_screen_info_list_entry* screen_list;
-  struct dpawin_xrandr_private* xrandr;
+  struct dpaw_screen_info_list_entry* screen_list;
+  struct dpaw_xrandr_private* xrandr;
 };
 
-int dpawin_screenchange_init(struct dpawin_screenchange_detector*, struct dpawin*);
-void dpawin_screenchange_destroy(struct dpawin_screenchange_detector*);
-int dpawin_screenchange_listener_register(struct dpawin_screenchange_detector*, dpawin_screenchange_handler_t, void*);
-int dpawin_screenchange_listener_unregister(struct dpawin_screenchange_detector*, dpawin_screenchange_handler_t, void*);
+int dpaw_screenchange_init(struct dpaw_screenchange_detector*, struct dpaw*);
+void dpaw_screenchange_destroy(struct dpaw_screenchange_detector*);
+int dpaw_screenchange_listener_register(struct dpaw_screenchange_detector*, dpaw_screenchange_handler_t, void*);
+int dpaw_screenchange_listener_unregister(struct dpaw_screenchange_detector*, dpaw_screenchange_handler_t, void*);
 
 #endif

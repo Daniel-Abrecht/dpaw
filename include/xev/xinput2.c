@@ -39,17 +39,17 @@
 #include <xev.template>
 
 #define EV_ON_TOUCH(TYPE) \
-  enum event_handler_result dpawin_ev_on__ ## TYPE ## __touch (struct dpawindow_  ## TYPE* window, XIDeviceEvent* event); \
+  enum event_handler_result dpaw_ev_on__ ## TYPE ## __touch (struct dpawindow_  ## TYPE* window, XIDeviceEvent* event); \
   EV_ON(TYPE, XI_TouchBegin){ \
-    return dpawin_ev_on__ ## TYPE ## __touch(window, event); \
+    return dpaw_ev_on__ ## TYPE ## __touch(window, event); \
   } \
   EV_ON(TYPE, XI_TouchUpdate){ \
-    return dpawin_ev_on__ ## TYPE ## __touch(window, event); \
+    return dpaw_ev_on__ ## TYPE ## __touch(window, event); \
   } \
   EV_ON(TYPE, XI_TouchEnd){ \
-    return dpawin_ev_on__ ## TYPE ## __touch(window, event); \
+    return dpaw_ev_on__ ## TYPE ## __touch(window, event); \
   } \
-  enum event_handler_result dpawin_ev_on__ ## TYPE ## __touch (struct dpawindow_  ## TYPE* window, XIDeviceEvent* event)
+  enum event_handler_result dpaw_ev_on__ ## TYPE ## __touch (struct dpawindow_  ## TYPE* window, XIDeviceEvent* event)
 
 
 #endif

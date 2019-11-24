@@ -1,18 +1,18 @@
-#include <dpawin.h>
+#include <dpaw.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-static struct dpawin dpawin;
+static struct dpaw dpaw;
 
 static void cleanup(void){
-  dpawin_cleanup(&dpawin);
+  dpaw_cleanup(&dpaw);
 }
 
 int main(){
-  if(dpawin_init(&dpawin) == -1)
+  if(dpaw_init(&dpaw) == -1)
     return 1;
   atexit(cleanup);
-  if(dpawin_run(&dpawin) == -1)
+  if(dpaw_run(&dpaw) == -1)
     return 1;
   return 0;
 }

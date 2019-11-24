@@ -3,4 +3,4 @@
 xclock &
 xeyes &
 sleep 2 && xterm &
-exec "$(dirname "$(realpath "$0")")/bin/dpawin"
+exec "$(dirname "$(realpath "$0")")/bin/dpaw"

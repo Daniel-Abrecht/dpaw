@@ -1,7 +1,7 @@
 #include <dpawindow/root.h>
 #include <screenchange.h>
 #include <xev/randr.c>
-#include <dpawin.h>
+#include <dpaw.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -9,27 +9,27 @@
 
 struct screenchange_listener {
   struct screenchange_listener* next;
-  dpawin_screenchange_handler_t callback;
+  dpaw_screenchange_handler_t callback;
   void* ptr;
 };
 
-struct dpawin_screen_info_list_entry {
-  struct dpawin_screen_info info;
+struct dpaw_screen_info_list_entry {
+  struct dpaw_screen_info info;
   unsigned long id;
   bool lost;
-  struct dpawin_screen_info_list_entry* next;
+  struct dpaw_screen_info_list_entry* next;
 };
 
-static void invalidate_screen_info(struct dpawin_screenchange_detector* detector){
-  for(struct dpawin_screen_info_list_entry* it=detector->screen_list; it; it=it->next)
+static void invalidate_screen_info(struct dpaw_screenchange_detector* detector){
+  for(struct dpaw_screen_info_list_entry* it=detector->screen_list; it; it=it->next)
     it->lost = true;
 }
 
-int commit_screen_info(struct dpawin_screenchange_detector* detector, unsigned long id, const char* name, struct dpawin_rect boundary){
+int commit_screen_info(struct dpaw_screenchange_detector* detector, unsigned long id, const char* name, struct dpaw_rect boundary){
   if( boundary.top_left.x > boundary.bottom_right.x
    || boundary.top_left.y > boundary.bottom_right.y
   ) memset(&boundary, 0, sizeof(boundary));
-  struct dpawin_screen_info_list_entry* it;
+  struct dpaw_screen_info_list_entry* it;
   for(it=detector->screen_list; it; it=it->next){
     if(!id){
       if(it->id != id)
@@ -45,9 +45,9 @@ int commit_screen_info(struct dpawin_screenchange_detector* detector, unsigned l
      || it->info.boundary.bottom_right.x != boundary.bottom_right.x
      || it->info.boundary.bottom_right.y != boundary.bottom_right.y
     ) for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
-        it2->callback(it2->ptr, DPAWIN_SCREENCHANGE_SCREEN_CHANGED, &it->info);
+        it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_CHANGED, &it->info);
   }else{
-    struct dpawin_screen_info_list_entry* info = calloc(sizeof(struct dpawin_screen_info_list_entry), 1);
+    struct dpaw_screen_info_list_entry* info = calloc(sizeof(struct dpaw_screen_info_list_entry), 1);
     if(!info)
       return -1;
     info->next = detector->screen_list;
@@ -56,42 +56,42 @@ int commit_screen_info(struct dpawin_screenchange_detector* detector, unsigned l
     info->info.boundary = boundary;
     detector->screen_list = info;
     for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
-      it2->callback(it2->ptr, DPAWIN_SCREENCHANGE_SCREEN_ADDED, &info->info);
+      it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &info->info);
   }
   return 0;
 }
 
-static void finalize_screen_info(struct dpawin_screenchange_detector* detector){
-  for(struct dpawin_screen_info_list_entry* it=detector->screen_list; it; it=it->next){
+static void finalize_screen_info(struct dpaw_screenchange_detector* detector){
+  for(struct dpaw_screen_info_list_entry* it=detector->screen_list; it; it=it->next){
     if(!it->lost)
       continue;
     for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
-      it2->callback(it2->ptr, DPAWIN_SCREENCHANGE_SCREEN_REMOVED, &it->info);
+      it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_REMOVED, &it->info);
     free(it);
   }
 }
 
-struct dpawin_xrandr_name {
+struct dpaw_xrandr_name {
   char* string;
   XID id;
 };
 
-struct dpawin_xrandr_output {
-  struct dpawin_xrandr_name name;
+struct dpaw_xrandr_output {
+  struct dpaw_xrandr_name name;
 };
 
-struct dpawin_xrandr_private {
+struct dpaw_xrandr_private {
   XRRScreenResources* screen_resources;
 };
 
-static int randr_init(struct dpawin_screenchange_detector* detector){
-  struct dpawin_xrandr_private* xrandr = calloc(sizeof(*xrandr), 1);
+static int randr_init(struct dpaw_screenchange_detector* detector){
+  struct dpaw_xrandr_private* xrandr = calloc(sizeof(*xrandr), 1);
   if(!xrandr){
     perror("calloc failed");
     return -1;
   }
   detector->xrandr = xrandr;
-  xrandr->screen_resources = XRRGetScreenResourcesCurrent(detector->dpawin->root.display, detector->dpawin->root.window.xwindow);
+  xrandr->screen_resources = XRRGetScreenResourcesCurrent(detector->dpaw->root.display, detector->dpaw->root.window.xwindow);
   if(!xrandr->screen_resources){
     fprintf(stderr, "XRRGetScreenResourcesCurrent failed");
     return -1;
@@ -99,9 +99,9 @@ static int randr_init(struct dpawin_screenchange_detector* detector){
 
   invalidate_screen_info(detector);
   for(int i=0; i < xrandr->screen_resources->noutput; i++){
-    struct dpawin_xrandr_output output;
+    struct dpaw_xrandr_output output;
     output.name.id = xrandr->screen_resources->outputs[i];
-    XRROutputInfo* output_info = XRRGetOutputInfo(detector->dpawin->root.display, xrandr->screen_resources, output.name.id);
+    XRROutputInfo* output_info = XRRGetOutputInfo(detector->dpaw->root.display, xrandr->screen_resources, output.name.id);
     if(!output_info){
       fprintf(stderr, "XRRGetOutputInfo failed for output %lx\n", (long)output.name.id);
       continue;
@@ -110,7 +110,7 @@ static int randr_init(struct dpawin_screenchange_detector* detector){
       XRRFreeOutputInfo(output_info);
       continue;
     }
-    XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(detector->dpawin->root.display, xrandr->screen_resources, output_info->crtc);
+    XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(detector->dpaw->root.display, xrandr->screen_resources, output_info->crtc);
     if(!crtc_info){
       fprintf(stderr, "XRRFreeOutputInfo failed for crtc %lx\n", (long)output_info->crtc);
       XRRFreeOutputInfo(output_info);
@@ -123,7 +123,7 @@ static int randr_init(struct dpawin_screenchange_detector* detector){
     }
 /*    output_info->mm_width,
     output_info->mm_height,*/
-    commit_screen_info(detector, output.name.id, output.name.string, (struct dpawin_rect){
+    commit_screen_info(detector, output.name.id, output.name.string, (struct dpaw_rect){
       .top_left = {
         .x = crtc_info->x,
         .y = crtc_info->y,
@@ -140,7 +140,7 @@ static int randr_init(struct dpawin_screenchange_detector* detector){
   return 0;
 }
 
-static void randr_destroy(struct dpawin_screenchange_detector* detector){
+static void randr_destroy(struct dpaw_screenchange_detector* detector){
   if(!detector->xrandr)
     return;
   XRRFreeScreenResources(detector->xrandr->screen_resources);
@@ -148,16 +148,16 @@ static void randr_destroy(struct dpawin_screenchange_detector* detector){
   detector->xrandr = 0;
 }
 
-int dpawin_screenchange_init(struct dpawin_screenchange_detector* detector, struct dpawin* dpawin){
-  detector->dpawin = dpawin;
+int dpaw_screenchange_init(struct dpaw_screenchange_detector* detector, struct dpaw* dpaw){
+  detector->dpaw = dpaw;
   return randr_init(detector);
 }
 
-void dpawin_screenchange_destroy(struct dpawin_screenchange_detector* detector){
+void dpaw_screenchange_destroy(struct dpaw_screenchange_detector* detector){
   randr_destroy(detector);
 }
 
-int dpawin_screenchange_listener_register(struct dpawin_screenchange_detector* detector, dpawin_screenchange_handler_t callback, void* ptr){
+int dpaw_screenchange_listener_register(struct dpaw_screenchange_detector* detector, dpaw_screenchange_handler_t callback, void* ptr){
   struct screenchange_listener* scl = calloc(sizeof(struct screenchange_listener), 1);
   if(!scl){
     fprintf(stderr, "Error: Failed to allocate space for screnn change listener.\n");
@@ -169,13 +169,13 @@ int dpawin_screenchange_listener_register(struct dpawin_screenchange_detector* d
   scl->next = detector->screenchange_listener_list;
   detector->screenchange_listener_list = scl;
 
-  for(struct dpawin_screen_info_list_entry* it=detector->screen_list; it; it=it->next)
-    callback(ptr, DPAWIN_SCREENCHANGE_SCREEN_ADDED, &it->info);
+  for(struct dpaw_screen_info_list_entry* it=detector->screen_list; it; it=it->next)
+    callback(ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &it->info);
 
   return 0;
 }
 
-int dpawin_screenchange_listener_unregister(struct dpawin_screenchange_detector* detector, dpawin_screenchange_handler_t callback, void* ptr){
+int dpaw_screenchange_listener_unregister(struct dpaw_screenchange_detector* detector, dpaw_screenchange_handler_t callback, void* ptr){
   struct screenchange_listener** pit = &detector->screenchange_listener_list;
   for( ; *pit; pit=&(*pit)->next ){
     struct screenchange_listener* it = *pit;

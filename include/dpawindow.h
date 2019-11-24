@@ -19,37 +19,37 @@ struct dpawindow_type {
 
 struct dpawindow {
   const struct dpawindow_type* type;
-  struct dpawin* dpawin;
-  struct dpawin_list_entry dpawin_window_entry;
+  struct dpaw* dpaw;
+  struct dpaw_list_entry dpaw_window_entry;
   Window xwindow;
-  struct dpawin_rect boundary;
+  struct dpaw_rect boundary;
   bool mapped : 1;
   bool hidden : 1;
 };
 
 #define EV_ON(TYPE, EVENT) \
-  enum event_handler_result dpawin_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event); \
+  enum event_handler_result dpaw_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event); \
   __attribute__((used,constructor(1010))) \
-  void dpawin_ev_init__ ## TYPE ## __ ## EVENT (void) { \
+  void dpaw_ev_init__ ## TYPE ## __ ## EVENT (void) { \
     extern struct dpawindow_type dpawindow_type_ ## TYPE; \
-    if(dpawin_xev_set_event_handler( \
+    if(dpaw_xev_set_event_handler( \
       &dpawindow_type_ ## TYPE.event_lookup_table, \
-      &dpawin_xev_ev2ext_ ## EVENT, \
-      (dpawin_event_handler_t)dpawin_ev_on__ ## TYPE ## __ ## EVENT \
+      &dpaw_xev_ev2ext_ ## EVENT, \
+      (dpaw_event_handler_t)dpaw_ev_on__ ## TYPE ## __ ## EVENT \
     )) _Exit(1); \
   } \
-  enum event_handler_result dpawin_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event)
+  enum event_handler_result dpaw_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event)
 
-#define DECLARE_DPAWIN_DERIVED_WINDOW(NAME, ...) \
+#define DECLARE_DPAW_DERIVED_WINDOW(NAME, ...) \
   struct dpawindow_ ## NAME { \
     struct dpawindow window; /* Must be the first member */ \
     __VA_ARGS__ \
   }; \
   extern struct dpawindow_type dpawindow_type_ ## TYPE; \
-  int dpawindow_ ## NAME ## _init_super(struct dpawin*, struct dpawindow_ ## NAME*); \
+  int dpawindow_ ## NAME ## _init_super(struct dpaw*, struct dpawindow_ ## NAME*); \
   int dpawindow_ ## NAME ## _cleanup_super(struct dpawindow_ ## NAME*);
 
-#define DEFINE_DPAWIN_DERIVED_WINDOW(NAME) \
+#define DEFINE_DPAW_DERIVED_WINDOW(NAME) \
   struct dpawindow_type dpawindow_type_ ## NAME = { \
     .name = #NAME \
   }; \
@@ -57,9 +57,9 @@ struct dpawindow {
   static void dpawindow_type_constructor_ ## NAME(void){ \
     dpawindow_type_ ## NAME.is_workspace = !strncmp("workspace_", #NAME, 10); \
   } \
-  int dpawindow_ ## NAME ## _init_super(struct dpawin* dpawin, struct dpawindow_ ## NAME* w){ \
+  int dpawindow_ ## NAME ## _init_super(struct dpaw* dpaw, struct dpawindow_ ## NAME* w){ \
     w->window.type = &dpawindow_type_ ## NAME; \
-    w->window.dpawin = dpawin; \
+    w->window.dpaw = dpaw; \
     if(dpawindow_register(&w->window)) \
       return -1; \
     return 0; \
@@ -71,11 +71,11 @@ struct dpawindow {
   }
 
 bool dpawindow_has_error_occured(Display* display);
-struct dpawindow* dpawindow_lookup(struct dpawin*, Window);
+struct dpawindow* dpawindow_lookup(struct dpaw*, Window);
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, struct xev_event*);
 int dpawindow_hide(struct dpawindow* window, bool hidden);
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
-int dpawindow_place_window(struct dpawindow*, struct dpawin_rect boundary);
+int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);
 int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);
 

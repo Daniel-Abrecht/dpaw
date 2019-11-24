@@ -1,7 +1,7 @@
 #ifndef XEV_X_H
 #define XEV_X_H
 
-// Note: XEV_BaseEvent / XAnyEvent -> dpawin_xev_ev2ext_XEV_BaseEvent is the
+// Note: XEV_BaseEvent / XAnyEvent -> dpaw_xev_ev2ext_XEV_BaseEvent is the
 //       implicit root of the generated event type tree used for event type lookups
 
 #define XEV_EVENTS \

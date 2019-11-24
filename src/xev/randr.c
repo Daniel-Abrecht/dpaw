@@ -1,21 +1,21 @@
 #include <xev/X.c>
 #include <xev/randr.c>
-#include <dpawin.h>
+#include <dpaw.h>
 #include <dpawindow.h>
 #include <stdio.h>
 
-struct xev_event_specializer dpawin_xev_spec_RRNotify = {
+struct xev_event_specializer dpaw_xev_spec_RRNotify = {
   .type_offset = offsetof(XRRNotifyEvent, subtype),
   .type_size = sizeof(((XRRNotifyEvent*)0)->subtype),
 };
 
-int dpawin_xev_randr_init(struct dpawin* dpawin, struct xev_event_extension* extension){
+int dpaw_xev_randr_init(struct dpaw* dpaw, struct xev_event_extension* extension){
   int event_base, error_base;
   int major=1, minor=2;
   (void)extension;
-  (void)dpawin;
-  if( !XRRQueryExtension(dpawin->root.display, &event_base, &error_base)
-   || !XRRQueryVersion(dpawin->root.display, &major, &minor)
+  (void)dpaw;
+  if( !XRRQueryExtension(dpaw->root.display, &event_base, &error_base)
+   || !XRRQueryVersion(dpaw->root.display, &major, &minor)
   ){
     fprintf(stderr, "X RandR extension not available\n");
     return -1;
@@ -28,38 +28,38 @@ int dpawin_xev_randr_init(struct dpawin* dpawin, struct xev_event_extension* ext
   return 0;
 }
 
-void dpawin_xev_randr_preprocess_event(struct dpawin* dpawin, XEvent* event){
+void dpaw_xev_randr_preprocess_event(struct dpaw* dpaw, XEvent* event){
   XRRUpdateConfiguration(event);
-  (void)dpawin;
+  (void)dpaw;
 }
 
-int dpawin_xev_randr_cleanup(struct dpawin* dpawin, struct xev_event_extension* extension){
+int dpaw_xev_randr_cleanup(struct dpaw* dpaw, struct xev_event_extension* extension){
   (void)extension;
-  (void)dpawin;
+  (void)dpaw;
   return 0;
 }
 
-enum event_handler_result dpawin_xev_randr_dispatch(struct dpawin* dpawin, struct xev_event* event){
-  (void)dpawin;
+enum event_handler_result dpaw_xev_randr_dispatch(struct dpaw* dpaw, struct xev_event* event){
+  (void)dpaw;
   (void)event;
   return EHR_UNHANDLED;
 }
 
-int dpawin_xev_randr_listen(struct xev_event_extension* extension, struct dpawindow* window){
-  if(window != &window->dpawin->root.window)
+int dpaw_xev_randr_listen(struct xev_event_extension* extension, struct dpawindow* window){
+  if(window != &window->dpaw->root.window)
     return 0;
   if(!window->type->event_lookup_table.event_handler_list)
     return 0;
   unsigned long mask = 0;
-  for(size_t j=0; j<dpawin_handler_list_count; j++){
-    const struct dpawin_event_handler_list* list = &window->type->event_lookup_table.event_handler_list[j];
+  for(size_t j=0; j<dpaw_handler_list_count; j++){
+    const struct dpaw_event_handler_list* list = &window->type->event_lookup_table.event_handler_list[j];
     if(!list->handler || !list->event_list)
       continue;
     for(size_t k=0,n=list->event_list->index_size; k<n; k++){
-      const struct dpawin_event_handler* handler = &list->handler[k];
+      const struct dpaw_event_handler* handler = &list->handler[k];
       if(!handler->callback || !handler->info)
         continue;
-      for(const struct xev_event_info* evi=handler->info; evi && evi != &dpawin_xev_ev2ext_XEV_BaseEvent; evi=evi->event_list->parent_event){
+      for(const struct xev_event_info* evi=handler->info; evi && evi != &dpaw_xev_ev2ext_XEV_BaseEvent; evi=evi->event_list->parent_event){
         if(evi->type < 0)
           continue;
         if(evi->event_list->extension != extension)
@@ -68,6 +68,6 @@ int dpawin_xev_randr_listen(struct xev_event_extension* extension, struct dpawin
       }
     }
   }
-  XRRSelectInput(window->dpawin->root.display, window->dpawin->root.window.xwindow, mask);
+  XRRSelectInput(window->dpaw->root.display, window->dpaw->root.window.xwindow, mask);
   return 0;
 }
