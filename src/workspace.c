@@ -1,5 +1,7 @@
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>
+#include <atom/ewmh.c>
+#include <X11/Xatom.h>
 #include <workspace.h>
 #include <dpaw.h>
 #include <screenchange.h>
@@ -128,6 +130,22 @@ struct dpaw_workspace_type* choose_best_target_workspace_type(struct dpaw_worksp
   return workspace_type_list;
 }
 
+static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
+  size_t root_window_list_size = 0;
+  for(struct dpaw_workspace* it=wmgr->workspace; it; it=it->next)
+    root_window_list_size += 1;
+  if(root_window_list_size > 256)
+    return -1; // Since root_window_list is currently allocated on the stack, let's make sure it won't become so big that it stackoverflows
+  {
+    Window root_window_list[root_window_list_size];
+    size_t i = 0;
+    for(struct dpaw_workspace* it=wmgr->workspace; it; it=it->next)
+      root_window_list[i] = it->window->xwindow;
+    XChangeProperty(wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow, _NET_VIRTUAL_ROOTS, XA_WINDOW, 32, PropModeReplace, (void*)root_window_list, root_window_list_size);
+  }
+  return 0;
+}
+
 struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_type* type){
   if(type->size+type->derived_offset < sizeof(struct dpaw_workspace)){
     fprintf(stderr, "Error: Invalid workspace type size\n");
@@ -171,6 +189,8 @@ struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, str
 
   workspace->next = wmgr->workspace;
   wmgr->workspace = workspace;
+
+  update_virtual_root_property(wmgr);
 
   return workspace;
 

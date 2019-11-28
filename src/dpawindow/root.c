@@ -1,8 +1,10 @@
 #include <xev/X.c>
+#include <atom/ewmh.c>
 #include <dpawindow/root.h>
 #include <screenchange.h>
 #include <workspace.h>
 #include <dpaw.h>
+#include <X11/Xatom.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,6 +24,49 @@ int dpawindow_root_init(struct dpaw* dpaw, struct dpawindow_root* window){
     fprintf(stderr, "dpawindow_root_init_super failed\n");
     return -1;
   }
+
+#define AL(X) (void*)X, sizeof(X)/sizeof(*X)
+  XChangeProperty(window->display, window->window.xwindow, _NET_SUPPORTED, XA_ATOM, 32, PropModeReplace, AL(((Atom[]){
+    _NET_SUPPORTED,
+//    _NET_SUPPORTING_WM_CHECK,
+
+    _NET_WM_STATE,
+//    _NET_WM_STATE_DEMANDS_ATTENTION,
+    _NET_WM_STATE_FOCUSED,
+    _NET_WM_STATE_MAXIMIZED_HORZ,
+    _NET_WM_STATE_MAXIMIZED_VERT,
+//    _NET_WM_STATE_MODAL,
+    _NET_WM_STATE_HIDDEN,
+    _NET_WM_STATE_SKIP_PAGER,
+    _NET_WM_STATE_SKIP_TASKBAR,
+
+    _NET_WM_WINDOW_TYPE,
+    _NET_WM_WINDOW_TYPE_DESKTOP,
+    _NET_WM_WINDOW_TYPE_DIALOG,
+    _NET_WM_WINDOW_TYPE_DOCK,
+    _NET_WM_WINDOW_TYPE_MENU,
+    _NET_WM_WINDOW_TYPE_NORMAL,
+    _NET_WM_WINDOW_TYPE_SPLASH,
+    _NET_WM_WINDOW_TYPE_TOOLBAR,
+    _NET_WM_WINDOW_TYPE_UTILITY,
+
+//    _NET_ACTIVE_WINDOW,
+
+    _NET_WM_ICON,
+    _NET_WM_ICON_GEOMETRY,
+    _NET_WM_ICON_NAME,
+    _NET_WM_MOVERESIZE,
+    _NET_WM_NAME,
+    _NET_WM_PID,
+    _NET_WM_PING,
+
+    _NET_VIRTUAL_ROOTS,
+
+//    _NET_CLOSE_WINDOW,
+//    _NET_MOVERESIZE_WINDOW
+  })));
+#undef AL
+
   if(dpaw_screenchange_init(&window->screenchange_detector, dpaw)){
     fprintf(stderr, "dpaw_screenchange_init failed\n");
     return -1;
@@ -105,3 +150,7 @@ EV_ON(root, ReparentNotify){
   return EHR_OK;
 }
 
+EV_ON(root, ClientMessage){
+  printf("ClientMessage: %s\n", XGetAtomName(window->window.dpaw->root.display, event->message_type));
+  return EHR_NEXT;
+}

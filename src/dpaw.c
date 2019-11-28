@@ -1,3 +1,4 @@
+#include <atom.h>
 #include <dpaw.h>
 #include <errno.h>
 #include <stdio.h>
@@ -24,6 +25,10 @@ int dpaw_init(struct dpaw* dpaw){
   dpaw->root.window.xwindow = DefaultRootWindow(dpaw->root.display);
   if(!dpaw->root.window.xwindow){
     fprintf(stderr, "DefaultRootWindow failed\n");
+    goto error;
+  }
+  if(dpaw_atom_init(dpaw->root.display) == -1){
+    fprintf(stderr, "dpaw_atom_init failed\n");
     goto error;
   }
   if(dpawindow_root_init(dpaw, &dpaw->root) == -1){
