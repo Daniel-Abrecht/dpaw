@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 static struct dpaw_workspace_type* workspace_type_list;
 
@@ -137,7 +138,7 @@ static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
   if(root_window_list_size > 256)
     return -1; // Since root_window_list is currently allocated on the stack, let's make sure it won't become so big that it stackoverflows
   {
-    Window root_window_list[root_window_list_size];
+    uint32_t root_window_list[root_window_list_size]; // Don't use window, an entry it may not be 32 bit long.
     size_t i = 0;
     for(struct dpaw_workspace* it=wmgr->workspace; it; it=it->next)
       root_window_list[i] = it->window->xwindow;
