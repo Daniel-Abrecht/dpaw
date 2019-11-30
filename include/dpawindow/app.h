@@ -4,10 +4,11 @@
 #include <dpawindow.h>
 #include <workspace.h>
 #include <linked_list.h>
+#include <X11/Xutil.h>
 
 /* There are some properties that need to be watched for changes, let's add an abstraction for that */
 #define DPAW_APP_OBSERVABLE(T) \
-  struct dpaw_observer { \
+  struct { \
     T value; \
     void* private; \
     int (*onchange)(void*, struct dpawindow_app*, T); \
@@ -31,8 +32,6 @@
 #define DPAW_APP_OBSERVABLE_SET(A,N,V) \
   do { \
     struct dpawindow_app* app_1 = (A); \
-    if(app_1->observable.N.value == (V)) \
-      break; \
     app_1->observable.N.value = (V); \
     DPAW_APP_OBSERVABLE_NOTIFY(app_1, N); \
   } while(0)
@@ -43,7 +42,9 @@ DECLARE_DPAW_DERIVED_WINDOW( app,
   struct dpaw_workspace* workspace;
   void* workspace_private;
   struct {
-    DPAW_APP_OBSERVABLE(Atom) _NET_WM_WINDOW_TYPE;
+    DPAW_APP_OBSERVABLE(Atom) type;
+    DPAW_APP_OBSERVABLE(XWMHints) window_hints;
+    DPAW_APP_OBSERVABLE(XSizeHints) desired_placement;
   } observable;
 )
 

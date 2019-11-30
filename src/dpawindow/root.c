@@ -151,6 +151,8 @@ EV_ON(root, ReparentNotify){
 }
 
 EV_ON(root, ClientMessage){
-  printf("ClientMessage: %s\n", XGetAtomName(window->window.dpaw->root.display, event->message_type));
+  char* name = XGetAtomName(window->window.dpaw->root.display, event->message_type);
+  printf("ClientMessage: %s\n", name);
+  XFree(name);
   return EHR_NEXT;
 }
