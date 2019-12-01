@@ -1,5 +1,6 @@
 #include <xev/X.c>
 #include <xev/xinput2.c>
+#include <atom/ewmh.c>
 #include <dpawindow/workspace/handheld.h>
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>
@@ -35,14 +36,35 @@ static int update_window_area(struct dpawindow_handheld_window* child){
   return dpawindow_place_window(&child->app_window->window, boundary);
 }
 
+static int unshow_window(struct dpawindow_handheld_window* hw);
+
 static int make_current(struct dpawindow_handheld_window* child){
   printf("make_current %p -> %p\n", (void*)child->workspace->current, (void*)child);
-  if(child->workspace->current == child)
-    return 0;
-  if(child->workspace->current)
-    if(dpawindow_hide(&child->workspace->current->app_window->window, true))
-      return -1;
-  child->workspace->current = child;
+  switch(child->type){
+    case DPAWINDOW_HANDHELD_UNSET: return -1;
+    case DPAWINDOW_HANDHELD_TOP_DOCK: {
+      if(child->workspace->top_dock == child)
+        return 0;
+      if(child->workspace->top_dock)
+        unshow_window(child->workspace->top_dock);
+      child->workspace->top_dock = child;
+    } break;
+    case DPAWINDOW_HANDHELD_BOTTOM_DOCK: {
+      if(child->workspace->bottom_dock == child)
+        return 0;
+      if(child->workspace->bottom_dock)
+        unshow_window(child->workspace->bottom_dock);
+      child->workspace->bottom_dock = child;
+    } break;
+    case DPAWINDOW_HANDHELD_NORMAL: {
+      if(child->workspace->current == child)
+        return 0;
+      if(child->workspace->current)
+        if(dpawindow_hide(&child->workspace->current->app_window->window, true))
+          return -1;
+      child->workspace->current = child;
+    }
+  }
   if(update_window_area(child))
     return -1;
   if(dpawindow_hide(&child->app_window->window, false))
@@ -145,6 +167,51 @@ static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struc
   return 0;
 }
 
+static int unshow_window(struct dpawindow_handheld_window* hw){
+  printf("unshow_window %d\n", (int)hw->type);
+  switch(hw->type){
+    case DPAWINDOW_HANDHELD_UNSET: return -1;
+    case DPAWINDOW_HANDHELD_NORMAL: {
+      if(hw->workspace->current != hw)
+        return 0;
+      if(hw->app_window->workspace_window_entry.next)
+        return make_current(container_of(hw->app_window->workspace_window_entry.next, struct dpawindow_app, workspace_window_entry)->workspace_private);
+      if(hw->app_window->workspace_window_entry.previous)
+        return make_current(container_of(hw->app_window->workspace_window_entry.previous, struct dpawindow_app, workspace_window_entry)->workspace_private);
+      hw->workspace->current = 0;
+    } break;
+    case DPAWINDOW_HANDHELD_TOP_DOCK: {
+      hw->workspace->top_dock = 0;
+    } break;
+    case DPAWINDOW_HANDHELD_BOTTOM_DOCK: {
+      hw->workspace->bottom_dock = 0;
+    } break;
+  }
+  return 0;
+}
+
+static int set_window_type(struct dpawindow_handheld_window* window){
+  enum dpawindow_handheld_window_type type = DPAWINDOW_HANDHELD_NORMAL;
+  if(!(window->workspace->top_dock && window->workspace->top_dock != window) && (
+      window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_TOOLBAR
+   || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_MENU
+  )){
+    type = DPAWINDOW_HANDHELD_TOP_DOCK;
+  }
+  if(!(window->workspace->current && window->workspace->current->app_window->is_keyboard && window->workspace->current != window)){
+    if(window->app_window->is_keyboard){
+      type = DPAWINDOW_HANDHELD_BOTTOM_DOCK;
+    }else if(!(window->workspace->bottom_dock && window->workspace->bottom_dock != window) && window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_DOCK){
+      type = DPAWINDOW_HANDHELD_BOTTOM_DOCK;
+    }
+  }
+  if(window->type == type)
+    return 0;
+  unshow_window(window);
+  window->type = type;
+  return make_current(window);
+}
+
 static int take_window(struct dpawindow_workspace_handheld* workspace, struct dpawindow_app* window){
   printf("take_window %lx\n", window->window.xwindow);
   struct dpawindow_handheld_window* child = calloc(sizeof(struct dpawindow_handheld_window), 1);
@@ -154,16 +221,18 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   child->workspace = workspace;
   window->workspace_private = child;
   XReparentWindow(workspace->window.dpaw->root.display, window->window.xwindow, workspace->window.xwindow, 0, 0);
-  if(make_current(child))
-    return -1;
+  if(set_window_type(child) == -1)
+    return -1; // TODO: Do cleanup stuff
   dpawindow_set_mapping(&child->app_window->window, true);
   return 0;
 }
 
 static int abandon_window(struct dpawindow_app* window){
   printf("abandon_window %lx\n", window->window.xwindow);
-  if(window->workspace_window_entry.next)
-    make_current(container_of(window->workspace_window_entry.next, struct dpawindow_app, workspace_window_entry)->workspace_private);
+  unshow_window(window->workspace_private);
+  if(window->workspace_private)
+    free(window->workspace_private);
+  window->workspace_private = 0;
   return 0;
 }
 

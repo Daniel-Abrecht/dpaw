@@ -46,6 +46,7 @@ DECLARE_DPAW_DERIVED_WINDOW( app,
     DPAW_APP_OBSERVABLE(XWMHints) window_hints;
     DPAW_APP_OBSERVABLE(XSizeHints) desired_placement;
   } observable;
+  bool is_keyboard;
 )
 
 int dpawindow_app_init(struct dpaw*, struct dpawindow_app*, Window);

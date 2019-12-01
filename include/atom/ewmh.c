@@ -115,8 +115,6 @@
   X(_NET_WM_WINDOW_TYPE_TOOLTIP) \
   X(_NET_WM_WINDOW_TYPE_UTILITY) \
   X(_NET_WORKAREA) \
-  \
-  X(UTF8_STRING)
 
 #include <atom.template>
 

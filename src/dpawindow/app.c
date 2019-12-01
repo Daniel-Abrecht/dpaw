@@ -1,6 +1,7 @@
 #include <dpaw.h>
 #include <xev/X.c>
 #include <atom/ewmh.c>
+#include <atom/misc.c>
 #include <dpawindow/app.h>
 #include <workspace.h>
 #include <stdint.h>
@@ -15,20 +16,19 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
     fprintf(stderr, "dpawindow_app_init_super failed\n");
     return -1;
   }
-/*  int property_list_size = 0;
-  Atom* property_list = XListProperties(dpaw->root.display, xwindow, &property_list_size);
-  if(property_list)
-  for(int i=0; i<property_list_size; i++){
-    char* name = XGetAtomName(dpaw->root.display, property_list[i]);
-    printf(" - %s\n", name);
-    XFree(name);
-  }
-  XFree(property_list);*/
+
   {
     uint32_t* res = 0; // Note: The Atom type may not be 32 bytes big!!!
     if(dpaw_get_property(&window->window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1)
       fprintf(stderr, "dpaw_get_property failed\n");
     DPAW_APP_OBSERVABLE_SET(window, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
+    if(res) XFree(res);
+  }
+  {
+    uint32_t* res = 0;
+    if(dpaw_get_property(&window->window, ONSCREEN_KEYBOARD, (size_t[]){4}, 0, (void**)&res) == -1)
+      fprintf(stderr, "dpaw_get_property failed\n");
+    window->is_keyboard = res && *res;
     if(res) XFree(res);
   }
   {
@@ -51,7 +51,8 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
       DPAW_APP_OBSERVABLE_SET(window, window_hints, (XWMHints){0});
     }
   }
-  printf("%s\n", XGetAtomName(dpaw->root.display, window->observable.type.value));
+
+//  printf("%s\n", XGetAtomName(dpaw->root.display, window->observable.type.value));
   return 0;
 }
 
@@ -67,5 +68,9 @@ EV_ON(app, ClientMessage){
   XFree(name);
   if(event->message_type == _NET_WM_STATE)
     puts("_NET_WM_STATE");
+  if(event->message_type == _NET_MOVERESIZE_WINDOW)
+    puts("_NET_MOVERESIZE_WINDOW"); // TODO: Set window.observable.desired_placement
+  if(event->message_type == _NET_CLOSE_WINDOW)
+    puts("_NET_CLOSE_WINDOW");
   return EHR_OK;
 }
