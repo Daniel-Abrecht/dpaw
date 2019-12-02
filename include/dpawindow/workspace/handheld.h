@@ -14,14 +14,16 @@ enum dpawindow_handheld_window_type {
 };
 
 DECLARE_DPAW_WORKSPACE( handheld,
-  struct dpawindow_handheld_window* current;
   struct dpaw_sideswipe_detector sideswipe;
   struct dpaw_sideswipe_detector_params sideswipe_params;
   struct dpaw_touch_gesture_manager touch_gesture_manager;
+  struct dpaw_list handheld_window_list;
+  struct dpawindow_handheld_window *current;
   struct dpawindow_handheld_window *top_dock, *bottom_dock;
 )
 
 struct dpawindow_handheld_window {
+  struct dpaw_list_entry handheld_entry;
   enum dpawindow_handheld_window_type type;
   struct dpawindow_app* app_window;
   struct dpawindow_workspace_handheld* workspace;

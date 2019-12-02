@@ -60,10 +60,11 @@ static int make_current(struct dpawindow_handheld_window* child){
       if(child->workspace->current == child)
         return 0;
       if(child->workspace->current)
-        if(dpawindow_hide(&child->workspace->current->app_window->window, true))
-          return -1;
+        dpawindow_hide(&child->workspace->current->app_window->window, true);
+      if(!child->handheld_entry.list)
+        dpaw_linked_list_set(&child->workspace->handheld_window_list, &child->handheld_entry, 0);
       child->workspace->current = child;
-    }
+    } break;
   }
   if(update_window_area(child))
     return -1;
@@ -76,27 +77,28 @@ static void sideswipe_handler(void* private, enum dpaw_direction direction, long
   if(direction >= 2)
     diff = -diff;
   struct dpawindow_workspace_handheld* workspace = private;
-  struct dpawindow_app* appwin = workspace->current->app_window;
+  struct dpawindow_handheld_window* next_window = 0;
   if(diff > 0){
     while(diff-- > 0){
-      appwin = container_of(
-        appwin->workspace_window_entry.next
-         ? appwin->workspace_window_entry.next
-         : workspace->workspace.window_list.first,
-        struct dpawindow_app, workspace_window_entry
+      next_window = container_of(
+        workspace->current && workspace->current->handheld_entry.next
+         ? workspace->current->handheld_entry.next
+         : workspace->handheld_window_list.first,
+        struct dpawindow_handheld_window, handheld_entry
       );
     }
   }else{
     while(diff++ < 0){
-      appwin = container_of(
-        appwin->workspace_window_entry.previous
-         ? appwin->workspace_window_entry.previous
-         : workspace->workspace.window_list.last,
-        struct dpawindow_app, workspace_window_entry
+      next_window = container_of(
+        workspace->current && workspace->current->handheld_entry.previous
+         ? workspace->current->handheld_entry.previous
+         : workspace->handheld_window_list.last,
+        struct dpawindow_handheld_window, handheld_entry
       );
     }
   }
-  make_current(appwin->workspace_private);
+  if(next_window)
+    make_current(next_window);
 }
 
 static int init(struct dpawindow_workspace_handheld* workspace){
@@ -136,20 +138,19 @@ static void cleanup(struct dpawindow_workspace_handheld* workspace){
 static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpaw_workspace_screen* screen){
   (void)screen;
   puts("handheld_workspace screen_added");
-  for(struct dpaw_list_entry* it=workspace->workspace.window_list.first; it; it=it->next){
-    struct dpawindow_app* appwin = container_of(it, struct dpawindow_app, workspace_window_entry);
-    update_window_area(appwin->workspace_private);
+  for(struct dpaw_list_entry* it=workspace->handheld_window_list.first; it; it=it->next){
+    struct dpawindow_handheld_window* handheld = container_of(it, struct dpawindow_handheld_window, handheld_entry);
+    update_window_area(handheld);
   }
   return 0;
 }
 
 static int screen_changed(struct dpawindow_workspace_handheld* workspace, struct dpaw_workspace_screen* screen){
-  (void)workspace;
   (void)screen;
   puts("handheld_workspace screen_changed");
   for(struct dpaw_list_entry* it=workspace->workspace.window_list.first; it; it=it->next){
-    struct dpawindow_app* appwin = container_of(it, struct dpawindow_app, workspace_window_entry);
-    update_window_area(appwin->workspace_private);
+    struct dpawindow_handheld_window* handheld = container_of(it, struct dpawindow_handheld_window, handheld_entry);
+    update_window_area(handheld);
   }
   return 0;
 }
@@ -169,24 +170,26 @@ static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struc
 
 static int unshow_window(struct dpawindow_handheld_window* hw){
   printf("unshow_window %d\n", (int)hw->type);
-  switch(hw->type){
-    case DPAWINDOW_HANDHELD_UNSET: return -1;
-    case DPAWINDOW_HANDHELD_NORMAL: {
-      if(hw->workspace->current != hw)
-        return 0;
-      if(hw->app_window->workspace_window_entry.next)
-        return make_current(container_of(hw->app_window->workspace_window_entry.next, struct dpawindow_app, workspace_window_entry)->workspace_private);
-      if(hw->app_window->workspace_window_entry.previous)
-        return make_current(container_of(hw->app_window->workspace_window_entry.previous, struct dpawindow_app, workspace_window_entry)->workspace_private);
+  if(hw && hw == hw->workspace->current){
+    if(hw->handheld_entry.next){
+      puts("next");
+      make_current(container_of(hw->handheld_entry.next, struct dpawindow_handheld_window, handheld_entry));
+    }else if(hw->handheld_entry.previous){
+      puts("previous");
+      make_current(container_of(hw->handheld_entry.previous, struct dpawindow_handheld_window, handheld_entry));
+    }else{
+      puts("none");
       hw->workspace->current = 0;
-    } break;
-    case DPAWINDOW_HANDHELD_TOP_DOCK: {
-      hw->workspace->top_dock = 0;
-    } break;
-    case DPAWINDOW_HANDHELD_BOTTOM_DOCK: {
-      hw->workspace->bottom_dock = 0;
-    } break;
+    }
   }
+  dpaw_linked_list_set(0, &hw->handheld_entry, 0);
+  if(hw && hw == hw->workspace->top_dock){
+    hw->workspace->top_dock = 0;
+  }
+  if(hw && hw == hw->workspace->bottom_dock){
+    hw->workspace->bottom_dock = 0;
+  }
+  dpawindow_hide(&hw->app_window->window, true);
   return 0;
 }
 
@@ -212,6 +215,15 @@ static int set_window_type(struct dpawindow_handheld_window* window){
   return make_current(window);
 }
 
+static int abandon_window(struct dpawindow_app* window){
+  printf("abandon_window %lx\n", window->window.xwindow);
+  unshow_window(window->workspace_private);
+  if(window->workspace_private)
+    free(window->workspace_private);
+  window->workspace_private = 0;
+  return 0;
+}
+
 static int take_window(struct dpawindow_workspace_handheld* workspace, struct dpawindow_app* window){
   printf("take_window %lx\n", window->window.xwindow);
   struct dpawindow_handheld_window* child = calloc(sizeof(struct dpawindow_handheld_window), 1);
@@ -221,18 +233,11 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   child->workspace = workspace;
   window->workspace_private = child;
   XReparentWindow(workspace->window.dpaw->root.display, window->window.xwindow, workspace->window.xwindow, 0, 0);
-  if(set_window_type(child) == -1)
+  if(set_window_type(child) == -1){
+    abandon_window(window);
     return -1; // TODO: Do cleanup stuff
+  }
   dpawindow_set_mapping(&child->app_window->window, true);
-  return 0;
-}
-
-static int abandon_window(struct dpawindow_app* window){
-  printf("abandon_window %lx\n", window->window.xwindow);
-  unshow_window(window->workspace_private);
-  if(window->workspace_private)
-    free(window->workspace_private);
-  window->workspace_private = 0;
   return 0;
 }
 
