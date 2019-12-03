@@ -17,23 +17,63 @@ static struct dpawindow_handheld_window* lookup_xwindow(struct dpawindow_workspa
   return app_window->workspace_private;
 }
 
+long get_desired_window_height(struct dpawindow_handheld_window* window){
+  return window->app_window->observable.desired_placement.value.height;
+}
+
 static struct dpaw_rect determine_window_position(struct dpawindow_handheld_window* child){
+  long    top_dock_height = child->workspace->   top_dock ? get_desired_window_height(child->workspace->   top_dock) : 0;
+  long bottom_dock_height = child->workspace->bottom_dock ? get_desired_window_height(child->workspace->bottom_dock) : 0;
   struct dpaw_rect boundary = {
-    .top_left = {0,0}
+    .top_left = {0, 0}
   };
   struct dpaw_rect workspace_boundary = child->workspace->window.boundary;
   struct dpaw_point wh = {
     .x = workspace_boundary.bottom_right.x - workspace_boundary.top_left.x,
     .y = workspace_boundary.bottom_right.y - workspace_boundary.top_left.y
   };
-  boundary.bottom_right.x = boundary.top_left.x + wh.x;
-  boundary.bottom_right.y = boundary.top_left.y + wh.y;
+  if(child->workspace->top_dock){
+    if(top_dock_height > wh.y/4)
+      top_dock_height =  wh.y/4;
+    if(top_dock_height < 16)
+      top_dock_height = 16;
+  }
+  if(child->workspace->bottom_dock){
+    if(bottom_dock_height > wh.y/3)
+      bottom_dock_height = wh.y/3;
+    if(bottom_dock_height < 16)
+      bottom_dock_height = 16;
+  }
+  boundary.bottom_right.x = wh.x;
+  if(child->type == DPAWINDOW_HANDHELD_NORMAL){
+    boundary.bottom_right.y = wh.y - bottom_dock_height;
+    boundary.top_left.y = top_dock_height;
+  }
+  if(child->type == DPAWINDOW_HANDHELD_BOTTOM_DOCK){
+    boundary.top_left.y = wh.y - bottom_dock_height;
+    boundary.bottom_right.y = wh.y;
+  }
+  if(child->type == DPAWINDOW_HANDHELD_TOP_DOCK){
+    boundary.top_left.y = 0;
+    boundary.bottom_right.y = top_dock_height;
+  }
   return boundary;
 }
 
 static int update_window_area(struct dpawindow_handheld_window* child){
   struct dpaw_rect boundary = determine_window_position(child);
+  printf("update_window_area: %d %ld %ld %ld %ld\n", child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
   return dpawindow_place_window(&child->app_window->window, boundary);
+}
+
+static int update_window_size(struct dpawindow_workspace_handheld* workspace){
+  if(workspace->current)
+    update_window_area(workspace->current);
+  if(workspace->top_dock)
+    update_window_area(workspace->top_dock);
+  if(workspace->bottom_dock)
+    update_window_area(workspace->bottom_dock);
+  return 0;
 }
 
 static int unshow_window(struct dpawindow_handheld_window* hw);
@@ -66,7 +106,7 @@ static int make_current(struct dpawindow_handheld_window* child){
       child->workspace->current = child;
     } break;
   }
-  if(update_window_area(child))
+  if(update_window_size(child->workspace))
     return -1;
   if(dpawindow_hide(&child->app_window->window, false))
     return -1;
@@ -170,7 +210,9 @@ static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struc
 
 static int unshow_window(struct dpawindow_handheld_window* hw){
   printf("unshow_window %d\n", (int)hw->type);
+  bool was_shown = false;
   if(hw && hw == hw->workspace->current){
+    was_shown = true;
     if(hw->handheld_entry.next){
       puts("next");
       make_current(container_of(hw->handheld_entry.next, struct dpawindow_handheld_window, handheld_entry));
@@ -184,12 +226,16 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
   }
   dpaw_linked_list_set(0, &hw->handheld_entry, 0);
   if(hw && hw == hw->workspace->top_dock){
+    was_shown = true;
     hw->workspace->top_dock = 0;
   }
   if(hw && hw == hw->workspace->bottom_dock){
+    was_shown = true;
     hw->workspace->bottom_dock = 0;
   }
   dpawindow_hide(&hw->app_window->window, true);
+  if(was_shown)
+    update_window_size(hw->workspace);
   return 0;
 }
 
@@ -245,6 +291,14 @@ EV_ON(workspace_handheld, ConfigureRequest){
   struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
   if(!child)
     return EHR_ERROR;
+  if(event->value_mask & CWWidth)
+    child->app_window->observable.desired_placement.value.width = event->width;
+  if(event->value_mask & CWHeight)
+    child->app_window->observable.desired_placement.value.height = event->height;
+  if(event->value_mask & CWX)
+    child->app_window->observable.desired_placement.value.x = event->x;
+  if(event->value_mask & CWY)
+    child->app_window->observable.desired_placement.value.y = event->y;
   struct dpaw_rect boundary = determine_window_position(child);
   XWindowChanges changes = {
     .x = boundary.top_left.x,
@@ -255,7 +309,10 @@ EV_ON(workspace_handheld, ConfigureRequest){
     .sibling      = event->above,
     .stack_mode   = event->detail
   };
+  printf("ConfigureRequest: %u %d %d %d %d\n", child->type, changes.x, changes.y, changes.width, changes.height);
   XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask | CWX | CWY | CWWidth | CWHeight, &changes);
+  if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
+    DPAW_APP_OBSERVABLE_NOTIFY(child->app_window, desired_placement);
   return EHR_OK;
 }
 
