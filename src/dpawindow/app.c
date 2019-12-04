@@ -4,10 +4,26 @@
 #include <atom/misc.c>
 #include <dpawindow/app.h>
 #include <workspace.h>
-#include <stdint.h>
 #include <stdio.h>
 
 DEFINE_DPAW_DERIVED_WINDOW(app)
+
+int dpawindow_app_update_wm_state(struct dpawindow_app* app){
+  unsigned count = 0;
+  Atom wm_state[] = {
+#define X(Y) 0,
+    DPAW_APP_STATE_LIST
+#undef X
+  };
+#define X(Y) if(app->wm_state.Y) wm_state[count++] = Y;
+    DPAW_APP_STATE_LIST
+#undef X
+#define X(Y) if(app->wm_state.Y) printf("%s %ld\n", #Y, Y);
+    DPAW_APP_STATE_LIST
+#undef X
+  XChangeProperty(app->window.dpaw->root.display, app->window.xwindow, _NET_WM_STATE, XA_ATOM, 32, PropModeReplace, (unsigned char*)wm_state, count);
+  return 0;
+}
 
 int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window xwindow){
   window->window.xwindow = xwindow;
@@ -18,14 +34,14 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
   }
 
   {
-    uint32_t* res = 0; // Note: The Atom type may not be 32 bytes big!!!
+    Atom* res = 0; // An atom may not be 32bit big, so specifying 4 bytes is technically wrong, but in practice, there is no other way to do this right, X will allocate a whole atom.
     if(dpaw_get_property(&window->window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1)
       fprintf(stderr, "dpaw_get_property failed\n");
     DPAW_APP_OBSERVABLE_SET(window, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
     if(res) XFree(res);
   }
   {
-    uint32_t* res = 0;
+    Atom* res = 0;
     if(dpaw_get_property(&window->window, ONSCREEN_KEYBOARD, (size_t[]){4}, 0, (void**)&res) == -1)
       fprintf(stderr, "dpaw_get_property failed\n");
     window->is_keyboard = res && *res;

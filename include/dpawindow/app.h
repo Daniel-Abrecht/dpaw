@@ -37,9 +37,33 @@
   } while(0)
 /****/
 
+#define DPAW_APP_STATE_LIST \
+  X(_NET_WM_STATE_ABOVE) \
+  X(_NET_WM_STATE_ADD) \
+  X(_NET_WM_STATE_BELOW) \
+  X(_NET_WM_STATE_DEMANDS_ATTENTION) \
+  X(_NET_WM_STATE_FOCUSED) \
+  X(_NET_WM_STATE_FULLSCREEN) \
+  X(_NET_WM_STATE_HIDDEN) \
+  X(_NET_WM_STATE_MAXIMIZED_HORZ) \
+  X(_NET_WM_STATE_MAXIMIZED_VERT) \
+  X(_NET_WM_STATE_MODAL) \
+  X(_NET_WM_STATE_REMOVE) \
+  X(_NET_WM_STATE_SHADED) \
+  X(_NET_WM_STATE_SKIP_PAGER) \
+  X(_NET_WM_STATE_SKIP_TASKBAR) \
+  X(_NET_WM_STATE_STICKY) \
+  X(_NET_WM_STATE_TOGGLE)
+
+#define X(Y) bool Y : 1;
 DECLARE_DPAW_DERIVED_WINDOW( app,
   struct dpaw_list_entry workspace_window_entry;
   struct dpaw_workspace* workspace;
+
+  struct {
+    DPAW_APP_STATE_LIST
+  } wm_state;
+
   void* workspace_private;
   struct {
     DPAW_APP_OBSERVABLE(Atom) type;
@@ -48,8 +72,10 @@ DECLARE_DPAW_DERIVED_WINDOW( app,
   } observable;
   bool is_keyboard;
 )
+#undef X
 
 int dpawindow_app_init(struct dpaw*, struct dpawindow_app*, Window);
 int dpawindow_app_cleanup(struct dpawindow_app*);
+int dpawindow_app_update_wm_state(struct dpawindow_app*);
 
 #endif

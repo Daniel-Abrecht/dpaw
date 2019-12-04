@@ -80,6 +80,7 @@ static int unshow_window(struct dpawindow_handheld_window* hw);
 
 static int make_current(struct dpawindow_handheld_window* child){
   printf("make_current %p -> %p\n", (void*)child->workspace->current, (void*)child);
+  memset(&child->app_window->wm_state, 0, sizeof(child->app_window->wm_state));
   switch(child->type){
     case DPAWINDOW_HANDHELD_UNSET: return -1;
     case DPAWINDOW_HANDHELD_TOP_DOCK: {
@@ -104,12 +105,16 @@ static int make_current(struct dpawindow_handheld_window* child){
       if(!child->handheld_entry.list)
         dpaw_linked_list_set(&child->workspace->handheld_window_list, &child->handheld_entry, 0);
       child->workspace->current = child;
+      child->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = true;
+      child->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = true;
     } break;
   }
   if(update_window_size(child->workspace))
     return -1;
   if(dpawindow_hide(&child->app_window->window, false))
     return -1;
+  child->app_window->wm_state._NET_WM_STATE_FOCUSED = true;
+  dpawindow_app_update_wm_state(child->app_window);
   return 0;
 }
 
@@ -233,6 +238,8 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
     was_shown = true;
     hw->workspace->bottom_dock = 0;
   }
+  memset(&hw->app_window->wm_state, 0, sizeof(hw->app_window->wm_state));
+  dpawindow_app_update_wm_state(hw->app_window);
   dpawindow_hide(&hw->app_window->window, true);
   if(was_shown)
     update_window_size(hw->workspace);

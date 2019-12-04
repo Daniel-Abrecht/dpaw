@@ -1,7 +1,6 @@
 #include <dpawindow/root.h>
 #include <dpawindow/app.h>
 #include <atom/ewmh.c>
-#include <X11/Xatom.h>
 #include <workspace.h>
 #include <dpaw.h>
 #include <screenchange.h>
@@ -138,7 +137,7 @@ static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
   if(root_window_list_size > 256)
     return -1; // Since root_window_list is currently allocated on the stack, let's make sure it won't become so big that it stackoverflows
   {
-    uint32_t root_window_list[root_window_list_size]; // Don't use window, an entry it may not be 32 bit long.
+    Window root_window_list[root_window_list_size]; // Don't use window, an entry it may not be 32 bit long.
     size_t i = 0;
     for(struct dpaw_workspace* it=wmgr->workspace; it; it=it->next)
       root_window_list[i] = it->window->xwindow;
