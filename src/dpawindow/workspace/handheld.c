@@ -248,19 +248,37 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
 
 static int set_window_type(struct dpawindow_handheld_window* window){
   enum dpawindow_handheld_window_type type = DPAWINDOW_HANDHELD_NORMAL;
-  if(!(window->workspace->top_dock && window->workspace->top_dock != window) && (
+  if( window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_TOOLBAR
+   || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_MENU
+   || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_DOCK
+  ){
+    type = DPAWINDOW_HANDHELD_UNSET;
+  }
+  if((!window->workspace->top_dock || window->workspace->top_dock == window) && (
       window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_TOOLBAR
    || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_MENU
   )){
     type = DPAWINDOW_HANDHELD_TOP_DOCK;
   }
-  if(!(window->workspace->current && window->workspace->current->app_window->is_keyboard && window->workspace->current != window)){
-    if(window->app_window->is_keyboard){
+  if(window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_DOCK){
+    if(window->workspace->top_dock == window){
+      type = DPAWINDOW_HANDHELD_TOP_DOCK;
+    }else if(window->workspace->bottom_dock == window){
       type = DPAWINDOW_HANDHELD_BOTTOM_DOCK;
-    }else if(!(window->workspace->bottom_dock && window->workspace->bottom_dock != window) && window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_DOCK){
+    }else if(!window->workspace->top_dock && !window->workspace->bottom_dock){
+      long workspace_height = window->workspace->window.boundary.bottom_right.y - window->workspace->window.boundary.top_left.y;
+      type = window->app_window->window.boundary.top_left.y < workspace_height / 2 ? DPAWINDOW_HANDHELD_TOP_DOCK : DPAWINDOW_HANDHELD_BOTTOM_DOCK;
+    }else if(!window->workspace->top_dock){
+      type = DPAWINDOW_HANDHELD_TOP_DOCK;
+    }else if(!window->workspace->bottom_dock){
       type = DPAWINDOW_HANDHELD_BOTTOM_DOCK;
     }
   }
+  if( window->app_window->is_keyboard && (
+        !window->workspace->bottom_dock
+     ||  window->workspace->bottom_dock == window
+     || !window->workspace->bottom_dock->app_window->is_keyboard
+  )) type = DPAWINDOW_HANDHELD_BOTTOM_DOCK;
   if(window->type == type)
     return 0;
   unshow_window(window);
