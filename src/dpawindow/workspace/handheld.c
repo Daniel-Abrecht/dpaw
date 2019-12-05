@@ -115,6 +115,9 @@ static int make_current(struct dpawindow_handheld_window* child){
     return -1;
   child->app_window->wm_state._NET_WM_STATE_FOCUSED = true;
   dpawindow_app_update_wm_state(child->app_window);
+  if(child->type == DPAWINDOW_HANDHELD_NORMAL){
+    XSetInputFocus(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow, RevertToPointerRoot, CurrentTime);
+  }
   return 0;
 }
 
