@@ -14,6 +14,28 @@ int dpaw_cleanup(struct dpaw* dpaw){
   return 0;
 }
 
+static int takeover_existing_windows(struct dpaw* dpaw){
+  XGrabServer(dpaw->root.display);
+  Window root_ret, parent_ret;
+  Window* window_list;
+  unsigned int window_count;
+  if(!XQueryTree(
+    dpaw->root.display,
+    dpaw->root.window.xwindow,
+    &root_ret,
+    &parent_ret,
+    &window_list,
+    &window_count
+  )) return -1;
+  if(root_ret != dpaw->root.window.xwindow)
+    return -1;
+  for(size_t i=0; i<window_count; i++)
+    dpaw_workspace_manager_manage_window(&dpaw->root.workspace_manager, window_list[i]);
+  XFree(window_list);
+  XUngrabServer(dpaw->root.display);
+  return 0;
+}
+
 int dpaw_init(struct dpaw* dpaw){
   XSetErrorHandler(&dpaw_error_handler);
   memset(dpaw, 0, sizeof(*dpaw));
@@ -33,6 +55,10 @@ int dpaw_init(struct dpaw* dpaw){
   }
   if(dpawindow_root_init(dpaw, &dpaw->root) == -1){
     fprintf(stderr, "dpawindow_root_init failed\n");
+    goto error;
+  }
+  if(takeover_existing_windows(dpaw)){
+    fprintf(stderr, "takeover_existing_windows failed\n");
     goto error;
   }
   return 0;

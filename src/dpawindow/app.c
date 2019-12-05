@@ -18,9 +18,6 @@ int dpawindow_app_update_wm_state(struct dpawindow_app* app){
 #define X(Y) if(app->wm_state.Y) wm_state[count++] = Y;
     DPAW_APP_STATE_LIST
 #undef X
-#define X(Y) if(app->wm_state.Y) printf("%s %ld\n", #Y, Y);
-    DPAW_APP_STATE_LIST
-#undef X
   XChangeProperty(app->window.dpaw->root.display, app->window.xwindow, _NET_WM_STATE, XA_ATOM, 32, PropModeReplace, (unsigned char*)wm_state, count);
   return 0;
 }

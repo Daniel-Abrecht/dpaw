@@ -161,11 +161,15 @@ struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, str
   workspace->workspace_manager = wmgr;
   workspace->window = memory;
 
+  unsigned long black = XBlackPixel(wmgr->dpaw->root.display, DefaultScreen(wmgr->dpaw->root.display));
+  XSetWindowAttributes attrs = {
+    .background_pixel = black
+  };
   Window window = XCreateWindow(
     wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow,
     0, 0, 1, 1, 0,
     CopyFromParent,  InputOutput,
-    CopyFromParent, 0, 0
+    CopyFromParent, CWBackPixel, &attrs
   );
   if(!window){
     fprintf(stderr, "XCreateWindow failed\n");
