@@ -320,6 +320,14 @@ EV_ON(workspace_handheld, ConfigureRequest){
   XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask | CWX | CWY | CWWidth | CWHeight, &changes);
   if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
     DPAW_APP_OBSERVABLE_NOTIFY(child->app_window, desired_placement);
+  if( boundary.top_left.x     != child->app_window->window.boundary.top_left.x
+   || boundary.top_left.y     != child->app_window->window.boundary.top_left.y
+   || boundary.bottom_right.x != child->app_window->window.boundary.bottom_right.x
+   || boundary.bottom_right.y != child->app_window->window.boundary.bottom_right.y
+  ){
+    child->app_window->window.boundary = boundary;
+    update_window_size(child->workspace);
+  }
   return EHR_OK;
 }
 
