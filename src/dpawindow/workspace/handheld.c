@@ -320,7 +320,7 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
 EV_ON(workspace_handheld, ConfigureRequest){
   struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
   if(!child)
-    return EHR_ERROR;
+    return EHR_UNHANDLED;
   if(event->value_mask & CWWidth)
     child->app_window->observable.desired_placement.value.width = event->width;
   if(event->value_mask & CWHeight)
@@ -340,6 +340,7 @@ EV_ON(workspace_handheld, ConfigureRequest){
     .stack_mode   = event->detail
   };
   printf("ConfigureRequest: %lx %u %d %d %d %d\n", event->window, child->type, changes.x, changes.y, changes.width, changes.height);
+  printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
   XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask, &changes);
   update_window_area(child);
   update_window_size(child->workspace);

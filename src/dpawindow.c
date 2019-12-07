@@ -30,12 +30,11 @@ enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, con
 
 int update_window_config(struct dpawindow* window){
   const struct dpaw_rect boundary = window->boundary;
-  bool is_visible = (
-       window->mapped
-   && !window->hidden
-   && boundary.top_left.x < boundary.bottom_right.x
+  bool valid_placement = (
+      boundary.top_left.x < boundary.bottom_right.x
    && boundary.top_left.y < boundary.bottom_right.y
   );
+  bool is_visible = window->mapped && !window->hidden && valid_placement;
   printf(
     "update_window_config: %lx %ld %ld %ld %ld %c%c %c\n",
     window->xwindow,
@@ -44,28 +43,32 @@ int update_window_config(struct dpawindow* window){
     window->hidden ? 'h' : 'v',
     is_visible ? 'v' : 'i'
   );
-// Because of problems of resizing sometimes failing, let's try this before and after any mapping changes
-  XMoveResizeWindow(
-    window->dpaw->root.display,
-    window->xwindow,
-    boundary.top_left.x,
-    boundary.top_left.y,
-    boundary.bottom_right.x - boundary.top_left.x,
-    boundary.bottom_right.y - boundary.top_left.y
-  );
+  if(valid_placement){
+    // Because of problems of resizing sometimes failing, let's try this before and after any mapping changes
+    XMoveResizeWindow(
+      window->dpaw->root.display,
+      window->xwindow,
+      boundary.top_left.x,
+      boundary.top_left.y,
+      boundary.bottom_right.x - boundary.top_left.x,
+      boundary.bottom_right.y - boundary.top_left.y
+    );
+  }
   if(is_visible){
     XMapWindow(window->dpaw->root.display, window->xwindow);
   }else{
     XUnmapWindow(window->dpaw->root.display, window->xwindow);
   }
-  XMoveResizeWindow(
-    window->dpaw->root.display,
-    window->xwindow,
-    boundary.top_left.x,
-    boundary.top_left.y,
-    boundary.bottom_right.x - boundary.top_left.x,
-    boundary.bottom_right.y - boundary.top_left.y
-  );
+  if(valid_placement){
+    XMoveResizeWindow(
+      window->dpaw->root.display,
+      window->xwindow,
+      boundary.top_left.x,
+      boundary.top_left.y,
+      boundary.bottom_right.x - boundary.top_left.x,
+      boundary.bottom_right.y - boundary.top_left.y
+    );
+  }
   return 0;
 }
 

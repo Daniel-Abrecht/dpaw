@@ -93,7 +93,13 @@ EV_ON(root, MapRequest){
       fprintf(stderr, "XGetWindowAttributes failed\n");
       return EHR_ERROR;
     }
-    if(attribute.override_redirect)
+    bool is_in_root_or_workspace = attribute.root == window->window.xwindow;
+    if(!is_in_root_or_workspace){
+      struct dpawindow* rwin = dpawindow_lookup(window->window.dpaw, event->window);
+      if(rwin->type->is_workspace)
+        is_in_root_or_workspace = true;
+    }
+    if(attribute.override_redirect && !is_in_root_or_workspace)
       return EHR_NEXT;
     if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window) != 0)
       return EHR_ERROR;

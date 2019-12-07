@@ -86,7 +86,10 @@ int dpawindow_app_cleanup(struct dpawindow_app* window){
 }
 
 EV_ON(app, ConfigureRequest){
-  return dpawindow_dispatch_event(window->workspace->window, xev);
+  // This may also be called if event->parent == window->window.xwindow
+  if(event->window == window->window.xwindow)
+    return dpawindow_dispatch_event(window->workspace->window, xev);
+  return EHR_UNHANDLED;
 }
 
 EV_ON(app, ClientMessage){
