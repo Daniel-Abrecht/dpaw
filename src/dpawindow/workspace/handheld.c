@@ -62,7 +62,7 @@ static struct dpaw_rect determine_window_position(struct dpawindow_handheld_wind
 
 static int update_window_area(struct dpawindow_handheld_window* child){
   struct dpaw_rect boundary = determine_window_position(child);
-  printf("update_window_area: %d %ld %ld %ld %ld\n", child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
+  printf("update_window_area: %lx %d %ld %ld %ld %ld\n", child->app_window->window.xwindow, child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
   return dpawindow_place_window(&child->app_window->window, boundary);
 }
 
@@ -100,8 +100,12 @@ static int make_current(struct dpawindow_handheld_window* child){
     case DPAWINDOW_HANDHELD_NORMAL: {
       if(child->workspace->current == child)
         return 0;
-      if(child->workspace->current)
+      struct dpawindow_handheld_window* old = child->workspace->current;
+      if(old){
+        old->app_window->wm_state._NET_WM_STATE_FOCUSED = false;
+        dpawindow_app_update_wm_state(old->app_window);
         dpawindow_hide(&child->workspace->current->app_window->window, true);
+      }
       if(!child->handheld_entry.list)
         dpaw_linked_list_set(&child->workspace->handheld_window_list, &child->handheld_entry, 0);
       child->workspace->current = child;
@@ -217,9 +221,11 @@ static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struc
 }
 
 static int unshow_window(struct dpawindow_handheld_window* hw){
-  printf("unshow_window %d\n", (int)hw->type);
+  if(!hw)
+    return 0;
+  printf("unshow_window %lx\n", hw->app_window->window.xwindow);
   bool was_shown = false;
-  if(hw && hw == hw->workspace->current){
+  if(hw == hw->workspace->current){
     was_shown = true;
     if(hw->handheld_entry.next){
       puts("next");
@@ -233,11 +239,11 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
     }
   }
   dpaw_linked_list_set(0, &hw->handheld_entry, 0);
-  if(hw && hw == hw->workspace->top_dock){
+  if(hw == hw->workspace->top_dock){
     was_shown = true;
     hw->workspace->top_dock = 0;
   }
-  if(hw && hw == hw->workspace->bottom_dock){
+  if(hw == hw->workspace->bottom_dock){
     was_shown = true;
     hw->workspace->bottom_dock = 0;
   }
@@ -251,12 +257,6 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
 
 static int set_window_type(struct dpawindow_handheld_window* window){
   enum dpawindow_handheld_window_type type = DPAWINDOW_HANDHELD_NORMAL;
-  if( window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_TOOLBAR
-   || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_MENU
-   || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_DOCK
-  ){
-    type = DPAWINDOW_HANDHELD_UNSET;
-  }
   if((!window->workspace->top_dock || window->workspace->top_dock == window) && (
       window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_TOOLBAR
    || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_MENU
@@ -284,7 +284,8 @@ static int set_window_type(struct dpawindow_handheld_window* window){
   )) type = DPAWINDOW_HANDHELD_BOTTOM_DOCK;
   if(window->type == type)
     return 0;
-  unshow_window(window);
+  if(window->type != DPAWINDOW_HANDHELD_UNSET)
+    unshow_window(window);
   window->type = type;
   return make_current(window);
 }
@@ -312,6 +313,7 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
     return -1; // TODO: Do cleanup stuff
   }
   dpawindow_set_mapping(&child->app_window->window, true);
+  XRaiseWindow(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow);
   return 0;
 }
 
@@ -337,18 +339,12 @@ EV_ON(workspace_handheld, ConfigureRequest){
     .sibling      = event->above,
     .stack_mode   = event->detail
   };
-  printf("ConfigureRequest: %u %d %d %d %d\n", child->type, changes.x, changes.y, changes.width, changes.height);
-  XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask | CWX | CWY | CWWidth | CWHeight, &changes);
+  printf("ConfigureRequest: %lx %u %d %d %d %d\n", event->window, child->type, changes.x, changes.y, changes.width, changes.height);
+  XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask, &changes);
+  update_window_area(child);
+  update_window_size(child->workspace);
   if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
     DPAW_APP_OBSERVABLE_NOTIFY(child->app_window, desired_placement);
-  if( boundary.top_left.x     != child->app_window->window.boundary.top_left.x
-   || boundary.top_left.y     != child->app_window->window.boundary.top_left.y
-   || boundary.bottom_right.x != child->app_window->window.boundary.bottom_right.x
-   || boundary.bottom_right.y != child->app_window->window.boundary.bottom_right.y
-  ){
-    child->app_window->window.boundary = boundary;
-    update_window_size(child->workspace);
-  }
   return EHR_OK;
 }
 

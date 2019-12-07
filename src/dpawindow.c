@@ -24,53 +24,64 @@ struct dpawindow* dpawindow_lookup(struct dpaw* dpaw, Window window){
   return 0;
 }
 
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, struct xev_event* event){
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event* event){
   return dpaw_xev_dispatch(&window->type->event_lookup_table, window, event);
 }
 
-int dpawindow_hide(struct dpawindow* window, bool hidden){
-  if(!hidden && window->mapped){
+int update_window_config(struct dpawindow* window){
+  const struct dpaw_rect boundary = window->boundary;
+  bool is_visible = (
+       window->mapped
+   && !window->hidden
+   && boundary.top_left.x < boundary.bottom_right.x
+   && boundary.top_left.y < boundary.bottom_right.y
+  );
+  printf(
+    "update_window_config: %lx %ld %ld %ld %ld %c%c %c\n",
+    window->xwindow,
+    boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x, boundary.bottom_right.y,
+    window->mapped ? 'm' : 'u',
+    window->hidden ? 'h' : 'v',
+    is_visible ? 'v' : 'i'
+  );
+// Because of problems of resizing sometimes failing, let's try this before and after any mapping changes
+  XMoveResizeWindow(
+    window->dpaw->root.display,
+    window->xwindow,
+    boundary.top_left.x,
+    boundary.top_left.y,
+    boundary.bottom_right.x - boundary.top_left.x,
+    boundary.bottom_right.y - boundary.top_left.y
+  );
+  if(is_visible){
     XMapWindow(window->dpaw->root.display, window->xwindow);
   }else{
     XUnmapWindow(window->dpaw->root.display, window->xwindow);
   }
-  window->hidden = hidden;
+  XMoveResizeWindow(
+    window->dpaw->root.display,
+    window->xwindow,
+    boundary.top_left.x,
+    boundary.top_left.y,
+    boundary.bottom_right.x - boundary.top_left.x,
+    boundary.bottom_right.y - boundary.top_left.y
+  );
   return 0;
+}
+
+int dpawindow_hide(struct dpawindow* window, bool hidden){
+  window->hidden = hidden;
+  return update_window_config(window);
 }
 
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping){
-  if(mapping && !window->hidden){
-    XMapWindow(window->dpaw->root.display, window->xwindow);
-  }else{
-    XUnmapWindow(window->dpaw->root.display, window->xwindow);
-  }
   window->mapped = mapping;
-  return 0;
+  return update_window_config(window);
 }
 
 int dpawindow_place_window(struct dpawindow* window, struct dpaw_rect boundary){
-  if( boundary.top_left.x >= boundary.bottom_right.x
-   || boundary.top_left.y >= boundary.bottom_right.y
-  ){
-    memset(&boundary, 0, sizeof(boundary));
-    XUnmapWindow(window->dpaw->root.display, window->xwindow);
-  }else{
-    bool is_visible = window->mapped && !window->hidden;
-    if(!is_visible)
-      XUnmapWindow(window->dpaw->root.display, window->xwindow);
-    XMoveResizeWindow(
-      window->dpaw->root.display,
-      window->xwindow,
-      boundary.top_left.x,
-      boundary.top_left.y,
-      boundary.bottom_right.x - boundary.top_left.x,
-      boundary.bottom_right.y - boundary.top_left.y
-    );
-    if(is_visible)
-      XMapWindow(window->dpaw->root.display, window->xwindow);
-  }
   window->boundary = boundary;
-  return 0;
+  return update_window_config(window);
 }
 
 int dpawindow_register(struct dpawindow* window){

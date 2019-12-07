@@ -85,9 +85,11 @@ int dpawindow_app_cleanup(struct dpawindow_app* window){
   return dpawindow_app_cleanup_super(window);
 }
 
+EV_ON(app, ConfigureRequest){
+  return dpawindow_dispatch_event(window->workspace->window, xev);
+}
+
 EV_ON(app, ClientMessage){
-  (void)window;
-  (void)event;
   char* name = XGetAtomName(window->window.dpaw->root.display, event->message_type);
   printf("app: Got client message %s\n", name);
   XFree(name);

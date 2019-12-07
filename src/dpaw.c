@@ -29,8 +29,20 @@ static int takeover_existing_windows(struct dpaw* dpaw){
   )) return -1;
   if(root_ret != dpaw->root.window.xwindow)
     return -1;
-  for(size_t i=0; i<window_count; i++)
-    dpaw_workspace_manager_manage_window(&dpaw->root.workspace_manager, window_list[i]);
+  for(size_t i=0; i<window_count; i++){
+    XWindowAttributes attribute;
+    if(!XGetWindowAttributes(dpaw->root.display, window_list[i], &attribute)){
+      fprintf(stderr, "XGetWindowAttributes failed\n");
+      continue;
+    }
+    if(attribute.override_redirect || attribute.map_state != IsViewable){
+      printf("Not managing window %lx, either an override_redirect window or not viewable\n", window_list[i]);
+      continue;
+    }
+    if(dpaw_workspace_manager_manage_window(&dpaw->root.workspace_manager, window_list[i])){
+      fprintf(stderr, "dpaw_workspace_manager_manage_window failed\n");
+    }
+  }
   XFree(window_list);
   XUngrabServer(dpaw->root.display);
   return 0;

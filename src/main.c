@@ -9,6 +9,10 @@ static void cleanup(void){
 }
 
 int main(){
+  fflush(stdout);
+  setlinebuf(stdout); // If redirected to a file, we'll lose output otherwise, even the line below won't work !?!?
+  setlinebuf(stderr);
+  puts("Starting dpaw!");
   if(dpaw_init(&dpaw) == -1)
     return 1;
   atexit(cleanup);

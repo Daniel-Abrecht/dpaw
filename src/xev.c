@@ -38,7 +38,7 @@ int dpaw_xev_set_event_handler(struct xev_event_lookup_table* lookup_table, cons
   return 0;
 }
 
-enum event_handler_result dpaw_xev_dispatch(const struct xev_event_lookup_table* lookup_table, struct dpawindow* window, struct xev_event* event){
+enum event_handler_result dpaw_xev_dispatch(const struct xev_event_lookup_table* lookup_table, struct dpawindow* window, const struct xev_event* event){
   if(!lookup_table || !lookup_table->event_handler_list || !event || !event->info || !event->data || !window)
     return EHR_UNHANDLED;
   size_t index = event->info->event_list->handler_list_index;
@@ -50,7 +50,7 @@ enum event_handler_result dpaw_xev_dispatch(const struct xev_event_lookup_table*
   struct dpaw_event_handler* handler = &list->handler[event->info->index];
   if(!handler->callback || !handler->info)
     return EHR_UNHANDLED;
-  return handler->callback(window, event->data);
+  return handler->callback(window, event, event->data);
 }
 
 

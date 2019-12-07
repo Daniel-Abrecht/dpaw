@@ -1,6 +1,10 @@
 #!/bin/sh
 
-xclock &
-xeyes &
-sleep 2 && xterm &
+#xclock &
+#xeyes &
+#sleep 2 && xterm &
+
+xfce4-terminal &
+onboard &
+
 exec "$(dirname "$(realpath "$0")")/bin/dpaw"

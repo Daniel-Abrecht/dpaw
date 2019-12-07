@@ -9,6 +9,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef NO_UNUSED_ATTR
+#define UNUSED_ATTR __attribute__((unused))
+#endif
+
 struct dpawindow;
 
 struct dpawindow_type {
@@ -28,7 +32,11 @@ struct dpawindow {
 };
 
 #define EV_ON(TYPE, EVENT) \
-  enum event_handler_result dpaw_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event); \
+  enum event_handler_result dpaw_ev_on__ ## TYPE ## __ ## EVENT ( \
+    struct dpawindow_  ## TYPE* window, \
+    const struct xev_event* xev, \
+    xev_ ## EVENT ## _t* event \
+  ); \
   __attribute__((used,constructor(1010))) \
   void dpaw_ev_init__ ## TYPE ## __ ## EVENT (void) { \
     extern struct dpawindow_type dpawindow_type_ ## TYPE; \
@@ -38,7 +46,11 @@ struct dpawindow {
       (dpaw_event_handler_t)dpaw_ev_on__ ## TYPE ## __ ## EVENT \
     )) _Exit(1); \
   } \
-  enum event_handler_result dpaw_ev_on__ ## TYPE ## __ ## EVENT (struct dpawindow_  ## TYPE* window, xev_ ## EVENT ## _t* event)
+  enum event_handler_result dpaw_ev_on__ ## TYPE ## __ ## EVENT ( \
+    UNUSED_ATTR struct dpawindow_  ## TYPE* window, \
+    UNUSED_ATTR const struct xev_event* xev, \
+    UNUSED_ATTR xev_ ## EVENT ## _t* event \
+  )
 
 #define DECLARE_DPAW_DERIVED_WINDOW(NAME, ...) \
   struct dpawindow_ ## NAME { \
@@ -72,7 +84,7 @@ struct dpawindow {
 
 bool dpawindow_has_error_occured(Display* display);
 struct dpawindow* dpawindow_lookup(struct dpaw*, Window);
-enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, struct xev_event*);
+enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event*);
 int dpawindow_hide(struct dpawindow* window, bool hidden);
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);

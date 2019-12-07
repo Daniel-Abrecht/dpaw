@@ -25,17 +25,25 @@ enum event_handler_result dpaw_xev_X_dispatch(struct dpaw* dpaw, struct xev_even
   if(event->info->type == GenericEvent || event->info->type == KeyPress || event->info->type == KeyRelease)
     return EHR_UNHANDLED;
   XEvent* ev = event->data;
-  struct dpawindow* window = 0;
-  for(struct dpaw_list_entry* it=dpaw->window_list.first; it; it=it->next){
-    struct dpawindow* wit = container_of(it, struct dpawindow, dpaw_window_entry);
-    if(ev->xany.window != wit->xwindow)
-      continue;
-    window = wit;
-    break;
+  struct dpawindow* window = dpawindow_lookup(dpaw, ev->xany.window);
+  struct dpawindow* target = 0;
+  switch(event->info->type){
+    case ConfigureRequest: {
+      target = dpawindow_lookup(dpaw, (&ev->xany.window)[1]);
+      if(!window)
+        window = target;
+      if(target == window)
+        target = 0;
+    } break;
   }
-  if(!window || window->dpaw_window_entry.next == dpaw->window_list.first)
-    return EHR_UNHANDLED;
-  return dpawindow_dispatch_event(window, event);
+  enum event_handler_result result = EHR_UNHANDLED;
+  if((result == EHR_UNHANDLED || result == EHR_NEXT)
+   && target && target != &dpaw->root.window
+  ) result = dpawindow_dispatch_event(target, event);
+  if((result == EHR_UNHANDLED || result == EHR_NEXT)
+   && window && window != &dpaw->root.window
+  ) result = dpawindow_dispatch_event(window, event);
+  return result;
 }
 
 int dpaw_xev_X_listen(struct xev_event_extension* extension, struct dpawindow* window){

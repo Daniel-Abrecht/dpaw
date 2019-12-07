@@ -17,7 +17,8 @@ enum event_handler_result {
 };
 
 struct dpawindow;
-typedef enum event_handler_result (*dpaw_event_handler_t)(struct dpawindow*, void*);
+struct xev_event xev;
+typedef enum event_handler_result (*dpaw_event_handler_t)(struct dpawindow*, const struct xev_event* xev, void*);
 
 struct dpaw;
 struct xev_event_extension;
@@ -93,7 +94,7 @@ extern size_t dpaw_handler_list_count; // Number of all lists of all extensions 
 extern struct xev_event_extension* dpaw_event_extension_list;
 
 int dpaw_xev_set_event_handler(struct xev_event_lookup_table*, const struct xev_event_info*, dpaw_event_handler_t);
-enum event_handler_result dpaw_xev_dispatch(const struct xev_event_lookup_table*, struct dpawindow*, struct xev_event*);
+enum event_handler_result dpaw_xev_dispatch(const struct xev_event_lookup_table*, struct dpawindow*, const struct xev_event*);
 int dpaw_xevent_to_xev(struct dpaw* dpaw, struct xev_event*, XAnyEvent* event);
 void dpaw_free_xev(struct xev_event*);
 

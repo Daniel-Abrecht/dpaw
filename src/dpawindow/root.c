@@ -88,6 +88,13 @@ EV_ON(root, MapRequest){
   printf("MapRequest %lx\n", event->window);
   struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
   if(!win){
+    XWindowAttributes attribute;
+    if(!XGetWindowAttributes(window->display, event->window, &attribute)){
+      fprintf(stderr, "XGetWindowAttributes failed\n");
+      return EHR_ERROR;
+    }
+    if(attribute.override_redirect)
+      return EHR_NEXT;
     if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window) != 0)
       return EHR_ERROR;
   }else{
