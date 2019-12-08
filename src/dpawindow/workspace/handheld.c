@@ -343,8 +343,8 @@ EV_ON(workspace_handheld, ConfigureRequest){
     .stack_mode   = event->detail
   };
   printf("ConfigureRequest: %lx %u %d %d %d %d\n", event->window, child->type, changes.x, changes.y, changes.width, changes.height);
-  printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
-  printf("%d %d %d %d\n", child->app_window->observable.desired_placement.value.x, child->app_window->observable.desired_placement.value.y, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
+//  printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
+//  printf("%d %d %d %d\n", child->app_window->observable.desired_placement.value.x, child->app_window->observable.desired_placement.value.y, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
   XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask, &changes);
   update_window_area(child);
   update_window_size(child->workspace);

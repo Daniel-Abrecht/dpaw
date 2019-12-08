@@ -43,7 +43,8 @@ static int takeover_existing_windows(struct dpaw* dpaw){
       fprintf(stderr, "dpaw_workspace_manager_manage_window failed\n");
     }
   }
-  XFree(window_list);
+  if(window_list)
+    XFree(window_list);
   XUngrabServer(dpaw->root.display);
   return 0;
 }
