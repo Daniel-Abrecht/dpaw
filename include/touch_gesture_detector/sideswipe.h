@@ -6,7 +6,7 @@
 struct dpaw_sideswipe_detector_params {
   unsigned mask;
   void* private;
-  void (*onswipe)(void* private, enum dpaw_direction direction, long count);
+  void (*onswipe)(void* private, enum dpaw_direction direction, long count, long y);
 };
 
 struct dpaw_sideswipe_detector {

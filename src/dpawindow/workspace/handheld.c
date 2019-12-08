@@ -125,11 +125,14 @@ static int make_current(struct dpawindow_handheld_window* child){
   return 0;
 }
 
-static void sideswipe_handler(void* private, enum dpaw_direction direction, long diff){
+static void sideswipe_handler(void* private, enum dpaw_direction direction, long diff, long y){
   if(direction >= 2)
     diff = -diff;
   struct dpawindow_workspace_handheld* workspace = private;
   struct dpawindow_handheld_window* next_window = 0;
+  // Switch the other way if swiped on the bottom screen half, to make swiping the other way easier
+  if(y > (workspace->window.boundary.bottom_right.y + workspace->window.boundary.top_left.y) / 2)
+    diff = -diff;
   if(diff > 0){
     while(diff-- > 0){
       next_window = container_of(
@@ -341,6 +344,7 @@ EV_ON(workspace_handheld, ConfigureRequest){
   };
   printf("ConfigureRequest: %lx %u %d %d %d %d\n", event->window, child->type, changes.x, changes.y, changes.width, changes.height);
   printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
+  printf("%d %d %d %d\n", child->app_window->observable.desired_placement.value.x, child->app_window->observable.desired_placement.value.y, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
   XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask, &changes);
   update_window_area(child);
   update_window_size(child->workspace);

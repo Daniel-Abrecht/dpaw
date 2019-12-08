@@ -81,7 +81,7 @@ static enum event_handler_result ontouch(
         }
       }
       if(diff)
-        sideswipe->params.onswipe(sideswipe->params.private, direction, diff);
+        sideswipe->params.onswipe(sideswipe->params.private, direction, diff, sideswipe->initial_position.y);
       return firstmatch ? EHR_OK : EHR_NEXT;
     } return EHR_UNHANDLED;
 
