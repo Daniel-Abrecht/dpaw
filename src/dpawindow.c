@@ -1,6 +1,9 @@
 #include <dpaw.h>
 #include <dpawindow.h>
 #include <dpawindow/root.h>
+#include <X11/Xatom.h>
+#include <X11/Xutil.h>
+#include <atom/misc.c>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -69,6 +72,12 @@ int update_window_config(struct dpawindow* window){
       boundary.bottom_right.y - boundary.top_left.y
     );
   }
+  long state = IconicState;
+  if(!window->hidden)
+    state = NormalState;
+  if(!window->mapped)
+    state = WithdrawnState;
+  XChangeProperty(window->dpaw->root.display, window->xwindow, WM_STATE, WM_STATE, 32, PropModeReplace, (unsigned char*)(long[]){state,0}, 2);
   return 0;
 }
 

@@ -96,8 +96,17 @@ EV_ON(app, ClientMessage){
   char* name = XGetAtomName(window->window.dpaw->root.display, event->message_type);
   printf("app: Got client message %s\n", name);
   XFree(name);
-  if(event->message_type == _NET_WM_STATE)
-    puts("_NET_WM_STATE");
+  if(event->message_type == _NET_WM_STATE){
+    char* sn1 = 0;
+    char* sn2 = 0;
+    if(event->data.l[1])
+      sn1 = XGetAtomName(window->window.dpaw->root.display, event->data.l[1]);
+    if(event->data.l[2])
+      sn2 = XGetAtomName(window->window.dpaw->root.display, event->data.l[2]);
+    printf("_NET_WM_STATE action: %ld %s %s si: %ld\n", event->data.l[0], sn1, sn2, event->data.l[3]);
+    if(!sn1) XFree(sn1);
+    if(!sn2) XFree(sn2);
+  }
   if(event->message_type == _NET_MOVERESIZE_WINDOW)
     puts("_NET_MOVERESIZE_WINDOW"); // TODO: Set window.observable.desired_placement
   if(event->message_type == _NET_CLOSE_WINDOW)

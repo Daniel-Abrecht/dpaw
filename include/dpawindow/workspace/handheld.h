@@ -27,6 +27,7 @@ struct dpawindow_handheld_window {
   enum dpawindow_handheld_window_type type;
   struct dpawindow_app* app_window;
   struct dpawindow_workspace_handheld* workspace;
+  bool active;
 };
 
 #endif

@@ -57,6 +57,12 @@ static struct dpaw_rect determine_window_position(struct dpawindow_handheld_wind
     boundary.top_left.y = 0;
     boundary.bottom_right.y = top_dock_height;
   }
+  if(!child->active){ // see the fake_hide function
+    boundary.top_left.x     -= wh.x + 10;
+    boundary.bottom_right.x -= wh.x + 10;
+    boundary.top_left.y     -= wh.y + 10;
+    boundary.bottom_right.y -= wh.y + 10;
+  }
   return boundary;
 }
 
@@ -64,6 +70,15 @@ static int update_window_area(struct dpawindow_handheld_window* child){
   struct dpaw_rect boundary = determine_window_position(child);
   printf("update_window_area: %lx %d %ld %ld %ld %ld\n", child->app_window->window.xwindow, child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
   return dpawindow_place_window(&child->app_window->window, boundary);
+}
+
+// Some clever applications (gimp) hide all their windows if one gets hidden (iconified).
+// This is a problem, because this window manager will only show one window at a time, hiding the other ones,
+// and cause endles switching between windows...
+// As a workaround, let's just put the window in an unviewable are and pretend it not to be iconified.
+static int fake_hide(struct dpawindow_handheld_window* window, bool inactive){
+  window->active = !inactive;
+  return update_window_area(window);
 }
 
 static int update_window_size(struct dpawindow_workspace_handheld* workspace){
@@ -104,7 +119,7 @@ static int make_current(struct dpawindow_handheld_window* child){
       if(old){
         old->app_window->wm_state._NET_WM_STATE_FOCUSED = false;
         dpawindow_app_update_wm_state(old->app_window);
-        dpawindow_hide(&child->workspace->current->app_window->window, true);
+        fake_hide(child->workspace->current, true);
       }
       if(!child->handheld_entry.list)
         dpaw_linked_list_set(&child->workspace->handheld_window_list, &child->handheld_entry, 0);
@@ -115,7 +130,7 @@ static int make_current(struct dpawindow_handheld_window* child){
   }
   if(update_window_size(child->workspace))
     return -1;
-  if(dpawindow_hide(&child->app_window->window, false))
+  if(fake_hide(child, false))
     return -1;
   child->app_window->wm_state._NET_WM_STATE_FOCUSED = true;
   dpawindow_app_update_wm_state(child->app_window);
@@ -252,7 +267,7 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
   }
   memset(&hw->app_window->wm_state, 0, sizeof(hw->app_window->wm_state));
   dpawindow_app_update_wm_state(hw->app_window);
-  dpawindow_hide(&hw->app_window->window, true);
+  fake_hide(hw, true);
   if(was_shown)
     update_window_size(hw->workspace);
   return 0;
@@ -295,7 +310,10 @@ static int set_window_type(struct dpawindow_handheld_window* window){
 
 static int abandon_window(struct dpawindow_app* window){
   printf("abandon_window %lx\n", window->window.xwindow);
+  dpawindow_hide(&window->window, true);
   unshow_window(window->workspace_private);
+  XDeleteProperty(window->window.dpaw->root.display, window->window.xwindow, _NET_FRAME_EXTENTS);
+  XDeleteProperty(window->window.dpaw->root.display, window->window.xwindow, _NET_WM_ALLOWED_ACTIONS);
   if(window->workspace_private)
     free(window->workspace_private);
   window->workspace_private = 0;
@@ -310,11 +328,14 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   child->app_window = window;
   child->workspace = workspace;
   window->workspace_private = child;
+  XChangeProperty(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow, _NET_FRAME_EXTENTS, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)(long[]){0,0,0,0}, 4);
+  XChangeProperty(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow, _NET_WM_ALLOWED_ACTIONS, XA_ATOM, 32, PropModeReplace, (unsigned char*)(Atom[]){_NET_WM_ACTION_CLOSE}, 1);
   XReparentWindow(workspace->window.dpaw->root.display, window->window.xwindow, workspace->window.xwindow, 0, 0);
   if(set_window_type(child) == -1){
     abandon_window(window);
     return -1; // TODO: Do cleanup stuff
   }
+  dpawindow_hide(&window->window, false);
   dpawindow_set_mapping(&child->app_window->window, true);
   XRaiseWindow(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow);
   return 0;
