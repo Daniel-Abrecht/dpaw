@@ -154,6 +154,8 @@ int dpaw_screenchange_init(struct dpaw_screenchange_detector* detector, struct d
 }
 
 void dpaw_screenchange_destroy(struct dpaw_screenchange_detector* detector){
+  while(detector->screenchange_listener_list)
+    dpaw_screenchange_listener_unregister(detector, detector->screenchange_listener_list->callback, 0);
   randr_destroy(detector);
 }
 
@@ -183,6 +185,7 @@ int dpaw_screenchange_listener_unregister(struct dpaw_screenchange_detector* det
       continue;
     *pit = it->next;
     it->next = 0;
+    free(it);
     return 0;
   }
   fprintf(stderr, "Warning: Failed to find screen change listener to be removed.\n");

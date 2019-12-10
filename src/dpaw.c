@@ -5,6 +5,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <signal.h>
+
+static volatile enum dpaw_state {
+  DPAW_KEEP_RUNNING,
+  DPAW_STOP,
+  DPAW_ERROR,
+  DPAW_RESTART,
+} running_state;
 
 int dpaw_cleanup(struct dpaw* dpaw){
   if(dpaw->root.display)
@@ -49,10 +57,23 @@ static int takeover_existing_windows(struct dpaw* dpaw){
   return 0;
 }
 
+void onsigterm(int x){
+  (void)x;
+  running_state = DPAW_STOP;
+}
+
+void onsighup(int x){
+  (void)x;
+  running_state = DPAW_RESTART;
+}
+
 int dpaw_init(struct dpaw* dpaw){
+  signal(SIGTERM, onsigterm);
+  signal(SIGHUP, onsighup);
   XSetErrorHandler(&dpaw_error_handler);
   memset(dpaw, 0, sizeof(*dpaw));
   dpaw->root.display = XOpenDisplay(0);
+  dpaw->x11_fd = ConnectionNumber(dpaw->root.display);
   if(!dpaw->root.display){
     fprintf(stderr, "Failed to open X display %s\n", XDisplayName(0));
     goto error;
@@ -98,7 +119,17 @@ int dpaw_error_handler(Display* display, XErrorEvent* error){
 
 int dpaw_run(struct dpaw* dpaw){
   bool debug_x_events = !!getenv("DEBUG_X_EVENTS");
-  while(true){
+  while(running_state == DPAW_KEEP_RUNNING){
+
+    fd_set fdset;
+    FD_ZERO(&fdset);
+    FD_SET(dpaw->x11_fd, &fdset);
+
+    if(!XPending(dpaw->root.display))
+      select(dpaw->x11_fd+1, &fdset, 0, 0, 0);
+    if(!XPending(dpaw->root.display))
+      continue;
+
     XEvent event;
     XNextEvent(dpaw->root.display, &event);
 
@@ -153,8 +184,8 @@ int dpaw_run(struct dpaw* dpaw){
           event.type,
           xev.info->name
         );
-        dpaw_free_xev(&xev);
-      } return -1;
+        running_state = DPAW_ERROR;
+      } break;
       case EHR_OK: break;
       case EHR_NEXT: break;
       case EHR_ERROR: {
@@ -185,6 +216,10 @@ int dpaw_run(struct dpaw* dpaw){
 
     dpaw_free_xev(&xev);
   }
+  if(running_state == DPAW_ERROR)
+    return -1;
+  if(running_state == DPAW_RESTART)
+    return 1;
   return 0;
 }
 

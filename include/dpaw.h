@@ -18,6 +18,7 @@ struct dpaw {
   struct dpaw_list window_list;
   int last_touch;
   struct dpaw_touchevent_window_map touch_source[DPAW_WORKSPACE_MAX_TOUCH_SOURCES];
+  int x11_fd;
 };
 
 int dpaw_cleanup(struct dpaw*);
