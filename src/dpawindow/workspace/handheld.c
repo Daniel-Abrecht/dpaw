@@ -208,9 +208,9 @@ static void cleanup(struct dpawindow_workspace_handheld* workspace){
 static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpaw_workspace_screen* screen){
   (void)screen;
   puts("handheld_workspace screen_added");
-  for(struct dpaw_list_entry* it=workspace->handheld_window_list.first; it; it=it->next){
-    struct dpawindow_handheld_window* handheld = container_of(it, struct dpawindow_handheld_window, handheld_entry);
-    update_window_area(handheld);
+  for(struct dpaw_list_entry* it=workspace->workspace.window_list.first; it; it=it->next){
+    struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
+    update_window_area(app->workspace_private);
   }
   return 0;
 }
@@ -219,8 +219,8 @@ static int screen_changed(struct dpawindow_workspace_handheld* workspace, struct
   (void)screen;
   puts("handheld_workspace screen_changed");
   for(struct dpaw_list_entry* it=workspace->workspace.window_list.first; it; it=it->next){
-    struct dpawindow_handheld_window* handheld = container_of(it, struct dpawindow_handheld_window, handheld_entry);
-    update_window_area(handheld);
+    struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
+    update_window_area(app->workspace_private);
   }
   return 0;
 }

@@ -95,7 +95,8 @@ EV_ON(app, ConfigureRequest){
 EV_ON(app, ClientMessage){
   char* name = XGetAtomName(window->window.dpaw->root.display, event->message_type);
   printf("app: Got client message %s\n", name);
-  XFree(name);
+  if(name)
+    XFree(name);
   if(event->message_type == _NET_WM_STATE){
     char* sn1 = 0;
     char* sn2 = 0;

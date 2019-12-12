@@ -14,8 +14,9 @@ static struct dpaw_workspace_type* workspace_type_list;
 static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, const struct dpaw_screen_info* info){
   struct dpaw_workspace_manager* wmgr = ptr;
   printf(
-    "Screen %p (%ld-%ld)x(%ld-%ld)\n",
+    "Screen %p %d (%ld-%ld)x(%ld-%ld)\n",
     (void*)info,
+    what,
     info->boundary.bottom_right.x,
     info->boundary.top_left.x,
     info->boundary.bottom_right.y,
@@ -38,7 +39,7 @@ static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, co
           if( sit->info == info )
             break;
       if(!sit){
-        fprintf(stderr, "Warning: dpaw_workspace_screen object which to be updated not found\n");
+        fprintf(stderr, "Warning: dpaw_workspace_screen object to be updated not found\n");
         return;
       }
       dpaw_workspace_manager_designate_screen_to_workspace(wmgr, sit);
