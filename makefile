@@ -4,8 +4,10 @@ CC_OPTS += -Iinclude/ -Ibuild/include/
 CC_OPTS += -Werror -g -O0 -D_DEFAULT_SOURCE
 LD_OPTS += -g
 
+ifndef NO_ASAN
 CC_OPTS += -fsanitize=address
 LD_OPTS += -fsanitize=address
+endif
 
 LD_OPTS += -lX11 -lXi -lXrandr
 
@@ -28,5 +30,13 @@ build/%.c.o: %.c $(HEADERS)
 clean:
 	rm -rf build bin
 
+test-run-valgrind:
+	@if ldd bin/dpaw | grep -q 'libasan\.so'; \
+	then \
+	  echo "Program was compiled with ASAN. Valgrind and ASAN won't work together, recompile this with 'make NO_ASAN=1 clean all' first."; \
+	  exit 1; \
+	fi
+	VALGRIND=1 $(MAKE) test-run
+
 test-run: all
-	xinit ./test-xinitrc -- "$$(which Xephyr)" :100 -ac -screen 400x600 -host-cursor
+	xpra start-desktop --start-via-proxy=no --no-daemon --systemd-run=no --exit-with-children --terminate-children --start-child="$$(realpath test-xinitrc)" --attach --sharing=no --window-close=shutdown

@@ -7,4 +7,7 @@
 xfce4-terminal &
 onboard &
 
-exec "$(dirname "$(realpath "$0")")/bin/dpaw"
+if [ -z "$VALGRIND" ]
+  then exec "$(dirname "$(realpath "$0")")/bin/dpaw"
+  else exec valgrind --leak-check=full "$(dirname "$(realpath "$0")")/bin/dpaw"
+fi
