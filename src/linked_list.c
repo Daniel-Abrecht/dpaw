@@ -13,6 +13,8 @@ static void remove(
     entry->list->first = entry->next;
   if(entry->list->last == entry)
     entry->list->last = entry->previous;
+  if(entry->list->size > 0)
+    entry->list->size -= 1;
   entry->list = 0;
   entry->next = 0;
   entry->previous = 0;
@@ -32,6 +34,7 @@ bool dpaw_linked_list_set(
     return true;
   if(before)
     list = before->list;
+  list->size += 1;
   entry->list = list;
   if(!list->first){
     list->first = entry;

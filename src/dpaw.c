@@ -16,10 +16,10 @@ static volatile enum dpaw_state {
 
 int dpaw_cleanup(struct dpaw* dpaw){
   printf("Stopping dpaw...\n");
-  if(dpaw->root.display)
-    XCloseDisplay(dpaw->root.display);
   if(dpaw->root.window.xwindow)
     dpawindow_root_cleanup(&dpaw->root);
+  if(dpaw->root.display)
+    XCloseDisplay(dpaw->root.display);
   return 0;
 }
 

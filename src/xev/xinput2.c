@@ -98,7 +98,8 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
           }
           if(twm){
             twm->touchid = ev->detail;
-            for(struct dpaw_workspace* workspace = dpaw->root.workspace_manager.workspace; workspace; workspace=workspace->next){
+            for(struct dpaw_list_entry* wlit = dpaw->root.workspace_manager.workspace_list.first; wlit; wlit=wlit->next){
+              struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
 /*              printf("%lf>=%ld %lf>=%ld %lf<%ld %lf<%ld\n",
                 ev->event_x, workspace->window->boundary.top_left.x,
                 ev->event_y, workspace->window->boundary.top_left.y,

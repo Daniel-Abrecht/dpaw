@@ -34,8 +34,8 @@ static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, co
     } break;
     case DPAW_SCREENCHANGE_SCREEN_CHANGED: {
       struct dpaw_workspace_screen* sit = 0;
-      for( struct dpaw_workspace* wit = wmgr->workspace; wit; wit=wit->next )
-        for( sit = wit->screen; sit; sit=sit->next )
+      for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next)
+        for( sit = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->screen; sit; sit=sit->next )
           if( sit->info == info )
             break;
       if(!sit){
@@ -46,8 +46,8 @@ static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, co
     } break;
     case DPAW_SCREENCHANGE_SCREEN_REMOVED: {
       struct dpaw_workspace_screen** psit = (struct dpaw_workspace_screen*[]){0};
-      for( struct dpaw_workspace* wit = wmgr->workspace; wit; wit=wit->next )
-        for( psit = &wit->screen; psit; psit=&(*psit)->next )
+      for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next)
+        for( psit = &container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->screen; psit; psit=&(*psit)->next )
           if( (*psit)->info == info )
             break;
       struct dpaw_workspace_screen* sit = *psit;
@@ -132,22 +132,21 @@ struct dpaw_workspace_type* choose_best_target_workspace_type(struct dpaw_worksp
 }
 
 static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
-  size_t root_window_list_size = 0;
-  for(struct dpaw_workspace* it=wmgr->workspace; it; it=it->next)
-    root_window_list_size += 1;
-  if(root_window_list_size > 256)
+  if(!wmgr->workspace_list.size)
+    return 0;
+  if(wmgr->workspace_list.size > 256)
     return -1; // Since root_window_list is currently allocated on the stack, let's make sure it won't become so big that it stackoverflows
   {
-    Window root_window_list[root_window_list_size]; // Don't use window, an entry it may not be 32 bit long.
+    Window root_window_list[wmgr->workspace_list.size]; // Don't use window, an entry it may not be 32 bit long.
     size_t i = 0;
-    for(struct dpaw_workspace* it=wmgr->workspace; it; it=it->next)
-      root_window_list[i] = it->window->xwindow;
-    XChangeProperty(wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow, _NET_VIRTUAL_ROOTS, XA_WINDOW, 32, PropModeReplace, (void*)root_window_list, root_window_list_size);
+    for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next)
+      root_window_list[i] = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->window->xwindow;
+    XChangeProperty(wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow, _NET_VIRTUAL_ROOTS, XA_WINDOW, 32, PropModeReplace, (void*)root_window_list, wmgr->workspace_list.size);
   }
   return 0;
 }
 
-struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_type* type){
+static struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_type* type){
   if(type->size+type->derived_offset < sizeof(struct dpaw_workspace)){
     fprintf(stderr, "Error: Invalid workspace type size\n");
     return 0;
@@ -184,7 +183,7 @@ struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, str
     goto error;
   }
 
-  if(type->init){
+  if(workspace->type->init){
     if(workspace->type->init(workspace->window)){
       fprintf(stderr, "%s::init failed\n", workspace->type->name);
       goto error;
@@ -192,10 +191,7 @@ struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, str
   }
 
   dpawindow_set_mapping(workspace->window, true);
-
-  workspace->next = wmgr->workspace;
-  wmgr->workspace = workspace;
-
+  dpaw_linked_list_set(&wmgr->workspace_list, &workspace->wmgr_workspace_list_entry, 0);
   update_virtual_root_property(wmgr);
 
   return workspace;
@@ -204,6 +200,21 @@ error:
   if(memory)
     free(memory);
   return 0;
+}
+
+void destroy_workspace(struct dpaw_workspace* workspace){
+  struct dpaw_workspace_manager* wmgr = workspace->workspace_manager;
+
+  dpaw_linked_list_set(0, &workspace->wmgr_workspace_list_entry, 0);
+  update_virtual_root_property(wmgr);
+
+  if(workspace->type->cleanup)
+    workspace->type->cleanup(workspace->window);
+
+  workspace->type->cleanup_window_super(workspace->window);
+
+  XDestroyWindow(wmgr->dpaw->root.display, workspace->window->xwindow);
+  free(workspace->window);
 }
 
 int dpaw_workspace_manager_designate_screen_to_workspace(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_screen* screen){
@@ -216,16 +227,17 @@ int dpaw_workspace_manager_designate_screen_to_workspace(struct dpaw_workspace_m
     // Does any existing workspace of the desired type want this screen?
     struct dpaw_workspace* target_workspace = 0;
     int min = 0;
-    for(struct dpaw_workspace* it=wmgr->workspace; it; it=it->next){
-      if(it->type != type)
+    for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next){
+      struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
+      if(workspace->type != type)
         continue;
-      if(!it->type->screen_make_bid)
+      if(!workspace->type->screen_make_bid)
         continue;
-      int res = it->type->screen_make_bid(it->window, screen);
+      int res = workspace->type->screen_make_bid(workspace->window, screen);
       if(!res || res <= min)
         continue;
       min = res;
-      target_workspace = it;
+      target_workspace = workspace;
     }
     if(!target_workspace){
       target_workspace = create_workspace(wmgr, type);
@@ -308,11 +320,11 @@ int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Wi
       return 0;
     }
   }
-  struct dpaw_workspace* workspace = wmgr->workspace;
-  if(!workspace){
+  if(!wmgr->workspace_list.first){
     fprintf(stderr, "Error: No workspaces available\n");
     return -1;
   }
+  struct dpaw_workspace* workspace = container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry);
   struct dpawindow_app* app_window = calloc(sizeof(struct dpawindow_app), 1);
   if(!app_window){
     perror("calloc failed");
@@ -348,5 +360,7 @@ error:
 void dpaw_workspace_manager_destroy(struct dpaw_workspace_manager* wmgr){
   // TODO: Reparent all windows to root & remove all workspaces
   dpaw_screenchange_listener_unregister(&wmgr->dpaw->root.screenchange_detector, screenchange_handler, wmgr);
+  for(struct dpaw_list_entry *wlit=wmgr->workspace_list.first, *next=wlit?wlit->next:0; wlit; wlit=next)
+    destroy_workspace(container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry));
   wmgr->dpaw = 0;
 }

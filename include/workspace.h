@@ -10,7 +10,7 @@ struct dpaw;
 
 struct dpaw_workspace_manager {
   struct dpaw* dpaw;
-  struct dpaw_workspace* workspace;
+  struct dpaw_list workspace_list;
 };
 
 #define DPAW_WORKSPACE_TYPE(T, U) \
@@ -41,7 +41,7 @@ DPAW_WORKSPACE_TYPE(workspace, struct dpawindow)
 
 struct dpaw_workspace {
   const struct dpaw_workspace_type* type;
-  struct dpaw_workspace* next;
+  struct dpaw_list_entry wmgr_workspace_list_entry;
   struct dpawindow* window;
   struct dpaw_workspace_manager* workspace_manager;
   struct dpaw_workspace_screen* screen;

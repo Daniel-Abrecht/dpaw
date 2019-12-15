@@ -3,8 +3,10 @@
 
 #include <dpaw_macros.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 struct dpaw_list {
+  size_t size;
   struct dpaw_list_entry *first, *last;
 };
 
