@@ -21,7 +21,7 @@ typedef void (*dpaw_screenchange_handler_t)(void*, enum dpaw_screenchange_type, 
 struct dpaw_screenchange_detector {
   struct dpaw* dpaw;
   struct screenchange_listener* screenchange_listener_list;
-  struct dpaw_screen_info_list_entry* screen_list;
+  struct dpaw_list screen_list;
   struct dpaw_xrandr_private* xrandr;
 };
 

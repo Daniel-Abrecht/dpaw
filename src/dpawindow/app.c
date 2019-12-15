@@ -105,8 +105,8 @@ EV_ON(app, ClientMessage){
     if(event->data.l[2])
       sn2 = XGetAtomName(window->window.dpaw->root.display, event->data.l[2]);
     printf("_NET_WM_STATE action: %ld %s %s si: %ld\n", event->data.l[0], sn1, sn2, event->data.l[3]);
-    if(!sn1) XFree(sn1);
-    if(!sn2) XFree(sn2);
+    if(sn1) XFree(sn1);
+    if(sn2) XFree(sn2);
   }
   if(event->message_type == _NET_MOVERESIZE_WINDOW)
     puts("_NET_MOVERESIZE_WINDOW"); // TODO: Set window.observable.desired_placement

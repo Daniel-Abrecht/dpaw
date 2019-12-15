@@ -15,6 +15,7 @@ static volatile enum dpaw_state {
 } running_state;
 
 int dpaw_cleanup(struct dpaw* dpaw){
+  printf("Stopping dpaw...\n");
   if(dpaw->root.display)
     XCloseDisplay(dpaw->root.display);
   if(dpaw->root.window.xwindow)
@@ -73,9 +74,13 @@ int dpaw_init(struct dpaw* dpaw){
   XSetErrorHandler(&dpaw_error_handler);
   memset(dpaw, 0, sizeof(*dpaw));
   dpaw->root.display = XOpenDisplay(0);
-  dpaw->x11_fd = ConnectionNumber(dpaw->root.display);
   if(!dpaw->root.display){
     fprintf(stderr, "Failed to open X display %s\n", XDisplayName(0));
+    goto error;
+  }
+  dpaw->x11_fd = ConnectionNumber(dpaw->root.display);
+  if(dpaw->x11_fd == -1){
+    fprintf(stderr, "ConnectionNumber failed\n");
     goto error;
   }
   dpaw->root.window.xwindow = DefaultRootWindow(dpaw->root.display);
