@@ -13,14 +13,14 @@ enum dpaw_screenchange_type {
 struct dpaw_screen_info {
   struct dpaw_rect boundary;
   struct dpaw_point physical_size_mm;
-  const char* name;
+  char* name;
 };
 
 typedef void (*dpaw_screenchange_handler_t)(void*, enum dpaw_screenchange_type, const struct dpaw_screen_info*);
 
 struct dpaw_screenchange_detector {
   struct dpaw* dpaw;
-  struct screenchange_listener* screenchange_listener_list;
+  struct dpaw_list screenchange_listener_list;
   struct dpaw_list screen_list;
   struct dpaw_xrandr_private* xrandr;
 };

@@ -44,13 +44,13 @@ struct dpaw_workspace {
   struct dpaw_list_entry wmgr_workspace_list_entry;
   struct dpawindow* window;
   struct dpaw_workspace_manager* workspace_manager;
-  struct dpaw_workspace_screen* screen;
+  struct dpaw_list screen_list;
   struct dpaw_list window_list;
 };
 
 struct dpaw_workspace_screen {
   struct dpaw_workspace* workspace;
-  struct dpaw_workspace_screen* next;
+  struct dpaw_list_entry workspace_screen_entry;
   const struct dpaw_screen_info* info;
 };
 

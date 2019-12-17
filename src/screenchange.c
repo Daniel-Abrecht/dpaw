@@ -12,7 +12,7 @@ enum screenchange_detector_source {
 };
 
 struct screenchange_listener {
-  struct screenchange_listener* next;
+  struct dpaw_list_entry screenchange_detector_listener_entry;
   dpaw_screenchange_handler_t callback;
   void* ptr;
 };
@@ -27,7 +27,7 @@ struct dpaw_screen_info_list_entry {
 void remove_screen_info(struct dpaw_screenchange_detector* detector, struct dpaw_screen_info_list_entry* entry){
   (void)detector;
   if(entry->info.name)
-    free((char*)entry->info.name);
+    free(entry->info.name);
   entry->info.name = 0;
   dpaw_linked_list_set(0, &entry->screen_list_entry, 0);
   free(entry);
@@ -44,6 +44,7 @@ int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned lon
     if(entry->id != id)
       continue;
     si = entry;
+    break;
   }
   if(si){
     bool changed = (
@@ -52,23 +53,33 @@ int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned lon
      || si->info.boundary.bottom_right.x != boundary.bottom_right.x
      || si->info.boundary.bottom_right.y != boundary.bottom_right.y
     );
+    if(si->info.name)
+      free(si->info.name);
     si->info = *info;
+    if(si->info.name)
+      si->info.name = strdup(si->info.name);
     si->info.boundary = boundary;
     if(changed){
-      for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
-        it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_CHANGED, &si->info);
+      for(struct dpaw_list_entry* it=detector->screenchange_listener_list.first; it; it=it->next){
+        struct screenchange_listener* listener = container_of(it, struct screenchange_listener, screenchange_detector_listener_entry);
+        listener->callback(listener->ptr, DPAW_SCREENCHANGE_SCREEN_CHANGED, &si->info);
+      }
     }
   }else{
-    struct dpaw_screen_info_list_entry* info_entry = calloc(sizeof(struct dpaw_screen_info_list_entry), 1);
-    if(!info_entry)
+    si = calloc(sizeof(struct dpaw_screen_info_list_entry), 1);
+    if(!si)
       return -1;
-    info_entry->source = source;
-    dpaw_linked_list_set(&detector->screen_list, &info_entry->screen_list_entry, detector->screen_list.first);
-    info_entry->id = id;
-    info_entry->info = *info;
-    info_entry->info.boundary = boundary;
-    for(struct screenchange_listener* it2=detector->screenchange_listener_list; it2; it2=it2->next)
-      it2->callback(it2->ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &info_entry->info);
+    si->source = source;
+    dpaw_linked_list_set(&detector->screen_list, &si->screen_list_entry, detector->screen_list.first);
+    si->id = id;
+    si->info = *info;
+    if(si->info.name)
+      si->info.name = strdup(si->info.name);
+    si->info.boundary = boundary;
+    for(struct dpaw_list_entry* it=detector->screenchange_listener_list.first; it; it=it->next){
+      struct screenchange_listener* listener = container_of(it, struct screenchange_listener, screenchange_detector_listener_entry);
+      listener->callback(listener->ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &si->info);
+    }
   }
   return 0;
 }
@@ -89,11 +100,9 @@ struct dpaw_xrandr_private {
 static int randr_add_or_update_output(struct dpaw_screenchange_detector* detector, XID outputid){
   struct dpaw_xrandr_private* xrandr = detector->xrandr;
   int ret = -1;
-  struct dpaw_xrandr_output output;
-  output.name.id = outputid;
-  XRROutputInfo* output_info = XRRGetOutputInfo(detector->dpaw->root.display, xrandr->screen_resources, output.name.id);
+  XRROutputInfo* output_info = XRRGetOutputInfo(detector->dpaw->root.display, xrandr->screen_resources, outputid);
   if(!output_info){
-    fprintf(stderr, "XRRGetOutputInfo failed for output %lx\n", (long)output.name.id);
+    fprintf(stderr, "XRRGetOutputInfo failed for output %lx\n", (long)outputid);
     goto error;
   }
   if(output_info->connection != RR_Connected){
@@ -105,13 +114,8 @@ static int randr_add_or_update_output(struct dpaw_screenchange_detector* detecto
     fprintf(stderr, "XRRFreeOutputInfo failed for crtc %lx\n", (long)output_info->crtc);
     goto error_after_XRRGetOutputInfo;
   }
-  output.name.string = strdup(output_info->name);
-  if(!output.name.string){
-    perror("strdup failed");
-    goto error_after_XRRGetCrtcInfo;
-  }
   struct dpaw_screen_info info = {
-    .name = output.name.string,
+    .name = output_info->name,
     .boundary = {
       .top_left = {
         .x = crtc_info->x,
@@ -127,9 +131,9 @@ static int randr_add_or_update_output(struct dpaw_screenchange_detector* detecto
       .y = output_info->mm_height,
     },
   };
-  ret = update_screen_info(detector, output.name.id, &info, SCREENCHANGE_DETECTOR_XRANDR);
+  ret = update_screen_info(detector, outputid, &info, SCREENCHANGE_DETECTOR_XRANDR);
 
-error_after_XRRGetCrtcInfo:
+//error_after_XRRGetCrtcInfo:
   XRRFreeCrtcInfo(crtc_info);
 error_after_XRRGetOutputInfo:
   XRRFreeOutputInfo(output_info);
@@ -177,8 +181,8 @@ int dpaw_screenchange_init(struct dpaw_screenchange_detector* detector, struct d
 }
 
 void dpaw_screenchange_destroy(struct dpaw_screenchange_detector* detector){
-  while(detector->screenchange_listener_list)
-    dpaw_screenchange_listener_unregister(detector, detector->screenchange_listener_list->callback, 0);
+  while(detector->screenchange_listener_list.first)
+    dpaw_screenchange_listener_unregister(detector, container_of(detector->screenchange_listener_list.first, struct screenchange_listener, screenchange_detector_listener_entry)->callback, 0);
   randr_destroy(detector);
 }
 
@@ -191,8 +195,7 @@ int dpaw_screenchange_listener_register(struct dpaw_screenchange_detector* detec
   scl->callback = callback;
   scl->ptr = ptr;
 
-  scl->next = detector->screenchange_listener_list;
-  detector->screenchange_listener_list = scl;
+  dpaw_linked_list_set(&detector->screenchange_listener_list, &scl->screenchange_detector_listener_entry, 0);
 
   for(struct dpaw_list_entry* it=detector->screen_list.first; it; it=it->next)
     callback(ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &container_of(it, struct dpaw_screen_info_list_entry, screen_list_entry)->info);
@@ -201,14 +204,14 @@ int dpaw_screenchange_listener_register(struct dpaw_screenchange_detector* detec
 }
 
 int dpaw_screenchange_listener_unregister(struct dpaw_screenchange_detector* detector, dpaw_screenchange_handler_t callback, void* ptr){
-  struct screenchange_listener** pit = &detector->screenchange_listener_list;
-  for( ; *pit; pit=&(*pit)->next ){
-    struct screenchange_listener* it = *pit;
-    if(it->callback != callback || (ptr && it->ptr != ptr))
+  for(struct dpaw_list_entry* it=detector->screenchange_listener_list.first; it; it=it->next){
+    struct screenchange_listener* listener = container_of(it, struct screenchange_listener, screenchange_detector_listener_entry);
+    if(listener->callback != callback || (ptr && listener->ptr != ptr))
       continue;
-    *pit = it->next;
-    it->next = 0;
-    free(it);
+    dpaw_linked_list_set(0, it, 0);
+    for(struct dpaw_list_entry* it=detector->screen_list.first; it; it=it->next)
+      callback(ptr, DPAW_SCREENCHANGE_SCREEN_REMOVED, &container_of(it, struct dpaw_screen_info_list_entry, screen_list_entry)->info);
+    free(listener);
     return 0;
   }
   fprintf(stderr, "Warning: Failed to find screen change listener to be removed.\n");

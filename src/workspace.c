@@ -33,32 +33,32 @@ static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, co
       dpaw_workspace_manager_designate_screen_to_workspace(wmgr, screen);
     } break;
     case DPAW_SCREENCHANGE_SCREEN_CHANGED: {
-      struct dpaw_workspace_screen* sit = 0;
+      struct dpaw_list_entry* sit = 0;
       for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next)
-        for( sit = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->screen; sit; sit=sit->next )
-          if( sit->info == info )
+        for(sit = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->screen_list.first; sit; sit=sit->next )
+          if( container_of(sit, struct dpaw_workspace_screen, workspace_screen_entry)->info == info )
             break;
       if(!sit){
         fprintf(stderr, "Warning: dpaw_workspace_screen object to be updated not found\n");
         return;
       }
-      dpaw_workspace_manager_designate_screen_to_workspace(wmgr, sit);
+      struct dpaw_workspace_screen* wscr = container_of(sit, struct dpaw_workspace_screen, workspace_screen_entry);
+      dpaw_workspace_manager_designate_screen_to_workspace(wmgr, wscr);
     } break;
     case DPAW_SCREENCHANGE_SCREEN_REMOVED: {
-      struct dpaw_workspace_screen** psit = (struct dpaw_workspace_screen*[]){0};
+      struct dpaw_list_entry* sit = 0;
       for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next)
-        for( psit = &container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->screen; psit; psit=&(*psit)->next )
-          if( (*psit)->info == info )
+        for(sit = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->screen_list.first; sit; sit=sit->next )
+          if( container_of(sit, struct dpaw_workspace_screen, workspace_screen_entry)->info == info )
             break;
-      struct dpaw_workspace_screen* sit = *psit;
       if(!sit){
         fprintf(stderr, "Warning: dpaw_workspace_screen object to be removed not found\n");
         return;
       }
-      dpaw_workspace_screen_cleanup(sit);
-      *psit = sit->next;
-      sit->next = 0;
-      free(sit);
+      struct dpaw_workspace_screen* wscr = container_of(sit, struct dpaw_workspace_screen, workspace_screen_entry);
+      dpaw_workspace_screen_cleanup(wscr);
+      dpaw_linked_list_set(0, sit, 0);
+      free(wscr);
     } break;
   }
 }
@@ -70,18 +70,19 @@ int dpaw_workspace_screen_init(struct dpaw_workspace_manager* wmgr, struct dpaw_
 }
 
 static int update_workspace(struct dpaw_workspace* workspace){
-  if(workspace->screen){
-    // Calculate the boundaries just large enough to include all screens
-    struct dpaw_rect boundary = workspace->screen->info->boundary;
-    for( struct dpaw_workspace_screen* it = workspace->screen->next; it; it=it->next ){
-      if( boundary.top_left.x > it->info->boundary.top_left.x )
-        boundary.top_left.x = it->info->boundary.top_left.x;
-      if( boundary.top_left.y > it->info->boundary.top_left.y )
-        boundary.top_left.y = it->info->boundary.top_left.y;
-      if( boundary.bottom_right.x < it->info->boundary.bottom_right.x )
-        boundary.bottom_right.x = it->info->boundary.bottom_right.x;
-      if( boundary.bottom_right.y < it->info->boundary.bottom_right.y )
-        boundary.bottom_right.y = it->info->boundary.bottom_right.y;
+  // Calculate the boundaries just large enough to include all screens
+  if(workspace->screen_list.first){
+    struct dpaw_rect boundary = container_of(workspace->screen_list.first, struct dpaw_workspace_screen, workspace_screen_entry)->info->boundary;
+    for( struct dpaw_list_entry* it = workspace->screen_list.first; it; it=it->next ){
+      struct dpaw_workspace_screen* wscr = container_of(it, struct dpaw_workspace_screen, workspace_screen_entry);
+      if( boundary.top_left.x > wscr->info->boundary.top_left.x )
+        boundary.top_left.x = wscr->info->boundary.top_left.x;
+      if( boundary.top_left.y > wscr->info->boundary.top_left.y )
+        boundary.top_left.y = wscr->info->boundary.top_left.y;
+      if( boundary.bottom_right.x < wscr->info->boundary.bottom_right.x )
+        boundary.bottom_right.x = wscr->info->boundary.bottom_right.x;
+      if( boundary.bottom_right.y < wscr->info->boundary.bottom_right.y )
+        boundary.bottom_right.y = wscr->info->boundary.bottom_right.y;
     }
     if(dpawindow_place_window(workspace->window, boundary))
       return -1;
@@ -100,12 +101,7 @@ int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, stru
   }
   if(screen->workspace){
     struct dpaw_workspace* old_workspace = screen->workspace;
-    for( struct dpaw_workspace_screen** psit = &workspace->screen; psit; psit=&(*psit)->next ){
-      if( *psit != screen )
-        continue;
-      *psit = 0;
-      break;
-    }
+    dpaw_linked_list_set(0, &screen->workspace_screen_entry, 0);
     screen->workspace = 0;
     update_workspace(old_workspace);
     if(old_workspace->type->screen_removed)
@@ -113,8 +109,7 @@ int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, stru
   }
   if(workspace){
     screen->workspace = workspace;
-    screen->next = workspace->screen;
-    workspace->screen = screen;
+    dpaw_linked_list_set(&workspace->screen_list, &screen->workspace_screen_entry, 0);
     update_workspace(workspace);
     if(workspace->type->screen_added)
       if(workspace->type->screen_added(workspace->window, screen))
@@ -207,6 +202,9 @@ void destroy_workspace(struct dpaw_workspace* workspace){
 
   dpaw_linked_list_set(0, &workspace->wmgr_workspace_list_entry, 0);
   update_virtual_root_property(wmgr);
+
+  while(workspace->window_list.first)
+    dpaw_workspace_manager_abandon_window(container_of(workspace->window_list.first, struct dpawindow_app, workspace_window_entry));
 
   if(workspace->type->cleanup)
     workspace->type->cleanup(workspace->window);
@@ -360,7 +358,7 @@ error:
 void dpaw_workspace_manager_destroy(struct dpaw_workspace_manager* wmgr){
   // TODO: Reparent all windows to root & remove all workspaces
   dpaw_screenchange_listener_unregister(&wmgr->dpaw->root.screenchange_detector, screenchange_handler, wmgr);
-  for(struct dpaw_list_entry *wlit=wmgr->workspace_list.first, *next=wlit?wlit->next:0; wlit; wlit=next)
-    destroy_workspace(container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry));
+  while(wmgr->workspace_list.first)
+    destroy_workspace(container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry));
   wmgr->dpaw = 0;
 }
