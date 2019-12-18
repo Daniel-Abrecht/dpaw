@@ -68,7 +68,7 @@ static struct dpaw_rect determine_window_position(struct dpawindow_handheld_wind
 
 static int update_window_area(struct dpawindow_handheld_window* child){
   struct dpaw_rect boundary = determine_window_position(child);
-  printf("update_window_area: %lx %d %ld %ld %ld %ld\n", child->app_window->window.xwindow, child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
+//  printf("update_window_area: %lx %d %ld %ld %ld %ld\n", child->app_window->window.xwindow, child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
   return dpawindow_place_window(&child->app_window->window, boundary);
 }
 
@@ -363,7 +363,7 @@ EV_ON(workspace_handheld, ConfigureRequest){
     .sibling      = event->above,
     .stack_mode   = event->detail
   };
-  printf("ConfigureRequest: %lx %u %d %d %d %d\n", event->window, child->type, changes.x, changes.y, changes.width, changes.height);
+//  printf("ConfigureRequest: %lx %u %d %d %d %d\n", event->window, child->type, changes.x, changes.y, changes.width, changes.height);
 //  printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
 //  printf("%d %d %d %d\n", child->app_window->observable.desired_placement.value.x, child->app_window->observable.desired_placement.value.y, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
   XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask, &changes);

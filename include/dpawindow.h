@@ -25,10 +25,12 @@ struct dpawindow {
   const struct dpawindow_type* type;
   struct dpaw* dpaw;
   struct dpaw_list_entry dpaw_window_entry;
+  struct dpaw_list_entry dpaw_window_update_entry;
   Window xwindow;
   struct dpaw_rect boundary;
   bool mapped : 1;
   bool hidden : 1;
+  bool d_update_config : 1;
 };
 
 #define EV_ON(TYPE, EVENT) \
@@ -85,6 +87,7 @@ struct dpawindow {
 bool dpawindow_has_error_occured(Display* display);
 struct dpawindow* dpawindow_lookup(struct dpaw*, Window);
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event*);
+int dpawindow_deferred_update(struct dpawindow* window);
 int dpawindow_hide(struct dpawindow* window, bool hidden);
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);

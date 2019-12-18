@@ -70,6 +70,7 @@ void onsighup(int x){
 
 int dpaw_init(struct dpaw* dpaw){
   signal(SIGTERM, onsigterm);
+  signal(SIGINT, onsigterm);
   signal(SIGHUP, onsighup);
   XSetErrorHandler(&dpaw_error_handler);
   memset(dpaw, 0, sizeof(*dpaw));
@@ -220,6 +221,13 @@ int dpaw_run(struct dpaw* dpaw){
     }
 
     dpaw_free_xev(&xev);
+
+    while(dpaw->window_update_list.first){
+      struct dpawindow* window = container_of(dpaw->window_update_list.first, struct dpawindow, dpaw_window_update_entry);
+      dpaw_linked_list_set(0, dpaw->window_update_list.first, 0);
+      dpawindow_deferred_update(window);
+    }
+
   }
   if(running_state == DPAW_ERROR)
     return -1;

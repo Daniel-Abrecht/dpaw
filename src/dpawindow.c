@@ -32,52 +32,8 @@ enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, con
 }
 
 int update_window_config(struct dpawindow* window){
-  const struct dpaw_rect boundary = window->boundary;
-  bool valid_placement = (
-      boundary.top_left.x < boundary.bottom_right.x
-   && boundary.top_left.y < boundary.bottom_right.y
-  );
-  bool is_visible = window->mapped && !window->hidden && valid_placement;
-  printf(
-    "update_window_config: %lx %ld %ld %ld %ld %c%c %c\n",
-    window->xwindow,
-    boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x, boundary.bottom_right.y,
-    window->mapped ? 'm' : 'u',
-    window->hidden ? 'h' : 'v',
-    is_visible ? 'v' : 'i'
-  );
-  if(valid_placement){
-    // Because of problems of resizing sometimes failing, let's try this before and after any mapping changes
-    XMoveResizeWindow(
-      window->dpaw->root.display,
-      window->xwindow,
-      boundary.top_left.x,
-      boundary.top_left.y,
-      boundary.bottom_right.x - boundary.top_left.x,
-      boundary.bottom_right.y - boundary.top_left.y
-    );
-  }
-  if(is_visible){
-    XMapWindow(window->dpaw->root.display, window->xwindow);
-  }else{
-    XUnmapWindow(window->dpaw->root.display, window->xwindow);
-  }
-  if(valid_placement){
-    XMoveResizeWindow(
-      window->dpaw->root.display,
-      window->xwindow,
-      boundary.top_left.x,
-      boundary.top_left.y,
-      boundary.bottom_right.x - boundary.top_left.x,
-      boundary.bottom_right.y - boundary.top_left.y
-    );
-  }
-  long state = IconicState;
-  if(!window->hidden)
-    state = NormalState;
-  if(!window->mapped)
-    state = WithdrawnState;
-  XChangeProperty(window->dpaw->root.display, window->xwindow, WM_STATE, WM_STATE, 32, PropModeReplace, (unsigned char*)(long[]){state,0}, 2);
+  window->d_update_config = true;
+  dpaw_linked_list_set(&window->dpaw->window_update_list, &window->dpaw_window_update_entry, 0);
   return 0;
 }
 
@@ -134,5 +90,59 @@ int dpawindow_unregister(struct dpawindow* window){
     return -1;
   XRemoveFromSaveSet(window->dpaw->root.display, window->xwindow);
   dpaw_linked_list_set(0, &window->dpaw_window_entry, 0);
+  dpaw_linked_list_set(0, &window->dpaw_window_update_entry, 0);
+  return 0;
+}
+
+int dpawindow_deferred_update(struct dpawindow* window){
+  if(!window->d_update_config)
+    return 0;
+  window->d_update_config = false;
+  const struct dpaw_rect boundary = window->boundary;
+  bool valid_placement = (
+      boundary.top_left.x < boundary.bottom_right.x
+   && boundary.top_left.y < boundary.bottom_right.y
+  );
+  bool is_visible = window->mapped && !window->hidden && valid_placement;
+/*  printf(
+    "update_window_config: %lx %ld %ld %ld %ld %c%c %c\n",
+    window->xwindow,
+    boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x, boundary.bottom_right.y,
+    window->mapped ? 'm' : 'u',
+    window->hidden ? 'h' : 'v',
+    is_visible ? 'v' : 'i'
+  );*/
+  if(valid_placement){
+    // Because of problems of resizing sometimes failing, let's try this before and after any mapping changes
+    XMoveResizeWindow(
+      window->dpaw->root.display,
+      window->xwindow,
+      boundary.top_left.x,
+      boundary.top_left.y,
+      boundary.bottom_right.x - boundary.top_left.x,
+      boundary.bottom_right.y - boundary.top_left.y
+    );
+  }
+  if(is_visible){
+    XMapWindow(window->dpaw->root.display, window->xwindow);
+  }else{
+    XUnmapWindow(window->dpaw->root.display, window->xwindow);
+  }
+  if(valid_placement){
+    XMoveResizeWindow(
+      window->dpaw->root.display,
+      window->xwindow,
+      boundary.top_left.x,
+      boundary.top_left.y,
+      boundary.bottom_right.x - boundary.top_left.x,
+      boundary.bottom_right.y - boundary.top_left.y
+    );
+  }
+  long state = IconicState;
+  if(!window->hidden)
+    state = NormalState;
+  if(!window->mapped)
+    state = WithdrawnState;
+  XChangeProperty(window->dpaw->root.display, window->xwindow, WM_STATE, WM_STATE, 32, PropModeReplace, (unsigned char*)(long[]){state,0}, 2);
   return 0;
 }

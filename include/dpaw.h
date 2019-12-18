@@ -16,6 +16,7 @@ struct dpaw_touchevent_window_map {
 struct dpaw {
   struct dpawindow_root root;
   struct dpaw_list window_list;
+  struct dpaw_list window_update_list;
   int last_touch;
   struct dpaw_touchevent_window_map touch_source[DPAW_WORKSPACE_MAX_TOUCH_SOURCES];
   int x11_fd;
