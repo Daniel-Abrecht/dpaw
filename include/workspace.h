@@ -43,6 +43,7 @@ struct dpaw_workspace {
   const struct dpaw_workspace_type* type;
   struct dpaw_list_entry wmgr_workspace_list_entry;
   struct dpawindow* window;
+  struct dpawindow_app* focus_window;
   struct dpaw_workspace_manager* workspace_manager;
   struct dpaw_list screen_list;
   struct dpaw_list window_list;
@@ -62,9 +63,12 @@ void dpaw_workspace_screen_cleanup(struct dpaw_workspace_screen*);
 int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, struct dpaw_workspace* workspace);
 int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window);
 int dpaw_workspace_manager_abandon_window(struct dpawindow_app* window);
+
 int dpaw_workspace_add_window(struct dpaw_workspace*, struct dpawindow_app*);
 int dpaw_workspace_remove_window(struct dpawindow_app* window);
 struct dpawindow_app* dpaw_workspace_lookup_xwindow(struct dpaw_workspace*, Window);
+
+int dpaw_workspace_set_focus(struct dpawindow_app* window);
 
 void dpaw_workspace_type_register(struct dpaw_workspace_type* type);
 void dpaw_workspace_type_unregister(struct dpaw_workspace_type* type);

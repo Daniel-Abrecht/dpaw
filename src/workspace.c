@@ -2,6 +2,7 @@
 #include <dpawindow/app.h>
 #include <atom/ewmh.c>
 #include <workspace.h>
+#include <xev/X.c>
 #include <dpaw.h>
 #include <screenchange.h>
 #include <stdio.h>
@@ -10,6 +11,27 @@
 #include <stdint.h>
 
 static struct dpaw_workspace_type* workspace_type_list;
+
+int dpaw_workspace_set_focus(struct dpawindow_app* window){
+  if(!window->workspace)
+    return -1;
+  XSetInputFocus(window->window.dpaw->root.display, window->window.xwindow, RevertToPointerRoot, CurrentTime);
+  window->workspace->focus_window = window;
+  return 0;
+}
+
+EV_ON(root, MapNotify){
+  extern struct dpawindow_type dpawindow_type_app;
+  struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
+  if(!win)
+    return EHR_NEXT;
+  if(win->type != &dpawindow_type_app)
+    return EHR_NEXT;
+  struct dpawindow_app* app = container_of(win, struct dpawindow_app, window);
+  if(app->workspace && app->workspace->focus_window == app)
+    dpaw_workspace_set_focus(app);
+  return EHR_OK;
+}
 
 static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, const struct dpaw_screen_info* info){
   struct dpaw_workspace_manager* wmgr = ptr;
@@ -291,6 +313,8 @@ int dpaw_workspace_remove_window(struct dpawindow_app* window){
       return -1;
   window->workspace = 0;
   window->workspace_private = 0;
+  if(workspace->focus_window == window)
+    workspace->focus_window = 0;
   dpaw_linked_list_set(0, &window->workspace_window_entry, 0);
   XReparentWindow(window->window.dpaw->root.display, window->window.xwindow, window->window.dpaw->root.window.xwindow, 0, 0);
   return 0;
