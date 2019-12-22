@@ -18,10 +18,12 @@ struct screenchange_listener {
 };
 
 struct dpaw_screen_info_list_entry {
+  union { // must be the first entry
+    struct dpaw_list_entry screen_entry; // This makes the address of screen_entry, dpaw_screen_info_list_entry and dpaw_screen_info the same, thus allowing casting between them. Removing this would require quiet a few more container_of usages, which isn't pretty either.
+    struct dpaw_screen_info info;
+  };
   enum screenchange_detector_source source;
-  struct dpaw_screen_info info;
   unsigned long id;
-  struct dpaw_list_entry screen_list_entry;
 };
 
 void remove_screen_info(struct dpaw_screenchange_detector* detector, struct dpaw_screen_info_list_entry* entry){
@@ -29,7 +31,7 @@ void remove_screen_info(struct dpaw_screenchange_detector* detector, struct dpaw
   if(entry->info.name)
     free(entry->info.name);
   entry->info.name = 0;
-  dpaw_linked_list_set(0, &entry->screen_list_entry, 0);
+  dpaw_linked_list_set(0, &entry->screen_entry, 0);
   free(entry);
 }
 
@@ -40,7 +42,7 @@ int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned lon
   ) memset(&boundary, 0, sizeof(boundary));
   struct dpaw_screen_info_list_entry* si = 0;
   for(struct dpaw_list_entry* it=detector->screen_list.first; it; it=it->next){
-    struct dpaw_screen_info_list_entry* entry = container_of(it, struct dpaw_screen_info_list_entry, screen_list_entry);
+    struct dpaw_screen_info_list_entry* entry = container_of(it, struct dpaw_screen_info_list_entry, screen_entry);
     if(entry->id != id)
       continue;
     si = entry;
@@ -70,7 +72,7 @@ int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned lon
     if(!si)
       return -1;
     si->source = source;
-    dpaw_linked_list_set(&detector->screen_list, &si->screen_list_entry, detector->screen_list.first);
+    dpaw_linked_list_set(&detector->screen_list, &si->screen_entry, detector->screen_list.first);
     si->id = id;
     si->info = *info;
     if(si->info.name)
@@ -165,7 +167,7 @@ static void randr_destroy(struct dpaw_screenchange_detector* detector){
   if(!detector->xrandr)
     return;
   for(struct dpaw_list_entry *it=detector->screen_list.first, *next=it?it->next:0; it; it=next){
-    struct dpaw_screen_info_list_entry* entry = container_of(it, struct dpaw_screen_info_list_entry, screen_list_entry);
+    struct dpaw_screen_info_list_entry* entry = container_of(it, struct dpaw_screen_info_list_entry, screen_entry);
     if(entry->source != SCREENCHANGE_DETECTOR_XRANDR)
       continue;
     remove_screen_info(detector, entry);
@@ -198,7 +200,7 @@ int dpaw_screenchange_listener_register(struct dpaw_screenchange_detector* detec
   dpaw_linked_list_set(&detector->screenchange_listener_list, &scl->screenchange_detector_listener_entry, 0);
 
   for(struct dpaw_list_entry* it=detector->screen_list.first; it; it=it->next)
-    callback(ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &container_of(it, struct dpaw_screen_info_list_entry, screen_list_entry)->info);
+    callback(ptr, DPAW_SCREENCHANGE_SCREEN_ADDED, &container_of(it, struct dpaw_screen_info_list_entry, screen_entry)->info);
 
   return 0;
 }
@@ -210,7 +212,7 @@ int dpaw_screenchange_listener_unregister(struct dpaw_screenchange_detector* det
       continue;
     dpaw_linked_list_set(0, it, 0);
     for(struct dpaw_list_entry* it=detector->screen_list.first; it; it=it->next)
-      callback(ptr, DPAW_SCREENCHANGE_SCREEN_REMOVED, &container_of(it, struct dpaw_screen_info_list_entry, screen_list_entry)->info);
+      callback(ptr, DPAW_SCREENCHANGE_SCREEN_REMOVED, &container_of(it, struct dpaw_screen_info_list_entry, screen_entry)->info);
     free(listener);
     return 0;
   }

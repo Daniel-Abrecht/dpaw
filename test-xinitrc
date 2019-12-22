@@ -7,6 +7,8 @@
 xfce4-terminal &
 onboard &
 
+export ASAN_OPTIONS=abort_on_error=1
+
 if [ -z "$VALGRIND" ]
   then exec "$(dirname "$(realpath "$0")")/bin/dpaw"
   else exec valgrind --leak-check=full "$(dirname "$(realpath "$0")")/bin/dpaw"

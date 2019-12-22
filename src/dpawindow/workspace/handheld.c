@@ -183,7 +183,7 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     workspace->sideswipe_params = params;
   }
   int ret = 0;
-  ret = dpaw_sideswipe_init(&workspace->sideswipe, &workspace->sideswipe_params);
+  ret = dpaw_sideswipe_init(&workspace->sideswipe, &workspace->sideswipe_params, workspace->window.dpaw);
   if(ret != 0){
     fprintf(stderr, "dpaw_sideswipe_init failed\n");
     return -1;

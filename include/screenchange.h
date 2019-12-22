@@ -11,6 +11,7 @@ enum dpaw_screenchange_type {
 };
 
 struct dpaw_screen_info {
+  struct dpaw_list_entry screen_entry; // Must be the first entry!!! See dpaw_screen_info_list_entry in screenchange.c
   struct dpaw_rect boundary;
   struct dpaw_point physical_size_mm;
   char* name;
