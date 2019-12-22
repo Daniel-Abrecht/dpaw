@@ -15,11 +15,17 @@ static volatile enum dpaw_state {
 } running_state;
 
 int dpaw_cleanup(struct dpaw* dpaw){
+  if(!dpaw->initialised)
+    return 0;
+  dpaw->initialised = false;
   printf("Stopping dpaw...\n");
   if(dpaw->root.window.xwindow)
     dpawindow_root_cleanup(&dpaw->root);
-  if(dpaw->root.display)
+  if(dpaw->root.display){
+    XSync(dpaw->root.display, false);
     XCloseDisplay(dpaw->root.display);
+  }
+  memset(dpaw, 0, sizeof(*dpaw));
   return 0;
 }
 
@@ -69,6 +75,7 @@ void onsighup(int x){
 }
 
 int dpaw_init(struct dpaw* dpaw){
+  dpaw->initialised = true;
   signal(SIGTERM, onsigterm);
   signal(SIGINT, onsigterm);
   signal(SIGHUP, onsighup);
