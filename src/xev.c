@@ -68,9 +68,10 @@ static inline int64_t get_int(size_t offset, size_t size, void* data){
 int dpaw_xevent_to_xev(struct dpaw* dpaw, struct xev_event* xev, XAnyEvent* xevent){
   const struct xev_event_info* evi = &dpaw_xev_ev2ext_XEV_BaseEvent;
   void* data = xevent;
-  int index = -1;
+  int index = 0;
 
   memset(xev, 0, sizeof(*xev));
+  xev->data_list[0] = data;
 
   bool found;
   do {
@@ -78,17 +79,16 @@ int dpaw_xevent_to_xev(struct dpaw* dpaw, struct xev_event* xev, XAnyEvent* xeve
       break;
     found = false;
     if(index >= (int)(sizeof(xev->data_list)/sizeof(*xev->data_list))-1){
-      while(index > -1){
+      while(--index > -1){
+        if(evi->spec && evi->spec->free_data)
+          evi->spec->free_data(dpaw, &xev->data_list[index], &xev->data_list[index+1]);
         evi = evi->event_list->parent_event;
-        if(evi->spec->free_data)
-          evi->spec->free_data(dpaw, &xev->data_list[index]);
-        index -= 1;
       }
       return -1;
     }
-    xev->data_list[++index] = data;
     if(evi->spec->load_data)
       evi->spec->load_data(dpaw, &data);
+    xev->data_list[++index] = data;
     int type = get_int(evi->spec->type_offset, evi->event_list->parent_event->spec->type_size, data);
     int extension = get_int(evi->spec->extension_offset, evi->event_list->parent_event->spec->extension_size, data);
     if(type < 0)
@@ -122,11 +122,10 @@ void dpaw_free_xev(struct xev_event* xev){
     return;
   const struct xev_event_info* evi = xev->info;
   int index = xev->index;
-  while(index > -1){
+  while(--index > -1){
+    if(evi->spec && evi->spec->free_data)
+      evi->spec->free_data(xev->dpaw, xev->data_list[index], xev->data_list[index+1]);
     evi = evi->event_list->parent_event;
-    if(evi->spec->free_data)
-      evi->spec->free_data(xev->dpaw, xev->data_list[index]);
-    index -= 1;
   }
   memset(xev, 0, sizeof(*xev));
 }

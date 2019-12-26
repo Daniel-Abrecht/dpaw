@@ -38,7 +38,7 @@ struct xev_event_specializer {
   int extension_offset;
   int extension_size;
   void(*load_data)(struct dpaw* dpaw, void**);
-  void(*free_data)(struct dpaw* dpaw, void*);
+  void(*free_data)(struct dpaw* dpaw, void* old_data, void* new_data);
 };
 
 struct xev_event_info {

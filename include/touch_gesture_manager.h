@@ -14,8 +14,7 @@ struct dpaw_touch_gesture_detector;
 struct dpaw_touch_gesture_detector_type {
   enum event_handler_result (*ontouch)(
     struct dpaw_touch_gesture_detector* detector,
-    XIDeviceEvent* event,
-    struct dpaw_rect bounds
+    struct dpaw_touch_event* event
   );
   void (*cleanup)(struct dpaw_touch_gesture_detector* detector);
   void (*reset)(struct dpaw_touch_gesture_detector* detector);
@@ -37,8 +36,7 @@ int dpaw_touch_gesture_manager_add_detector(
 
 enum event_handler_result dpaw_touch_gesture_manager_dispatch_touch(
   struct dpaw_touch_gesture_manager*,
-  XIDeviceEvent*,
-  struct dpaw_rect
+  struct dpaw_touch_event*
 );
 
 #endif

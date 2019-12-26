@@ -1,3 +1,4 @@
+#include <dpaw.h>
 #include <touch_gesture_manager.h>
 #include <string.h>
 #include <stdio.h>
@@ -43,18 +44,20 @@ int dpaw_touch_gesture_manager_add_detector(
   return 0;
 }
 
-// TODO: Allow detecting multiple touchpoints at once.
 enum event_handler_result dpaw_touch_gesture_manager_dispatch_touch(
   struct dpaw_touch_gesture_manager* manager,
-  XIDeviceEvent* event,
-  struct dpaw_rect bounds
+  struct dpaw_touch_event* event
 ){
-  if(manager->detected){
-    enum event_handler_result result = manager->detected->type->ontouch(manager->detected, event, bounds);
+  if(!event->twm)
+    return EHR_UNHANDLED;
+  if(event->twm->gesture_detector){
+    enum event_handler_result result = event->twm->gesture_detector->type->ontouch(event->twm->gesture_detector, event);
+    if(event->event.evtype == XI_TouchEnd)
+      result = EHR_OK;
     if(result != EHR_NEXT && result != EHR_OK){
-      if(manager->detected->type->reset)
-        manager->detected->type->reset(manager->detected);
-      manager->detected = 0;
+      if(event->twm->gesture_detector->type->reset)
+        event->twm->gesture_detector->type->reset(event->twm->gesture_detector);
+      event->twm->gesture_detector = 0;
       return result;
     }
     return EHR_OK;
@@ -63,9 +66,9 @@ enum event_handler_result dpaw_touch_gesture_manager_dispatch_touch(
   for(struct dpaw_list_entry* it = manager->detector_list.first; it; it=it->next){
     struct dpaw_touch_gesture_detector* detector = container_of(it, struct dpaw_touch_gesture_detector, manager_entry);
     if(detector->type->ontouch){
-      enum event_handler_result result = detector->type->ontouch(detector, event, bounds);
+      enum event_handler_result result = detector->type->ontouch(detector, event);
       if(result == EHR_OK){
-        manager->detected = detector;
+        event->twm->gesture_detector = detector;
         for(struct dpaw_list_entry* it2 = manager->detector_list.first; it2; it2=it2->next){
           if(it == it2)
             continue;

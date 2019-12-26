@@ -182,3 +182,21 @@ struct dpaw_point dpaw_calc_distance(const struct dpaw* dpaw, struct dpaw_point 
   }
   return (struct dpaw_point){0,0};
 }
+
+struct dpaw_point dpaw_closest_point_on_line(struct dpaw_line line, struct dpaw_point P, bool clip){
+  struct dpaw_point AB = {line.B.x-line.A.x, line.B.y-line.A.y};
+  struct dpaw_point AP = {P.x-line.A.x, P.y-line.A.y};
+  long long t = AP.x * AB.x + AP.y * AB.y;
+  long long l = AB.x * AB.x + AB.y * AB.y;
+  if(clip){
+    if(t <= 0)
+      t = 0;
+    if(t >= l)
+      t = l;
+  }
+  struct dpaw_point result = {
+    line.A.x + AB.x * t / l,
+    line.A.y + AB.y * t / l
+  };
+  return result;
+}

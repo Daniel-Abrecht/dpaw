@@ -87,8 +87,9 @@ static void load_generic_event(struct dpaw* dpaw, void** data){
     *data = event->xcookie.data;
 }
 
-static void free_generic_event(struct dpaw* dpaw, void* data){
-  XEvent* event = data;
+static void free_generic_event(struct dpaw* dpaw, void* old_data, void* new_data){
+  (void)new_data;
+  XEvent* event = old_data;
   XFreeEventData(dpaw->root.display, &event->xcookie);
 }
 

@@ -75,93 +75,39 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     case XI_TouchBegin:
     case XI_TouchUpdate:
     case XI_TouchEnd: {
-      XIDeviceEvent* ev = event->data;
-      // We've a grab on the root window for these events, so I'll have to figure out manually where to put them, because event=root, ...
-      if(ev->event == dpaw->root.window.xwindow){
-        struct dpaw_touchevent_window_map* twm = 0;
-        for(int i=dpaw->last_touch; i-->0;){
-          if(!dpaw->touch_source[i].window)
-            continue;
-          if(dpaw->touch_source[i].touchid != ev->detail)
-            continue;
-          twm = &dpaw->touch_source[i];
-          break;
-        }
-        if(!twm && event->info->type == XI_TouchBegin){
-          for(int i=0, n=dpaw->last_touch+1; i<DPAW_WORKSPACE_MAX_TOUCH_SOURCES && i<n; i++){
-            if(dpaw->touch_source[i].window)
-              continue;
-            twm = &dpaw->touch_source[i];
-            if(dpaw->last_touch <= i)
-              dpaw->last_touch = i+1;
-            break;
-          }
-          if(twm){
-            twm->touchid = ev->detail;
-            for(struct dpaw_list_entry* wlit = dpaw->root.workspace_manager.workspace_list.first; wlit; wlit=wlit->next){
-              struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
-/*              printf("%lf>=%ld %lf>=%ld %lf<%ld %lf<%ld\n",
-                ev->event_x, workspace->window->boundary.top_left.x,
-                ev->event_y, workspace->window->boundary.top_left.y,
-                ev->event_x, workspace->window->boundary.bottom_right.x,
-                ev->event_y, workspace->window->boundary.bottom_right.y
-              );*/
-              if( ev->event_x <  workspace->window->boundary.top_left.x
-               || ev->event_y <  workspace->window->boundary.top_left.y
-               || ev->event_x >= workspace->window->boundary.bottom_right.x
-               || ev->event_y >= workspace->window->boundary.bottom_right.y
-              ) continue;
-              twm->window = workspace->window;
-              break;
-            }
-          }
-        }
-        if(twm && twm->window){
-          ev->event = twm->window->xwindow;
-          ev->event_x -= twm->window->boundary.top_left.x;
-          ev->event_y -= twm->window->boundary.top_left.y;
-          enum event_handler_result result = dpawindow_dispatch_event(twm->window, event);
-          // Make sure to always accept or reject events at some point
-          // TODO: Also reject them if it hasn't been accepted in a certain amount of time
-          if(event->info->type == XI_TouchEnd && result == EHR_NEXT)
-            result = EHR_UNHANDLED;
-          if(result != EHR_OK && result != EHR_NEXT){
-            twm->window = 0;
-            XIAllowTouchEvents(
-              dpaw->root.display,
-              ev->deviceid,
-              ev->detail,
-              dpaw->root.window.xwindow,
-              XIRejectTouch
-            );
-          }else{
-            if(result == EHR_OK){
-              XIAllowTouchEvents(
-                dpaw->root.display,
-                ev->deviceid,
-                ev->detail,
-                dpaw->root.window.xwindow,
-                XIAcceptTouch
-              );
-            }
-            if(event->info->type == XI_TouchEnd)
-              twm->window = 0;
-          }
-          if(!twm->window && dpaw->last_touch == twm-dpaw->touch_source+1)
-            while(dpaw->last_touch && dpaw->touch_source[dpaw->last_touch-1].window)
-              dpaw->last_touch -= 1;
-          return result;
-        }else{
-          // Just in case
+      struct dpaw_touch_event* te = event->data;
+      if(te->twm && te->twm->window){
+        enum event_handler_result result = dpawindow_dispatch_event(te->twm->window, event);
+        // Make sure to always accept or reject events at some point
+        // TODO: Also reject them if it hasn't been accepted in a certain amount of time
+        if(event->info->type == XI_TouchEnd && result == EHR_NEXT)
+          result = EHR_UNHANDLED;
+        if(result != EHR_OK && result != EHR_NEXT){
+          te->twm->window = 0;
           XIAllowTouchEvents(
             dpaw->root.display,
-            ev->deviceid,
-            ev->detail,
+            te->event.deviceid,
+            te->event.detail,
             dpaw->root.window.xwindow,
             XIRejectTouch
           );
-          return EHR_UNHANDLED;
+        }else{
+          if(result == EHR_OK){
+            XIAllowTouchEvents(
+              dpaw->root.display,
+              te->event.deviceid,
+              te->event.detail,
+              dpaw->root.window.xwindow,
+              XIAcceptTouch
+            );
+          }
+          if(event->info->type == XI_TouchEnd)
+            te->twm->window = 0;
         }
+        if(!te->twm->window && dpaw->last_touch == te->twm-dpaw->touch_source+1)
+          while(dpaw->last_touch && dpaw->touch_source[dpaw->last_touch-1].window)
+            dpaw->last_touch -= 1;
+        return result;
       }
     } // fallthrough
     case XI_KeyPress:
@@ -269,4 +215,82 @@ int dpaw_xev_xinput2_listen(struct xev_event_extension* extension, struct dpawin
 
   return dpawindow_has_error_occured(window->dpaw->root.display);
 }
+
+static void load_touch_event(struct dpaw* dpaw, void** data){
+  struct dpaw_touch_event* te = calloc(sizeof(struct dpaw_touch_event), 1);
+  assert(te);
+  {
+    XIDeviceEvent* ev = *data;
+    *data = te;
+    te->event = *ev;
+  }
+
+  if(te->event.event == dpaw->root.window.xwindow){
+    for(int i=dpaw->last_touch; i-->0;){
+      if(!dpaw->touch_source[i].window)
+        continue;
+      if(dpaw->touch_source[i].touchid != te->event.detail)
+        continue;
+      te->twm = &dpaw->touch_source[i];
+      break;
+    }
+    if(!te->twm && te->event.evtype == XI_TouchBegin){
+      for(int i=0, n=dpaw->last_touch+1; i<DPAW_WORKSPACE_MAX_TOUCH_SOURCES && i<n; i++){
+        if(dpaw->touch_source[i].window)
+          continue;
+        te->twm = &dpaw->touch_source[i];
+        if(dpaw->last_touch <= i)
+          dpaw->last_touch = i+1;
+        break;
+      }
+      if(te->twm){
+        te->twm->touchid = te->event.detail;
+        for(struct dpaw_list_entry* wlit = dpaw->root.workspace_manager.workspace_list.first; wlit; wlit=wlit->next){
+          struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
+          if( te->event.event_x <  workspace->window->boundary.top_left.x
+            || te->event.event_y <  workspace->window->boundary.top_left.y
+            || te->event.event_x >= workspace->window->boundary.bottom_right.x
+            || te->event.event_y >= workspace->window->boundary.bottom_right.y
+          ) continue;
+          te->twm->window = workspace->window;
+          break;
+        }
+      }
+    }
+    if(te->twm && te->twm->window){
+      te->event.event    = te->twm->window->xwindow;
+      te->event.event_x -= te->twm->window->boundary.top_left.x;
+      te->event.event_y -= te->twm->window->boundary.top_left.y;
+    }else{
+      XIAllowTouchEvents(
+        dpaw->root.display,
+        te->event.deviceid,
+        te->event.detail,
+        dpaw->root.window.xwindow,
+        XIRejectTouch
+      );
+    }
+  }
+}
+
+static void free_touch_event(struct dpaw* dpaw, void* old_data, void* new_data){
+  (void)dpaw;
+  (void)old_data;
+  free(new_data);
+}
+
+struct xev_event_specializer dpaw_xev_spec_XI_TouchBegin = {
+  .load_data = load_touch_event,
+  .free_data = free_touch_event,
+};
+
+struct xev_event_specializer dpaw_xev_spec_XI_TouchUpdate = {
+  .load_data = load_touch_event,
+  .free_data = free_touch_event,
+};
+
+struct xev_event_specializer dpaw_xev_spec_XI_TouchEnd = {
+  .load_data = load_touch_event,
+  .free_data = free_touch_event,
+};
 

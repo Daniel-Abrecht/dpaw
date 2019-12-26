@@ -9,17 +9,19 @@ static void reset(struct dpaw_touch_gesture_detector* detector){
 
 static enum event_handler_result ontouch(
   struct dpaw_touch_gesture_detector* detector,
-  XIDeviceEvent* event,
-  struct dpaw_rect bounds
+  struct dpaw_touch_event* te
 ){
   struct dpaw_sideswipe_detector* sideswipe = container_of(detector, struct dpaw_sideswipe_detector, detector);
 
+  if(!sideswipe->params.bounds)
+    return EHR_UNHANDLED;
+
   struct dpaw_point touchpos = {
-    .x = event->root_x,
-    .y = event->root_y
+    .x = te->event.root_x,
+    .y = te->event.root_y
   };
 
-  switch(event->evtype){
+  switch(te->event.evtype){
 
     case XI_TouchBegin: {
       if(sideswipe->touchid != -1)
@@ -27,14 +29,14 @@ static enum event_handler_result ontouch(
       for(enum dpaw_direction direction=0; direction<4; direction++){
         if(!(sideswipe->params.mask & (1<<direction)))
           continue;
-        const struct dpaw_point boundary_edge = direction < 2 ? bounds.top_left : bounds.bottom_right;
+        const struct dpaw_point boundary_edge = direction < 2 ? sideswipe->params.bounds->top_left : sideswipe->params.bounds->bottom_right;
         const struct dpaw_point start_point = direction % 2 ? (struct dpaw_point){touchpos.x, boundary_edge.y} : (struct dpaw_point){boundary_edge.x, touchpos.y};
         const struct dpaw_point distance = dpaw_calc_distance(sideswipe->dpaw, start_point, touchpos, DPAW_UNIT_MICROMETER);
         printf("%ldx%ld %ldx%ld %ldx%ld %ldx%ld\n", start_point.x, start_point.y, touchpos.x, touchpos.y, (touchpos.x-start_point.x), (touchpos.y-start_point.y), distance.x, distance.y);
         long axis_distance_from_screen_edge = (direction % 2 ? distance.y : distance.x) * (direction<2?1:-1);
         if(axis_distance_from_screen_edge < 2000 && axis_distance_from_screen_edge >= -500){
           sideswipe->direction = direction;
-          sideswipe->touchid = event->detail;
+          sideswipe->touchid = te->event.detail;
           sideswipe->match = false;
           sideswipe->last = 0;
           sideswipe->confirmed = false;
@@ -45,7 +47,7 @@ static enum event_handler_result ontouch(
     } return EHR_UNHANDLED;
 
     case XI_TouchUpdate: {
-      if(sideswipe->touchid != event->detail)
+      if(sideswipe->touchid != te->event.detail)
         return EHR_UNHANDLED;
       // TODO: Convert everything to physical units
       long distance, offset;
@@ -96,7 +98,7 @@ static enum event_handler_result ontouch(
     } return EHR_UNHANDLED;
 
     case XI_TouchEnd: {
-      if(sideswipe->touchid != event->detail)
+      if(sideswipe->touchid != te->event.detail)
         return EHR_UNHANDLED;
       reset(&sideswipe->detector);
     } return EHR_OK;
@@ -113,12 +115,15 @@ static const struct dpaw_touch_gesture_detector_type sideswipe_detector = {
 
 int dpaw_sideswipe_init(
   struct dpaw_sideswipe_detector* sideswipe,
-  const struct dpaw_sideswipe_detector_params* params,
-  const struct dpaw* dpaw
+  const struct dpaw* dpaw,
+  const struct dpaw_sideswipe_detector_params* params
 ){
+  if(!dpaw)
+    return -1;
   memset(sideswipe, 0, sizeof(*sideswipe));
   sideswipe->detector.type = &sideswipe_detector;
-  sideswipe->params = *params;
+  if(params)
+    sideswipe->params = *params;
   if(!sideswipe->params.switch_distance)
     sideswipe->params.switch_distance = 40000;
   sideswipe->dpaw = dpaw;

@@ -178,12 +178,13 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     struct dpaw_sideswipe_detector_params params = {
       .mask = (1<<DPAW_DIRECTION_RIGHTWARDS) | (1<<DPAW_DIRECTION_LEFTWARDS),
       .private = workspace,
-      .onswipe = sideswipe_handler
+      .onswipe = sideswipe_handler,
+      .bounds = &workspace->window.boundary
     };
     workspace->sideswipe_params = params;
   }
   int ret = 0;
-  ret = dpaw_sideswipe_init(&workspace->sideswipe, &workspace->sideswipe_params, workspace->window.dpaw);
+  ret = dpaw_sideswipe_init(&workspace->sideswipe, workspace->window.dpaw, &workspace->sideswipe_params);
   if(ret != 0){
     fprintf(stderr, "dpaw_sideswipe_init failed\n");
     return -1;
@@ -380,7 +381,7 @@ EV_ON_TOUCH(workspace_handheld){
     dpaw_touch_gesture_manager_reset(&window->touch_gesture_manager);
     return EHR_UNHANDLED;
   }
-  return dpaw_touch_gesture_manager_dispatch_touch(&window->touch_gesture_manager, event, window->workspace.window->boundary);
+  return dpaw_touch_gesture_manager_dispatch_touch(&window->touch_gesture_manager, event);
 }
 
 DEFINE_DPAW_WORKSPACE( handheld,
