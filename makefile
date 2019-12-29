@@ -1,3 +1,4 @@
+PREFIX=/usr
 
 CC_OPTS += -Wall -Wextra -pedantic -std=c11
 CC_OPTS += -Iinclude/ -Ibuild/include/
@@ -40,3 +41,8 @@ test-run-valgrind:
 
 test-run: all
 	xpra start-desktop --start-via-proxy=no --no-daemon --systemd-run=no --exit-with-children --terminate-children --start-child="$$(realpath test-xinitrc)" --attach --sharing=no --window-close=shutdown
+
+install:
+	mkdir -p "$(DESTDIR)$(PREFIX)/bin/"
+	cp bin/dpaw "$(DESTDIR)$(PREFIX)/bin/dpaw"
+
