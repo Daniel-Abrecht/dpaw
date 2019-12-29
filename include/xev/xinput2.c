@@ -55,6 +55,7 @@ struct dpaw_touch_event;
 
 struct dpaw_touch_event {
   XIDeviceEvent event; // Must be the first member
+  int touch_source;
   struct dpaw_touchevent_window_map* twm;
 };
 

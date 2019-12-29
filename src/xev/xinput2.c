@@ -76,7 +76,9 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     case XI_TouchUpdate:
     case XI_TouchEnd: {
       struct dpaw_touch_event* te = event->data;
-      if(te->twm && te->twm->window){
+      if(te->event.detail == -1)
+        return EHR_UNHANDLED;
+      if(te->twm){
         enum event_handler_result result = dpawindow_dispatch_event(te->twm->window, event);
         // Make sure to always accept or reject events at some point
         // TODO: Also reject them if it hasn't been accepted in a certain amount of time
@@ -84,13 +86,6 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
           result = EHR_UNHANDLED;
         if(result != EHR_OK && result != EHR_NEXT){
           te->twm->window = 0;
-          XIAllowTouchEvents(
-            dpaw->root.display,
-            te->event.deviceid,
-            te->event.detail,
-            dpaw->root.window.xwindow,
-            XIRejectTouch
-          );
         }else{
           if(result == EHR_OK){
             XIAllowTouchEvents(
@@ -104,9 +99,6 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
           if(event->info->type == XI_TouchEnd)
             te->twm->window = 0;
         }
-        if(!te->twm->window && dpaw->last_touch == te->twm-dpaw->touch_source+1)
-          while(dpaw->last_touch && dpaw->touch_source[dpaw->last_touch-1].window)
-            dpaw->last_touch -= 1;
         return result;
       }
     } // fallthrough
@@ -219,6 +211,7 @@ int dpaw_xev_xinput2_listen(struct xev_event_extension* extension, struct dpawin
 static void load_touch_event(struct dpaw* dpaw, void** data){
   struct dpaw_touch_event* te = calloc(sizeof(struct dpaw_touch_event), 1);
   assert(te);
+  te->touch_source = -1;
   {
     XIDeviceEvent* ev = *data;
     *data = te;
@@ -229,9 +222,10 @@ static void load_touch_event(struct dpaw* dpaw, void** data){
     for(int i=dpaw->last_touch; i-->0;){
       if(!dpaw->touch_source[i].window)
         continue;
-      if(dpaw->touch_source[i].touchid != te->event.detail)
+      if(dpaw->touch_source[i].touchid != te->event.detail+1)
         continue;
       te->twm = &dpaw->touch_source[i];
+      te->touch_source = i;
       break;
     }
     if(!te->twm && te->event.evtype == XI_TouchBegin){
@@ -239,12 +233,13 @@ static void load_touch_event(struct dpaw* dpaw, void** data){
         if(dpaw->touch_source[i].window)
           continue;
         te->twm = &dpaw->touch_source[i];
+        te->touch_source = i;
         if(dpaw->last_touch <= i)
           dpaw->last_touch = i+1;
         break;
       }
       if(te->twm){
-        te->twm->touchid = te->event.detail;
+        te->twm->touchid = te->event.detail+1;
         for(struct dpaw_list_entry* wlit = dpaw->root.workspace_manager.workspace_list.first; wlit; wlit=wlit->next){
           struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
           if( te->event.event_x <  workspace->window->boundary.top_left.x
@@ -262,6 +257,14 @@ static void load_touch_event(struct dpaw* dpaw, void** data){
       te->event.event_x -= te->twm->window->boundary.top_left.x;
       te->event.event_y -= te->twm->window->boundary.top_left.y;
     }else{
+      if(te->twm){
+        if(dpaw->last_touch == te->twm-dpaw->touch_source+1)
+          while(dpaw->last_touch && dpaw->touch_source[dpaw->last_touch-1].window)
+            dpaw->last_touch -= 1;
+        memset(te->twm, 0, sizeof(*te->twm));
+      }
+      te->twm = 0;
+      te->touch_source = -1;
       XIAllowTouchEvents(
         dpaw->root.display,
         te->event.deviceid,
@@ -276,7 +279,23 @@ static void load_touch_event(struct dpaw* dpaw, void** data){
 static void free_touch_event(struct dpaw* dpaw, void* old_data, void* new_data){
   (void)dpaw;
   (void)old_data;
-  free(new_data);
+  struct dpaw_touch_event* te = new_data;
+  if(te->twm && !te->twm->window){
+    XIAllowTouchEvents(
+      dpaw->root.display,
+      te->event.deviceid,
+      te->event.detail,
+      dpaw->root.window.xwindow,
+      XIRejectTouch
+    );
+    if(dpaw->last_touch == te->twm-dpaw->touch_source+1)
+      while(dpaw->last_touch && dpaw->touch_source[dpaw->last_touch-1].window)
+        dpaw->last_touch -= 1;
+    memset(te->twm, 0, sizeof(*te->twm));
+    te->twm = 0;
+    te->touch_source = -1;
+  }
+  free(te);
 }
 
 struct xev_event_specializer dpaw_xev_spec_XI_TouchBegin = {

@@ -69,6 +69,10 @@ static struct dpaw_rect determine_window_position(struct dpawindow_handheld_wind
 static int update_window_area(struct dpawindow_handheld_window* child){
   struct dpaw_rect boundary = determine_window_position(child);
 //  printf("update_window_area: %lx %d %ld %ld %ld %ld\n", child->app_window->window.xwindow, child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
+  if(child->workspace->bottom_dock == child){
+    child->workspace->keyboard_top_boundary.params.line.A = boundary.top_left;
+    child->workspace->keyboard_top_boundary.params.line.B = (struct dpaw_point){ boundary.bottom_right.x, boundary.top_left.y };
+  }
   return dpawindow_place_window(&child->app_window->window, boundary);
 }
 
@@ -111,6 +115,7 @@ static int make_current(struct dpawindow_handheld_window* child){
       if(child->workspace->bottom_dock)
         unshow_window(child->workspace->bottom_dock);
       child->workspace->bottom_dock = child;
+      dpaw_touch_gesture_manager_add_detector(&child->workspace->touch_gesture_manager, &child->workspace->keyboard_top_boundary.detector);
     } break;
     case DPAWINDOW_HANDHELD_NORMAL: {
       if(child->workspace->current == child)
@@ -141,64 +146,101 @@ static int make_current(struct dpawindow_handheld_window* child){
   return 0;
 }
 
-static void sideswipe_handler(void* private, enum dpaw_direction direction, long diff, long y){
-  if(direction >= 2)
-    diff = -diff;
+static void show_next_window(struct dpawindow_workspace_handheld* workspace){
+  struct dpawindow_handheld_window* window = container_of(
+    workspace->current && workspace->current->handheld_entry.next
+      ? workspace->current->handheld_entry.next
+      : workspace->handheld_window_list.first,
+    struct dpawindow_handheld_window, handheld_entry
+  );
+  if(window)
+    make_current(window);
+}
+
+static void show_previous_window(struct dpawindow_workspace_handheld* workspace){
+  struct dpawindow_handheld_window* window = container_of(
+    workspace->current && workspace->current->handheld_entry.previous
+      ? workspace->current->handheld_entry.previous
+      : workspace->handheld_window_list.last,
+    struct dpawindow_handheld_window, handheld_entry
+  );
+  if(window)
+    make_current(window);
+}
+
+static void sideswipe_handler(void *private, struct dpaw_touch_gesture_detector* detector){
+  struct dpaw_sideswipe_detector* sideswipe = container_of(detector, struct dpaw_sideswipe_detector, detector);
   struct dpawindow_workspace_handheld* workspace = private;
-  struct dpawindow_handheld_window* next_window = 0;
-  // Switch the other way if swiped on the bottom screen half, to make swiping the other way easier
-  if(y > (workspace->window.boundary.bottom_right.y + workspace->window.boundary.top_left.y) / 2)
-    diff = -diff;
-  if(diff > 0){
-    while(diff-- > 0){
-      next_window = container_of(
-        workspace->current && workspace->current->handheld_entry.next
-         ? workspace->current->handheld_entry.next
-         : workspace->handheld_window_list.first,
-        struct dpawindow_handheld_window, handheld_entry
-      );
-    }
-  }else{
-    while(diff++ < 0){
-      next_window = container_of(
-        workspace->current && workspace->current->handheld_entry.previous
-         ? workspace->current->handheld_entry.previous
-         : workspace->handheld_window_list.last,
-        struct dpawindow_handheld_window, handheld_entry
-      );
-    }
+  bool bottom_half = sideswipe->initial_position.y > (workspace->window.boundary.bottom_right.y + workspace->window.boundary.top_left.y) / 2;
+  switch(sideswipe->direction){
+    case DPAW_DIRECTION_UPWARDS: break;
+    case DPAW_DIRECTION_DOWNWARDS: break;
+    case DPAW_DIRECTION_RIGHTWARDS: {
+      if(bottom_half){
+        show_previous_window(workspace);
+      }else{
+        show_next_window(workspace);
+      }
+    }; break;
+    case DPAW_DIRECTION_LEFTWARDS: {
+      if(bottom_half){
+        show_next_window(workspace);
+      }else{
+        show_previous_window(workspace);
+      }
+    } break;
   }
-  if(next_window)
-    make_current(next_window);
+}
+
+static enum event_handler_result bottom_dock_top_line_resize_handler(
+  void* private,
+  struct dpaw_touch_gesture_detector* detector,
+  struct dpaw_touch_event* te
+){
+  struct dpawindow_workspace_handheld* workspace = private;
+  (void)detector;
+  (void)workspace;
+  printf("%ld %ld\n", (long)te->event.root_x, (long)te->event.root_y);
+  return EHR_NEXT;
 }
 
 static int init(struct dpawindow_workspace_handheld* workspace){
   puts("handheld_workspace init");
-  {
-    struct dpaw_sideswipe_detector_params params = {
-      .mask = (1<<DPAW_DIRECTION_RIGHTWARDS) | (1<<DPAW_DIRECTION_LEFTWARDS),
-      .private = workspace,
-      .onswipe = sideswipe_handler,
-      .bounds = &workspace->window.boundary
-    };
-    workspace->sideswipe_params = params;
-  }
   int ret = 0;
-  ret = dpaw_sideswipe_init(&workspace->sideswipe, workspace->window.dpaw, &workspace->sideswipe_params);
+
+  struct dpaw_sideswipe_detector_params sideswipe_params = {
+    .mask = (1<<DPAW_DIRECTION_RIGHTWARDS) | (1<<DPAW_DIRECTION_LEFTWARDS),
+    .bounds = &workspace->window.boundary
+  };
+  ret = dpaw_sideswipe_init(&workspace->sideswipe, workspace->window.dpaw, &sideswipe_params);
   if(ret != 0){
     fprintf(stderr, "dpaw_sideswipe_init failed\n");
     return -1;
   }
-  ret = dpaw_touch_gesture_manager_init(&workspace->touch_gesture_manager);
+  workspace->sideswipe.detector.private = workspace;
+  workspace->sideswipe.detector.ongesture = sideswipe_handler;
+
+  struct dpaw_line_touch_detector_params keyboard_top_boundary_params;
+  memset(&keyboard_top_boundary_params, 0, sizeof(keyboard_top_boundary_params));
+  ret = dpaw_line_touch_init(&workspace->keyboard_top_boundary, &keyboard_top_boundary_params, workspace->window.dpaw);
+  if(ret != 0){
+    fprintf(stderr, "dpaw_sideswipe_init failed\n");
+    return -1;
+  }
+  workspace->keyboard_top_boundary.detector.ontouch = bottom_dock_top_line_resize_handler;
+
+  ret = dpaw_touch_gesture_manager_init(&workspace->touch_gesture_manager, workspace->window.dpaw);
   if(ret != 0){
     fprintf(stderr, "dpaw_touch_gesture_manager_init failed\n");
     return -1;
   }
+
   ret = dpaw_touch_gesture_manager_add_detector(&workspace->touch_gesture_manager, &workspace->sideswipe.detector);
   if(ret != 0){
     fprintf(stderr, "dpaw_touch_gesture_manager_add_detector failed\n");
     return -1;
   }
+
   return ret;
 }
 
@@ -248,13 +290,10 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
   if(hw == hw->workspace->current){
     was_shown = true;
     if(hw->handheld_entry.next){
-      puts("next");
       make_current(container_of(hw->handheld_entry.next, struct dpawindow_handheld_window, handheld_entry));
     }else if(hw->handheld_entry.previous){
-      puts("previous");
       make_current(container_of(hw->handheld_entry.previous, struct dpawindow_handheld_window, handheld_entry));
     }else{
-      puts("none");
       hw->workspace->current = 0;
     }
   }
@@ -266,6 +305,7 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
   if(hw == hw->workspace->bottom_dock){
     was_shown = true;
     hw->workspace->bottom_dock = 0;
+//    dpaw_touch_gesture_manager_remove_detector(&child->workspace->keyboard_top_boundary.detector);
   }
   memset(&hw->app_window->wm_state, 0, sizeof(hw->app_window->wm_state));
   dpawindow_app_update_wm_state(hw->app_window);

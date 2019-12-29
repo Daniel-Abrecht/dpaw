@@ -6,6 +6,7 @@
 #include <xev/xinput2.c>
 
 struct dpaw_touch_gesture_manager {
+  struct dpaw* dpaw;
   struct dpaw_list detector_list;
   struct dpaw_touch_gesture_detector* detected;
 };
@@ -23,11 +24,19 @@ struct dpaw_touch_gesture_detector_type {
 struct dpaw_touch_gesture_detector {
   const struct dpaw_touch_gesture_detector_type* type;
   struct dpaw_list_entry manager_entry;
+  void* private;
+  void (*ongesture)(void* private, struct dpaw_touch_gesture_detector* detector);
+  enum event_handler_result (*ontouch)(
+    void* private,
+    struct dpaw_touch_gesture_detector* detector,
+    struct dpaw_touch_event* event
+  );
 };
 
-int dpaw_touch_gesture_manager_init(struct dpaw_touch_gesture_manager*);
+int dpaw_touch_gesture_manager_init(struct dpaw_touch_gesture_manager*, struct dpaw* dpaw);
 void dpaw_touch_gesture_manager_reset(struct dpaw_touch_gesture_manager*);
 void dpaw_touch_gesture_manager_cleanup(struct dpaw_touch_gesture_manager*);
+void dpaw_gesture_detected(struct dpaw_touch_gesture_detector* detector, unsigned touch_source_count, int touch_source_list[touch_source_count]);
 
 int dpaw_touch_gesture_manager_add_detector(
   struct dpaw_touch_gesture_manager*,

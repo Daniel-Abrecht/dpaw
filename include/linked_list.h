@@ -22,6 +22,6 @@ bool dpaw_linked_list_set(
 );
 
 #define container_of(ptr, type, member) \
-  ((type*)( (char*)(ptr) - offsetof(type, member) ))
+  ((type*)( (ptr) ? (char*)(ptr) - offsetof(type, member) : 0 ))
 
 #endif

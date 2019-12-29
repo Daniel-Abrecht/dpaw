@@ -3,8 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 
-int dpaw_touch_gesture_manager_init(struct dpaw_touch_gesture_manager* manager){
+int dpaw_touch_gesture_manager_init(struct dpaw_touch_gesture_manager* manager, struct dpaw* dpaw){
   memset(manager, 0, sizeof(*manager));
+  manager->dpaw = dpaw;
   return 0;
 }
 
@@ -33,6 +34,22 @@ void dpaw_touch_gesture_manager_cleanup(struct dpaw_touch_gesture_manager* manag
   }
 }
 
+void dpaw_gesture_detected(struct dpaw_touch_gesture_detector* detector, unsigned touch_source_count, int touch_source_list[touch_source_count]){
+  if(!detector->manager_entry.list) return;
+  struct dpaw_touch_gesture_manager* manager = container_of(detector->manager_entry.list, struct dpaw_touch_gesture_manager, detector_list);
+  struct dpaw* dpaw = manager->dpaw;
+  if(detector->ongesture)
+    detector->ongesture(detector->private, detector);
+  for(unsigned i=0; i<touch_source_count; i++){
+    int touch_source = touch_source_list[i];
+    if(touch_source < 0 || touch_source >= DPAW_WORKSPACE_MAX_TOUCH_SOURCES)
+      continue;
+    struct dpaw_touchevent_window_map* ts = &dpaw->touch_source[touch_source];
+    if(!ts->gesture_detector)
+      ts->gesture_detector = detector;
+  }
+}
+
 int dpaw_touch_gesture_manager_add_detector(
   struct dpaw_touch_gesture_manager* manager,
   struct dpaw_touch_gesture_detector* detector
@@ -51,10 +68,10 @@ enum event_handler_result dpaw_touch_gesture_manager_dispatch_touch(
   if(!event->twm)
     return EHR_UNHANDLED;
   if(event->twm->gesture_detector){
-    enum event_handler_result result = event->twm->gesture_detector->type->ontouch(event->twm->gesture_detector, event);
+    enum event_handler_result result = event->twm->gesture_detector->ontouch ? event->twm->gesture_detector->ontouch(event->twm->gesture_detector->private, event->twm->gesture_detector, event) : EHR_NEXT;
     if(event->event.evtype == XI_TouchEnd)
       result = EHR_OK;
-    if(result != EHR_NEXT && result != EHR_OK){
+    if((result != EHR_NEXT && result != EHR_OK) || event->event.evtype == XI_TouchEnd){
       if(event->twm->gesture_detector->type->reset)
         event->twm->gesture_detector->type->reset(event->twm->gesture_detector);
       event->twm->gesture_detector = 0;
@@ -69,13 +86,6 @@ enum event_handler_result dpaw_touch_gesture_manager_dispatch_touch(
       enum event_handler_result result = detector->type->ontouch(detector, event);
       if(result == EHR_OK){
         event->twm->gesture_detector = detector;
-        for(struct dpaw_list_entry* it2 = manager->detector_list.first; it2; it2=it2->next){
-          if(it == it2)
-            continue;
-          struct dpaw_touch_gesture_detector* detector = container_of(it, struct dpaw_touch_gesture_detector, manager_entry);
-          if(detector->type->reset)
-            detector->type->reset(detector);
-        }
         return result;
       }
       if(result == EHR_NEXT)

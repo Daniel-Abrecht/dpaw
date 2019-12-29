@@ -4,6 +4,7 @@
 #include <workspace.h>
 #include <stdbool.h>
 #include <touch_gesture_manager.h>
+#include <touch_gesture_detector/line.h>
 #include <touch_gesture_detector/sideswipe.h>
 
 enum dpawindow_handheld_window_type {
@@ -15,7 +16,7 @@ enum dpawindow_handheld_window_type {
 
 DECLARE_DPAW_WORKSPACE( handheld,
   struct dpaw_sideswipe_detector sideswipe;
-  struct dpaw_sideswipe_detector_params sideswipe_params;
+  struct dpaw_line_touch_detector keyboard_top_boundary;
   struct dpaw_touch_gesture_manager touch_gesture_manager;
   struct dpaw_list handheld_window_list;
   struct dpawindow_handheld_window *current;
