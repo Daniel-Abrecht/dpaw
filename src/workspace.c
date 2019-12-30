@@ -311,6 +311,9 @@ int dpaw_workspace_remove_window(struct dpawindow_app* window){
   if(workspace->type->abandon_window)
     if(workspace->type->abandon_window(window))
       return -1;
+  DPAW_APP_UNOBSERVE(window, type);
+  DPAW_APP_UNOBSERVE(window, window_hints);
+  DPAW_APP_UNOBSERVE(window, desired_placement);
   window->workspace = 0;
   window->workspace_private = 0;
   if(workspace->focus_window == window)

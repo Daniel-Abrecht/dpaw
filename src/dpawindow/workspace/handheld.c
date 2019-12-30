@@ -198,9 +198,12 @@ static enum event_handler_result bottom_dock_top_line_resize_handler(
   struct dpaw_touch_event* te
 ){
   struct dpawindow_workspace_handheld* workspace = private;
+  if(!workspace->bottom_dock)
+    return EHR_UNHANDLED;
   (void)detector;
-  (void)workspace;
-  printf("%ld %ld\n", (long)te->event.root_x, (long)te->event.root_y);
+  long height = workspace->window.boundary.bottom_right.y - (long)te->event.root_y;
+  workspace->bottom_dock->app_window->observable.desired_placement.value.height = height;
+  DPAW_APP_OBSERVABLE_NOTIFY(workspace->bottom_dock->app_window, desired_placement);
   return EHR_NEXT;
 }
 
@@ -227,6 +230,7 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     fprintf(stderr, "dpaw_sideswipe_init failed\n");
     return -1;
   }
+  workspace->keyboard_top_boundary.detector.private = workspace;
   workspace->keyboard_top_boundary.detector.ontouch = bottom_dock_top_line_resize_handler;
 
   ret = dpaw_touch_gesture_manager_init(&workspace->touch_gesture_manager, workspace->window.dpaw);
@@ -305,7 +309,7 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
   if(hw == hw->workspace->bottom_dock){
     was_shown = true;
     hw->workspace->bottom_dock = 0;
-//    dpaw_touch_gesture_manager_remove_detector(&child->workspace->keyboard_top_boundary.detector);
+    dpaw_touch_gesture_manager_remove_detector(&hw->workspace->keyboard_top_boundary.detector);
   }
   memset(&hw->app_window->wm_state, 0, sizeof(hw->app_window->wm_state));
   dpawindow_app_update_wm_state(hw->app_window);
@@ -362,6 +366,15 @@ static int abandon_window(struct dpawindow_app* window){
   return 0;
 }
 
+int desired_placement_change_handler(void* private, struct dpawindow_app* app, XSizeHints size){
+  (void)private;
+  (void)size;
+  struct dpawindow_handheld_window* handheld_window = app->workspace_private;
+  update_window_area(handheld_window);
+  update_window_size(handheld_window->workspace);
+  return 0;
+}
+
 static int take_window(struct dpawindow_workspace_handheld* workspace, struct dpawindow_app* window){
   printf("take_window %lx\n", window->window.xwindow);
   struct dpawindow_handheld_window* child = calloc(sizeof(struct dpawindow_handheld_window), 1);
@@ -380,6 +393,7 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   dpawindow_hide(&window->window, false);
   dpawindow_set_mapping(&child->app_window->window, true);
   XRaiseWindow(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow);
+  DPAW_APP_OBSERVE(child->app_window, desired_placement, 0, desired_placement_change_handler);
   return 0;
 }
 
@@ -409,8 +423,6 @@ EV_ON(workspace_handheld, ConfigureRequest){
 //  printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
 //  printf("%d %d %d %d\n", child->app_window->observable.desired_placement.value.x, child->app_window->observable.desired_placement.value.y, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
   XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask, &changes);
-  update_window_area(child);
-  update_window_size(child->workspace);
   if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
     DPAW_APP_OBSERVABLE_NOTIFY(child->app_window, desired_placement);
   return EHR_OK;

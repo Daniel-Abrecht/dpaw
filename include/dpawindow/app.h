@@ -29,6 +29,13 @@
     DPAW_APP_OBSERVABLE_NOTIFY(app_1, N); \
   } while(0)
 
+#define DPAW_APP_UNOBSERVE(A,N) \
+  do { \
+    struct dpawindow_app* app_1 = (A); \
+    app_1->observable.N.private = 0; \
+    app_1->observable.N.onchange = 0; \
+  } while(0)
+
 #define DPAW_APP_OBSERVABLE_SET(A,N,V) \
   do { \
     struct dpawindow_app* app_1 = (A); \

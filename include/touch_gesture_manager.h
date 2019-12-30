@@ -36,6 +36,7 @@ struct dpaw_touch_gesture_detector {
 int dpaw_touch_gesture_manager_init(struct dpaw_touch_gesture_manager*, struct dpaw* dpaw);
 void dpaw_touch_gesture_manager_reset(struct dpaw_touch_gesture_manager*);
 void dpaw_touch_gesture_manager_cleanup(struct dpaw_touch_gesture_manager*);
+void dpaw_touch_gesture_manager_remove_detector(struct dpaw_touch_gesture_detector* detector);
 void dpaw_gesture_detected(struct dpaw_touch_gesture_detector* detector, unsigned touch_source_count, int touch_source_list[touch_source_count]);
 
 int dpaw_touch_gesture_manager_add_detector(
