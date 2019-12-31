@@ -1,0 +1,127 @@
+#include <dpaw/xev.h>
+#include <dpaw/dpaw_macros.h>
+
+// Look into the xev folder for an example on how to use this.
+
+#define X(A, B) DPAW_UNPACK B
+#define Y(C, T) typedef T xev_ ## C ## _t;
+  XEV_EVENTS
+#undef Y
+#undef X
+
+struct dpaw;
+
+extern struct xev_event_extension DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
+
+#define X(A, B) DPAW_UNPACK B
+#define Y(C, T) extern struct xev_event_info dpaw_xev_ev2ext_ ## C;
+  XEV_EVENTS
+#undef Y
+#undef X
+
+extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _init)(struct dpaw*, struct xev_event_extension*);
+extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _cleanup)(struct dpaw*, struct xev_event_extension*);
+extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _listen)(struct xev_event_extension*, struct dpawindow*);
+extern void DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _preprocess_event)(struct dpaw*, XEvent*);
+extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _dispatch)(struct dpaw*, struct xev_event*);
+
+#ifdef GENERATE_DEFINITIONS
+struct xev_event_extension DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
+
+// This should catch any event list with a base event without 
+#define X(A, B) \
+  __attribute__((used, constructor)) \
+  static void DPAW_CONCAT(dpaw_xev_check__ ## A ## _, __LINE__)(void){ \
+    extern struct xev_event_specializer dpaw_xev_spec_ ## A; \
+    assert(dpaw_xev_spec_ ## A.type_size); \
+  }
+  XEV_EVENTS
+#undef X
+
+#define X(A, B) DPAW_UNPACK B
+#define Y(C, T) \
+  extern struct xev_event_specializer dpaw_xev_spec_ ## C __attribute__((weak)); \
+  struct xev_event_info dpaw_xev_ev2ext_ ## C = { \
+    .name = #C, \
+    .type = C, \
+    .spec = &dpaw_xev_spec_ ## C, \
+  };
+  XEV_EVENTS // Enumerate events
+#undef Y
+#undef X
+
+#define Y(C, T) [1+(C)] = &dpaw_xev_ev2ext_ ## C,
+#define X(A, B) \
+  extern struct xev_event_info dpaw_xev_ev2ext_ ## A; \
+  struct xev_event_list DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_list__, XEV_EXT), __ ## A) = { \
+    .parent_event = &dpaw_xev_ev2ext_ ## A, \
+    .extension = &DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT), \
+    .list = (struct xev_event_info*const[]){ DPAW_UNPACK B }, \
+    .size = sizeof((struct xev_event_info*const[]){ DPAW_UNPACK B })/sizeof(void*), \
+    .handler_list_index = -1, \
+  };
+    XEV_EVENTS // Enumerate events
+#undef X
+#undef Y
+
+struct xev_event_list*const DPAW_CONCAT(dpaw_xev_list__, XEV_EXT)[] = {
+#define Y(C, T)
+#define X(A, B) &DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_list__, XEV_EXT), __ ## A),
+    XEV_EVENTS // Enumerate events
+#undef X
+#undef Y
+};
+
+__attribute__((used,constructor(1000)))
+static void xev_constructor(void){
+  struct xev_event_extension* extension = &DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
+  extension->next = dpaw_event_extension_list;
+  dpaw_event_extension_list = extension;
+
+  extension->name = DPAW_STR(XEV_EXT);
+  extension->init = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _init);
+  extension->listen = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _listen);
+  extension->cleanup = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _cleanup);
+  extension->dispatch = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _dispatch);
+  extension->preprocess_event = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _preprocess_event);
+
+#ifndef XEV_OPTIONAL
+  extension->required = true;
+#endif
+
+  extension->event_list = DPAW_CONCAT(dpaw_xev_list__, XEV_EXT);
+  extension->event_list_size = sizeof(DPAW_CONCAT(dpaw_xev_list__, XEV_EXT))/sizeof(*DPAW_CONCAT(dpaw_xev_list__, XEV_EXT));
+
+  for(size_t i=0; i<extension->event_list_size; i++){
+    struct xev_event_list* list = extension->event_list[i];
+    list->handler_list_index = dpaw_handler_list_count++;
+    size_t k = 0;
+    for(size_t j=0; j<list->size; j++){
+      struct xev_event_info* event = list->list[j];
+      if(!event)
+        continue;
+      event->index = k++;
+      event->event_list = list;
+    }
+    list->index_size = k;
+  }
+
+}
+
+__attribute__((used,constructor(1001)))
+static void xev_constructor_second_stage(void){
+  struct xev_event_extension* extension = &DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
+  for(size_t i=0; i<extension->event_list_size; i++){
+    struct xev_event_list* list = extension->event_list[i];
+    list->next = list->parent_event->children;
+    list->parent_event->children = list;
+  }
+}
+
+#endif
+
+#undef XEV_EXT
+#undef XEV_EVENTS
+#ifdef XEV_OPTIONAL
+#undef XEV_OPTIONAL
+#endif
