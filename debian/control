@@ -2,7 +2,7 @@ Source: dpaw
 Section: x11
 Priority: optional
 Maintainer: Daniel Patrick Abrecht <deb@danielabrecht.ch>
-Build-Depends: debhelper (>= 11), libx11-dev, libxcb-xinput-dev, libxrandr-dev
+Build-Depends: debhelper (>= 11), libx11-dev, libxi-dev, libxrandr-dev
 Standards-Version: 4.1.3
 Homepage: https://daniel.abrecht.li/p/dpaw
 #Vcs-Browser: https://salsa.debian.org/debian/dpaw
