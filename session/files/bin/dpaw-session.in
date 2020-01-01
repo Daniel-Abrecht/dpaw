@@ -1,0 +1,6 @@
+#!/bin/sh
+
+onboard &
+xfce4-terminal &
+
+exec $PREFIX/bin/dpaw
