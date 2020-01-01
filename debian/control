@@ -2,7 +2,7 @@ Source: dpaw
 Section: x11
 Priority: optional
 Maintainer: Daniel Patrick Abrecht <deb@danielabrecht.ch>
-Build-Depends: debhelper (>= 11)
+Build-Depends: debhelper (>= 11), libx11-dev, libxcb-xinput-dev, libxrandr-dev
 Standards-Version: 4.1.3
 Homepage: https://daniel.abrecht.li/p/dpaw
 #Vcs-Browser: https://salsa.debian.org/debian/dpaw
@@ -20,7 +20,7 @@ Description: Meta package for DPAW mobile & desktop environment
 Package: dpaw-wm
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends: onboard, at-spi2-core, qt-at-spi
+Recommends: onboard, at-spi2-core, qt-at-spi, default-dbus-session-bus | dbus-session-bus
 Suggests: dpaw
 Description: window manager suitable for mobile phones
  Contains only the dpaw window manager. To get all packages of the DPAW
