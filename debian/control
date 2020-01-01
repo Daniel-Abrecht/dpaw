@@ -8,18 +8,31 @@ Homepage: https://daniel.abrecht.li/p/dpaw
 #Vcs-Browser: https://salsa.debian.org/debian/dpaw
 #Vcs-Git: https://salsa.debian.org/debian/dpaw.git
 
+Package: dpaw
+Architecture: all
+Depends: dpaw-wm, dpaw-session, ${misc:Depends}
+Suggests: lightdm
+Section: metapackages
+Description: Meta package for DPAW mobile & desktop environment
+ Installs the whole dpaw desktop environment, including the
+ DPAW window manager, the DPAW session, etc.
+
 Package: dpaw-wm
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: onboard, at-spi2-core, qt-at-spi
+Suggests: dpaw
 Description: window manager suitable for mobile phones
- Contains only the dpaw window manager. To get all packages of the dpaw
- mobile & desktop enviromnet, consider installing the task-dpaw-mobile
- or task-dpaw-desktop package instead.
+ Contains only the dpaw window manager. To get all packages of the DPAW
+ mobile & desktop enviromnet, consider installing the DPAW package instead.
 
-Package: dpaw
+Package: dpaw-session
 Architecture: all
 Depends: dpaw-wm, ${misc:Depends}
-Section: metapackages
-Description: Meta package for dpaw mobile & desktop environment
- Installs the whole dpaw desktop environment, including the
- dpaw window manager, the dpaw session, etc.
+Suggests: dpaw
+Description: X11 DPAW session
+ provides the X11 session for DPAW, which can then be selected
+ in any graphical login manager. This is just the X11 session,
+ To get the full dpaw desktop environment, install the dpaw
+ metapackage instead. This package may become more complex and
+ independent of dpaw-wm at some point!

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=DPAW Session
+Comment=DPAW Session
+Exec=$PREFIX/bin/dpaw-session
+TryExec=$PREFIX/bin/dpaw-session
+Icon=dpaw
+Type=Application

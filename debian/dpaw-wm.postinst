@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -e
+
+##DEBHELPER##
+
+[ "$1" = configure ] || exit 0
+
+set +e
+
+# all dpaw instances will re-exec themself after receiving the SIGHUP signal
+# At this point, /usr/bin/dpaw should already have been replaced, the proc symlink
+# will thus have the string " (deleted)" added to the executable path of all instances
+# running befor the update.
+
+for entry in /proc/[0-9]*/exe
+do
+  pid="$(expr "$entry" : "/proc/\([0-9]*\)/exe")"
+  executable="$(readlink -- "$entry")"
+  if [ -n "$pid" ] && [ "$executable" = "/usr/bin/dpaw (deleted)" ]
+    then kill -HUP "$pid" >/dev/null 2>&1 || true
+  fi
+done
