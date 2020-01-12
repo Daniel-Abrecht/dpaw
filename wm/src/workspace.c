@@ -357,7 +357,10 @@ int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Wi
   }
   if(dpawindow_app_init(wmgr->dpaw, app_window, window))
     return -1;
-  return dpaw_workspace_add_window(workspace, app_window);
+  if(dpaw_workspace_add_window(workspace, app_window))
+    return -1;
+  printf("Managing window %lx\n", window);
+  return 0;
 }
 
 int dpaw_workspace_manager_abandon_window(struct dpawindow_app* window){

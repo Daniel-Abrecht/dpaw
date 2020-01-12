@@ -85,8 +85,8 @@ int dpawindow_root_cleanup(struct dpawindow_root* window){
 }
 
 EV_ON(root, MapRequest){
-  printf("MapRequest %lx\n", event->window);
   struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
+  printf("MapRequest %lx %p\n", event->window, (void*)win);
   if(!win){
     XWindowAttributes attribute;
     if(!XGetWindowAttributes(window->display, event->window, &attribute)){
@@ -105,8 +105,11 @@ EV_ON(root, MapRequest){
       if(rwin && rwin->type->is_workspace)
         is_in_root_or_workspace = true;
     }
-    if(attribute.override_redirect || !is_in_root_or_workspace)
+    if(attribute.override_redirect || !is_in_root_or_workspace){
+      // This isn't our window, but the window needs to be mapped
+      XMapWindow(window->display, event->window);
       return EHR_NEXT;
+    }
     if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window) != 0)
       return EHR_ERROR;
   }else{
