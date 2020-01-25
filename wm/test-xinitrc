@@ -4,6 +4,9 @@
 #xeyes &
 #sleep 2 && xterm &
 
+xprop -root -remove AT_SPI_BUS
+/usr/lib/at-spi2-core/at-spi-bus-launcher &
+
 xfce4-terminal &
 onboard &
 
