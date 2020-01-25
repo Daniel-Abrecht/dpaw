@@ -69,6 +69,14 @@ int dpawindow_register(struct dpawindow* window){
       return -1; // This window
     }
   }
+  {
+    XWindowAttributes attrs;
+    XGetWindowAttributes(window->dpaw->root.display, window->xwindow, &attrs);
+    window->boundary.top_left.x = attrs.x;
+    window->boundary.top_left.y = attrs.y;
+    window->boundary.bottom_right.x = (long long)attrs.x + attrs.width;
+    window->boundary.bottom_right.y = (long long)attrs.y + attrs.height;
+  }
   for(struct xev_event_extension* extension=dpaw_event_extension_list; extension; extension=extension->next){
     if(!extension->initialised)
       continue;

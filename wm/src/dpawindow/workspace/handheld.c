@@ -390,10 +390,11 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
     abandon_window(window);
     return -1; // TODO: Do cleanup stuff
   }
+  printf("take_window: %lx %u %d %d\n", child->app_window->window.xwindow, child->type, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
+  DPAW_APP_OBSERVE(child->app_window, desired_placement, 0, desired_placement_change_handler);
   dpawindow_hide(&window->window, false);
   dpawindow_set_mapping(&child->app_window->window, true);
   XRaiseWindow(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow);
-  DPAW_APP_OBSERVE(child->app_window, desired_placement, 0, desired_placement_change_handler);
   return 0;
 }
 
