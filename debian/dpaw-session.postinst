@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e
+
+##DEBHELPER##
+
+[ "$1" = configure ] || exit 0
+
+update-alternatives --install /usr/bin/x-session-manager x-session-manager /usr/bin/dpaw-session 50
