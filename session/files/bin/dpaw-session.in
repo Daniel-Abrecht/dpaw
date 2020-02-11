@@ -7,6 +7,7 @@ xprop -root -remove AT_SPI_BUS
 
 lxqt-panel -c /usr/share/dpaw/lxqt-panel.conf &
 nm-applet &
+qasmixer --tray &
 #modem-manager-gui -i -m mm07 -c nm09 &
 
 onboard &
