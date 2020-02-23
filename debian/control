@@ -29,7 +29,7 @@ Description: window manager suitable for mobile phones
 Package: dpaw-session
 Architecture: all
 Depends: dpaw-wm, ${misc:Depends}
-Recommends: qasmixer, lxqt-panel, xfce4-terminal
+Recommends: qasmixer, lxqt-panel, lxqt-powermanagement, xfce4-terminal
 Suggests: dpaw
 Description: X11 DPAW session
  provides the X11 session for DPAW, which can then be selected
