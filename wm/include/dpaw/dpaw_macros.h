@@ -9,4 +9,7 @@
 #define DPAW_CONCAT(A, B) DPAW_CONCAT_EVAL(A, B)
 #define DPAW_CONCAT_EVAL(A, B) A ## B
 
+#define container_of(ptr, type, member) \
+  ((type*)( (ptr) ? (char*)(ptr) - offsetof(type, member) : 0 ))
+
 #endif

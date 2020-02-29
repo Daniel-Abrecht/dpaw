@@ -20,18 +20,18 @@ int dpaw_atom_init(Display* display){
 }
 
 int dpaw_get_property(struct dpawindow* win, Atom property, size_t* size, size_t min_size, void** result){
-  if(!result)
+  if(!result || !size)
     return -1;
   Atom type = 0;
   int format = 0;
   unsigned long nitems = 0;
   unsigned long remaining_size = 0;
   unsigned long max_size = *size;
-  unsigned char* prop_ret;
+  unsigned char* prop_ret = 0;
   XGetWindowProperty(
     win->dpaw->root.display, win->xwindow,
     property,
-    0, (max_size <= 0 ? max_size+3 : 1024 * 1024) / 4,
+    0, (max_size > 0 ? max_size+3 : 1024 * 1024) / 4,
     false,
     AnyPropertyType,
     &type,
@@ -40,8 +40,11 @@ int dpaw_get_property(struct dpawindow* win, Atom property, size_t* size, size_t
     &remaining_size,
     &prop_ret
   );
-  if(format == 0)
-    return 0;
+  if(format == 0){
+    *size = 0;
+    *result = 0;
+    return -1;
+  }
   if(format != 8 && format != 16 && format != 32)
     return -1;
   if(!prop_ret){

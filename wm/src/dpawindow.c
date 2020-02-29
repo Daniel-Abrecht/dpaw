@@ -1,5 +1,5 @@
 #include <dpaw/dpaw.h>
-#include <dpaw/atom/misc.c>
+#include <dpaw/atom/icccm.c>
 #include <dpaw/dpawindow.h>
 #include <dpaw/dpawindow/root.h>
 #include <X11/Xatom.h>
@@ -29,6 +29,22 @@ struct dpawindow* dpawindow_lookup(struct dpaw* dpaw, Window window){
 
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event* event){
   return dpaw_xev_dispatch(&window->type->event_lookup_table, window, event);
+}
+
+int dpawindow_close(struct dpawindow* window){
+  if(window->WM_PROTOCOLS.WM_DELETE_WINDOW){
+    XSendEvent(window->dpaw->root.display, window->xwindow, false, NoEventMask, &(XEvent){.xclient={
+      .type = ClientMessage,
+      .window = window->xwindow,
+      .message_type = WM_PROTOCOLS,
+      .format = 32,
+      .data.l[0] = WM_DELETE_WINDOW,
+      .data.l[1] = CurrentTime
+    }});
+  }else{
+    XKillClient(window->dpaw->root.display, window->xwindow);
+  }
+  return 0;
 }
 
 int update_window_config(struct dpawindow* window){
@@ -76,6 +92,20 @@ int dpawindow_register(struct dpawindow* window){
     window->boundary.top_left.y = attrs.y;
     window->boundary.bottom_right.x = (long long)attrs.x + attrs.width;
     window->boundary.bottom_right.y = (long long)attrs.y + attrs.height;
+  }
+  {
+    Atom* atoms = 0;
+    size_t size = 0;
+    if(!dpaw_get_property(window, WM_PROTOCOLS, &size, 0, (void**)&atoms) && size >= 4){
+      size /= 4;
+      for(size_t i=0; i<size; i++){
+        Atom atom = atoms[i];
+#define X(Y) else if(Y == atom){ window->WM_PROTOCOLS.Y = true; }
+        if(0){} DPAW_SUPPORTED_WM_PROTOCOLS
+#undef X
+      }
+      if(atoms) XFree(atoms);
+    }
   }
   for(struct xev_event_extension* extension=dpaw_event_extension_list; extension; extension=extension->next){
     if(!extension->initialised)

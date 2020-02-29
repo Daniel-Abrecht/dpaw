@@ -174,7 +174,9 @@ static void sideswipe_handler(void *private, struct dpaw_touch_gesture_detector*
   bool bottom_half = sideswipe->initial_position.y > (workspace->window.boundary.bottom_right.y + workspace->window.boundary.top_left.y) / 2;
   switch(sideswipe->direction){
     case DPAW_DIRECTION_UPWARDS: break;
-    case DPAW_DIRECTION_DOWNWARDS: break;
+    case DPAW_DIRECTION_DOWNWARDS: {
+      dpawindow_close(&workspace->current->app_window->window);
+    } break;
     case DPAW_DIRECTION_RIGHTWARDS: {
       if(bottom_half){
         show_previous_window(workspace);
@@ -212,7 +214,9 @@ static int init(struct dpawindow_workspace_handheld* workspace){
   int ret = 0;
 
   struct dpaw_sideswipe_detector_params sideswipe_params = {
-    .mask = (1<<DPAW_DIRECTION_RIGHTWARDS) | (1<<DPAW_DIRECTION_LEFTWARDS),
+    .mask = (1<<DPAW_DIRECTION_RIGHTWARDS)
+          | (1<<DPAW_DIRECTION_LEFTWARDS)
+          | (1<<DPAW_DIRECTION_DOWNWARDS),
     .bounds = &workspace->window.boundary
   };
   ret = dpaw_sideswipe_init(&workspace->sideswipe, workspace->window.dpaw, &sideswipe_params);

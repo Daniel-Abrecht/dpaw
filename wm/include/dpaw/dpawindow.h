@@ -21,6 +21,10 @@ struct dpawindow_type {
   struct xev_event_lookup_table event_lookup_table;
 };
 
+#define DPAW_SUPPORTED_WM_PROTOCOLS \
+  X(WM_TAKE_FOCUS) \
+  X(WM_DELETE_WINDOW)
+
 struct dpawindow {
   const struct dpawindow_type* type;
   struct dpaw* dpaw;
@@ -31,6 +35,11 @@ struct dpawindow {
   bool mapped : 1;
   bool hidden : 1;
   bool d_update_config : 1;
+  struct {
+#define X(Y) bool Y : 1;
+  DPAW_SUPPORTED_WM_PROTOCOLS
+#undef X
+  } WM_PROTOCOLS;
 };
 
 #define EV_ON(TYPE, EVENT) \
@@ -93,5 +102,6 @@ int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);
 int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);
+int dpawindow_close(struct dpawindow* window);
 
 #endif
