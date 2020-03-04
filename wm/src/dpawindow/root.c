@@ -28,13 +28,14 @@ int dpawindow_root_init(struct dpaw* dpaw, struct dpawindow_root* window){
 #define AL(X) (void*)X, sizeof(X)/sizeof(*X)
   XChangeProperty(window->display, window->window.xwindow, _NET_SUPPORTED, XA_ATOM, 32, PropModeReplace, AL(((Atom[]){
     _NET_SUPPORTED,
-//    _NET_SUPPORTING_WM_CHECK,
+    _NET_SUPPORTING_WM_CHECK,
 
     _NET_WM_STATE,
 //    _NET_WM_STATE_DEMANDS_ATTENTION,
     _NET_WM_STATE_FOCUSED,
     _NET_WM_STATE_MAXIMIZED_HORZ,
     _NET_WM_STATE_MAXIMIZED_VERT,
+    _NET_WM_STATE_FULLSCREEN,
 //    _NET_WM_STATE_MODAL,
     _NET_WM_STATE_HIDDEN,
     _NET_WM_STATE_SKIP_PAGER,
@@ -58,7 +59,7 @@ int dpawindow_root_init(struct dpaw* dpaw, struct dpawindow_root* window){
     _NET_WM_MOVERESIZE,
     _NET_WM_NAME,
     _NET_WM_PID,
-    _NET_WM_PING,
+//    _NET_WM_PING,
 
     _NET_VIRTUAL_ROOTS,
 
@@ -66,6 +67,22 @@ int dpawindow_root_init(struct dpaw* dpaw, struct dpawindow_root* window){
 //    _NET_MOVERESIZE_WINDOW
   })));
 #undef AL
+
+  {
+    // This is just for _NET_SUPPORTING_WM_CHECK. It won't be needed for anything else later
+    Window check_window = XCreateWindow(
+      window->display, window->window.xwindow,
+      0, 0, 1, 1, 0,
+      CopyFromParent, InputOutput,
+      CopyFromParent, CWBackPixel, &(XSetWindowAttributes){0}
+    );
+    if(!check_window){
+      fprintf(stderr, "XCreateWindow failed\n");
+      return -1;
+    }
+    XChangeProperty(window->display, window->window.xwindow, _NET_SUPPORTING_WM_CHECK, XA_WINDOW, 32, PropModeReplace, (void*)&check_window, 1);
+    XChangeProperty(window->display, check_window, _NET_SUPPORTING_WM_CHECK, XA_WINDOW, 32, PropModeReplace, (void*)&check_window, 1);
+  }
 
   if(dpaw_screenchange_init(&window->screenchange_detector, dpaw)){
     fprintf(stderr, "dpaw_screenchange_init failed\n");
