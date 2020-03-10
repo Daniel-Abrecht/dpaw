@@ -1,0 +1,34 @@
+{
+   one_time_allocations_during_program_construction
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:__libc_csu_init
+}
+
+{
+   x11_unfreeable_internal_allocation_1
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:XGetErrorText
+   ...
+}
+
+{
+   x11_unfreeable_internal_allocation_2
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:XrmGetFileDatabase
+   ...
+}
+
+{
+   x11_unfreeable_internal_allocation_2
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_XlcCreateLocaleDataBase
+   ...
+}

@@ -1,13 +1,16 @@
 PREFIX=/usr
 
 CC_OPTS += -Wall -Wextra -pedantic -std=c11
+CC_OPTS += -D_DEFAULT_SOURCE
 CC_OPTS += -Iinclude/ -Ibuild/include/
-CC_OPTS += -Werror -g -O0 -D_DEFAULT_SOURCE
-LD_OPTS += -g -rdynamic
 
+ifndef RELEASE
+CC_OPTS += -Werror -g -O0
+LD_OPTS += -g -rdynamic
 ifndef NO_ASAN
 CC_OPTS += -fsanitize=address
 LD_OPTS += -fsanitize=address
+endif
 endif
 
 LD_OPTS += -lX11 -lXi -lXrandr

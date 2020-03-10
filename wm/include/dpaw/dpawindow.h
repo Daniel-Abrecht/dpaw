@@ -2,6 +2,7 @@
 #define DPAWINDOW_H
 
 #include <dpaw/xev.h>
+#include <dpaw/callback.h>
 #include <dpaw/primitives.h>
 #include <dpaw/linked_list.h>
 #include <X11/Xlib.h>
@@ -19,14 +20,19 @@ struct dpawindow_type {
   const char* name;
   bool is_workspace;
   struct xev_event_lookup_table event_lookup_table;
+  void (*cleanup)(struct dpawindow*);
 };
 
 #define DPAW_SUPPORTED_WM_PROTOCOLS \
   X(WM_TAKE_FOCUS) \
   X(WM_DELETE_WINDOW)
 
+typedef struct dpawindow dpawindow;
+DPAW_DECLARE_CALLBACK_TYPE(dpawindow)
+
 struct dpawindow {
   const struct dpawindow_type* type;
+  struct dpaw_callback_list_dpawindow pre_cleanup, post_cleanup;
   struct dpaw* dpaw;
   struct dpaw_list_entry dpaw_window_entry;
   struct dpaw_list_entry dpaw_window_update_entry;
@@ -70,11 +76,12 @@ struct dpawindow {
   }; \
   extern struct dpawindow_type dpawindow_type_ ## NAME; \
   int dpawindow_ ## NAME ## _init_super(struct dpaw*, struct dpawindow_ ## NAME*); \
-  int dpawindow_ ## NAME ## _cleanup_super(struct dpawindow_ ## NAME*);
+  void dpawindow_ ## NAME ## _cleanup(struct dpawindow_ ## NAME*);
 
 #define DEFINE_DPAW_DERIVED_WINDOW(NAME) \
   struct dpawindow_type dpawindow_type_ ## NAME = { \
-    .name = #NAME \
+    .name = #NAME, \
+    .cleanup = (void(*)(struct dpawindow*))dpawindow_ ## NAME ## _cleanup \
   }; \
   __attribute__((constructor)) \
   static void dpawindow_type_constructor_ ## NAME(void){ \
@@ -87,13 +94,9 @@ struct dpawindow {
       return -1; \
     return 0; \
   } \
-  int dpawindow_ ## NAME ## _cleanup_super(struct dpawindow_ ## NAME* w){ \
-    if(dpawindow_unregister(&w->window)) \
-      return -1; \
-    return 0; \
-  }
 
 bool dpawindow_has_error_occured(Display* display);
+void dpawindow_cleanup(struct dpawindow*);
 struct dpawindow* dpawindow_lookup(struct dpaw*, Window);
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event*);
 int dpawindow_deferred_update(struct dpawindow* window);
@@ -102,6 +105,6 @@ int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);
 int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);
-int dpawindow_close(struct dpawindow* window);
+int dpawindow_close(struct dpawindow* window); // Asks the window to close itself or kills the client if it doesn't support that, don't use it on own windows
 
 #endif

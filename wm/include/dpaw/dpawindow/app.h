@@ -82,7 +82,6 @@ DECLARE_DPAW_DERIVED_WINDOW( app,
 #undef X
 
 int dpawindow_app_init(struct dpaw*, struct dpawindow_app*, Window);
-int dpawindow_app_cleanup(struct dpawindow_app*);
 int dpawindow_app_update_wm_state(struct dpawindow_app*);
 
 #endif

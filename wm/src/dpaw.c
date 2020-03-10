@@ -75,12 +75,12 @@ void onsighup(int x){
 }
 
 int dpaw_init(struct dpaw* dpaw){
+  memset(dpaw, 0, sizeof(*dpaw));
   dpaw->initialised = true;
   signal(SIGTERM, onsigterm);
   signal(SIGINT, onsigterm);
   signal(SIGHUP, onsighup);
   XSetErrorHandler(&dpaw_error_handler);
-  memset(dpaw, 0, sizeof(*dpaw));
   dpaw->root.display = XOpenDisplay(0);
   if(!dpaw->root.display){
     fprintf(stderr, "Failed to open X display %s\n", XDisplayName(0));

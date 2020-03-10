@@ -12,6 +12,5 @@ DECLARE_DPAW_DERIVED_WINDOW( root,
 )
 
 int dpawindow_root_init(struct dpaw*, struct dpawindow_root*);
-int dpawindow_root_cleanup(struct dpawindow_root*);
 
 #endif

@@ -17,7 +17,7 @@ static struct dpawindow_handheld_window* lookup_xwindow(struct dpawindow_workspa
   return app_window->workspace_private;
 }
 
-long get_desired_window_height(struct dpawindow_handheld_window* window){
+static long get_desired_window_height(struct dpawindow_handheld_window* window){
   return window->app_window->observable.desired_placement.value.height;
 }
 
@@ -213,6 +213,11 @@ static int init(struct dpawindow_workspace_handheld* workspace){
   puts("handheld_workspace init");
   int ret = 0;
 
+  if(dpawindow_workspace_handheld_init_super(workspace->workspace.workspace_manager->dpaw, workspace)){
+    fprintf(stderr, "dpawindow_workspace_handheld_init_super failed\n");
+    return -1;
+  }
+
   struct dpaw_sideswipe_detector_params sideswipe_params = {
     .mask = (1<<DPAW_DIRECTION_RIGHTWARDS)
           | (1<<DPAW_DIRECTION_LEFTWARDS)
@@ -252,7 +257,7 @@ static int init(struct dpawindow_workspace_handheld* workspace){
   return ret;
 }
 
-static void cleanup(struct dpawindow_workspace_handheld* workspace){
+void dpawindow_workspace_handheld_cleanup(struct dpawindow_workspace_handheld* workspace){
   puts("handheld_workspace cleanup");
   dpaw_touch_gesture_manager_cleanup(&workspace->touch_gesture_manager);
 }
@@ -443,7 +448,6 @@ EV_ON_TOUCH(workspace_handheld){
 
 DEFINE_DPAW_WORKSPACE( handheld,
   .init = init,
-  .cleanup = cleanup,
   .take_window = take_window,
   .abandon_window = abandon_window,
   .screen_make_bid = screen_make_bid,

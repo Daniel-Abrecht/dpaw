@@ -31,6 +31,16 @@ enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, con
   return dpaw_xev_dispatch(&window->type->event_lookup_table, window, event);
 }
 
+void dpawindow_cleanup(struct dpawindow* window){
+  if(!window->type)
+    return;
+  DPAW_CALL_BACK_AND_REMOVE(dpawindow, window, pre_cleanup, 0);
+  window->type->cleanup(window);
+  dpawindow_unregister(window);
+  window->type = 0;
+  DPAW_CALL_BACK_AND_REMOVE(dpawindow, window, post_cleanup, 0);
+}
+
 int dpawindow_close(struct dpawindow* window){
   if(window->WM_PROTOCOLS.WM_DELETE_WINDOW){
     XSendEvent(window->dpaw->root.display, window->xwindow, false, NoEventMask, &(XEvent){.xclient={

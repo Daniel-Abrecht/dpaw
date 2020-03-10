@@ -81,8 +81,8 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
   return 0;
 }
 
-int dpawindow_app_cleanup(struct dpawindow_app* window){
-  return dpawindow_app_cleanup_super(window);
+void dpawindow_app_cleanup(struct dpawindow_app* window){
+  (void)window;
 }
 
 EV_ON(app, ConfigureRequest){
