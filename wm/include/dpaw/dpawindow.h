@@ -36,8 +36,8 @@ struct dpawindow {
   struct dpaw* dpaw;
   struct dpaw_list_entry dpaw_window_entry;
   struct dpaw_list_entry dpaw_window_update_entry;
-  Window xwindow;
   struct dpaw_rect boundary;
+  Window xwindow;
   bool mapped : 1;
   bool hidden : 1;
   bool d_update_config : 1;
@@ -74,11 +74,10 @@ struct dpawindow {
     struct dpawindow window; /* Must be the first member */ \
     __VA_ARGS__ \
   }; \
-  extern struct dpawindow_type dpawindow_type_ ## NAME; \
-  int dpawindow_ ## NAME ## _init_super(struct dpaw*, struct dpawindow_ ## NAME*); \
-  void dpawindow_ ## NAME ## _cleanup(struct dpawindow_ ## NAME*);
+  extern struct dpawindow_type dpawindow_type_ ## NAME;
 
 #define DEFINE_DPAW_DERIVED_WINDOW(NAME) \
+  static void dpawindow_ ## NAME ## _cleanup(struct dpawindow_ ## NAME*); \
   struct dpawindow_type dpawindow_type_ ## NAME = { \
     .name = #NAME, \
     .cleanup = (void(*)(struct dpawindow*))dpawindow_ ## NAME ## _cleanup \
@@ -86,14 +85,7 @@ struct dpawindow {
   __attribute__((constructor)) \
   static void dpawindow_type_constructor_ ## NAME(void){ \
     dpawindow_type_ ## NAME.is_workspace = !strncmp("workspace_", #NAME, 10); \
-  } \
-  int dpawindow_ ## NAME ## _init_super(struct dpaw* dpaw, struct dpawindow_ ## NAME* w){ \
-    w->window.type = &dpawindow_type_ ## NAME; \
-    w->window.dpaw = dpaw; \
-    if(dpawindow_register(&w->window)) \
-      return -1; \
-    return 0; \
-  } \
+  }
 
 bool dpawindow_has_error_occured(Display* display);
 void dpawindow_cleanup(struct dpawindow*);
@@ -106,5 +98,6 @@ int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);
 int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);
 int dpawindow_close(struct dpawindow* window); // Asks the window to close itself or kills the client if it doesn't support that, don't use it on own windows
+pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow); // Not always possible
 
 #endif

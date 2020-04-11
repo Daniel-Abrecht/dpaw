@@ -21,4 +21,12 @@ bool dpaw_linked_list_set(
   struct dpaw_list_entry* before
 );
 
+bool dpaw_linked_list_move(
+  struct dpaw_list* dst,
+  struct dpaw_list* src,
+  struct dpaw_list_entry* before
+);
+
+void dpaw_linked_list_clear(struct dpaw_list* list);
+
 #endif

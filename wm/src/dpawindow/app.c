@@ -25,8 +25,11 @@ int dpawindow_app_update_wm_state(struct dpawindow_app* app){
 int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window xwindow){
   window->window.xwindow = xwindow;
   printf("dpawindow_app_init %lx\n", xwindow);
-  if(dpawindow_app_init_super(dpaw, window) != 0){
-    fprintf(stderr, "dpawindow_app_init_super failed\n");
+
+  window->window.type = &dpawindow_type_app; \
+  window->window.dpaw = dpaw;
+  if(dpawindow_register(&window->window)){
+    fprintf(stderr, "dpawindow_register failed\n");
     return -1;
   }
 
@@ -81,7 +84,7 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
   return 0;
 }
 
-void dpawindow_app_cleanup(struct dpawindow_app* window){
+static void dpawindow_app_cleanup(struct dpawindow_app* window){
   (void)window;
 }
 

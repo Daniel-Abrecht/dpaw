@@ -2,10 +2,12 @@
 #include <dpaw/atom/icccm.c>
 #include <dpaw/dpawindow.h>
 #include <dpaw/dpawindow/root.h>
+#include <X11/extensions/XRes.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 extern bool dpaw_xerror_occured;
@@ -193,4 +195,39 @@ int dpawindow_deferred_update(struct dpawindow* window){
     state = WithdrawnState;
   XChangeProperty(window->dpaw->root.display, window->xwindow, WM_STATE, WM_STATE, 32, PropModeReplace, (unsigned char*)(long[]){state,0}, 2);
   return 0;
+}
+
+pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow){
+  pid_t pid = 0;
+
+  XResClientIdSpec client_specs = {
+    .client = xwindow,
+    .mask = XRES_CLIENT_ID_PID_MASK
+  };
+  long num_ids = 0;
+  XResClientIdValue* client_ids = 0;
+
+  if(!XResQueryClientIds(display, 1, &client_specs, &num_ids, &client_ids))
+    return 0;
+
+  for(long i=0; i<num_ids; i++){
+    if(client_ids[i].spec.mask != XRES_CLIENT_ID_PID_MASK)
+      continue;
+    if(client_ids[i].length == sizeof(uint32_t)){
+      uint32_t tmp;
+      memcpy(&tmp, client_ids[i].value, sizeof(tmp));
+      if(pid > 0) pid = tmp;
+    }
+    if(client_ids[i].length == sizeof(uint64_t)){
+      uint64_t tmp;
+      memcpy(&tmp, client_ids[i].value, sizeof(tmp));
+      if(pid > 0) pid = tmp;
+    }
+    break;
+  }
+
+  if(client_ids)
+    XFree(client_ids);
+
+  return pid;
 }

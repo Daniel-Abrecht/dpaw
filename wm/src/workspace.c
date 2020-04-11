@@ -414,6 +414,8 @@ error:
 }
 
 void dpaw_workspace_manager_destroy(struct dpaw_workspace_manager* wmgr){
+  if(!wmgr->dpaw)
+    return;
   // TODO: Reparent all windows to root & remove all workspaces
   dpaw_screenchange_listener_unregister(&wmgr->dpaw->root.screenchange_detector, screenchange_handler, wmgr);
   while(wmgr->workspace_list.first)

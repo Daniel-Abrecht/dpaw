@@ -213,8 +213,10 @@ static int init(struct dpawindow_workspace_handheld* workspace){
   puts("handheld_workspace init");
   int ret = 0;
 
-  if(dpawindow_workspace_handheld_init_super(workspace->workspace.workspace_manager->dpaw, workspace)){
-    fprintf(stderr, "dpawindow_workspace_handheld_init_super failed\n");
+  workspace->window.type = &dpawindow_type_workspace_handheld;
+  workspace->window.dpaw = workspace->workspace.workspace_manager->dpaw;
+  if(dpawindow_register(&workspace->window)){
+    fprintf(stderr, "dpawindow_register failed\n");
     return -1;
   }
 
@@ -257,7 +259,7 @@ static int init(struct dpawindow_workspace_handheld* workspace){
   return ret;
 }
 
-void dpawindow_workspace_handheld_cleanup(struct dpawindow_workspace_handheld* workspace){
+static void dpawindow_workspace_handheld_cleanup(struct dpawindow_workspace_handheld* workspace){
   puts("handheld_workspace cleanup");
   dpaw_touch_gesture_manager_cleanup(&workspace->touch_gesture_manager);
 }

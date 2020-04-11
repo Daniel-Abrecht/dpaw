@@ -54,3 +54,19 @@ bool dpaw_linked_list_set(
     list->last = entry;
   return true;
 }
+
+bool dpaw_linked_list_move(
+  struct dpaw_list* dst,
+  struct dpaw_list* src,
+  struct dpaw_list_entry* before
+){
+  while(src->first)
+    if(!dpaw_linked_list_set(dst, src->first, before))
+      return false;
+  return true;
+}
+
+void dpaw_linked_list_clear(struct dpaw_list* list){
+  while(list->first)
+    dpaw_linked_list_set(0, list->first, 0);
+}

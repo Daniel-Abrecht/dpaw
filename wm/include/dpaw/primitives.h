@@ -27,6 +27,10 @@ enum dpaw_direction {
   DPAW_DIRECTION_UPWARDS
 };
 
+typedef char* dpaw_pchar_pair_t[2];
+typedef const char* dpaw_pcharc_pair_t[2];
+typedef int dpaw_int_pair_t[2];
+
 enum dpaw_unit {
   DPAW_UNIT_PIXEL,
   DPAW_UNIT_MICROMETER

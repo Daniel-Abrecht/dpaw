@@ -20,8 +20,11 @@ int dpawindow_root_init(struct dpaw* dpaw, struct dpawindow_root* window){
     }
     extension->initialised = true;
   }
-  if(dpawindow_root_init_super(dpaw, window) != 0){
-    fprintf(stderr, "dpawindow_root_init_super failed\n");
+
+  window->window.type = &dpawindow_type_root;
+  window->window.dpaw = dpaw;
+  if(dpawindow_register(&window->window)){
+    fprintf(stderr, "dpawindow_register failed\n");
     return -1;
   }
 
@@ -95,9 +98,10 @@ int dpawindow_root_init(struct dpaw* dpaw, struct dpawindow_root* window){
   return 0;
 }
 
-void dpawindow_root_cleanup(struct dpawindow_root* window){
+static void dpawindow_root_cleanup(struct dpawindow_root* window){
   dpaw_workspace_manager_destroy(&window->workspace_manager);
   dpaw_screenchange_destroy(&window->screenchange_detector);
+  dpaw_linked_list_clear(&window->window_mapped.list);
 }
 
 EV_ON(root, MapRequest){
@@ -120,6 +124,13 @@ EV_ON(root, MapRequest){
       struct dpawindow* rwin = dpawindow_lookup(window->window.dpaw, parent);
       if(rwin && rwin->type->is_workspace)
         is_in_root_or_workspace = true;
+    }
+    if(!is_in_root_or_workspace){
+      // give other components an oppurtunity to take the window
+      Window xwin = event->window;
+      DPAW_CALL_BACK(dpawindow_root, window, window_mapped, &xwin);
+      if(!xwin)
+        return EHR_OK;
     }
     if(attribute.override_redirect || !is_in_root_or_workspace){
       // This isn't our window, but the window needs to be mapped
@@ -154,14 +165,10 @@ EV_ON(root, UnmapNotify){
 
 EV_ON(root, DestroyNotify){
   printf("DestroyNotify %lx\n", event->window);
-  extern struct dpawindow_type dpawindow_type_app;
   struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
   if(!win)
     return EHR_NEXT;
-  if(win->type == &dpawindow_type_app){
-    dpawindow_cleanup(win);
-    return EHR_OK;
-  }
+  dpawindow_cleanup(win);
   return EHR_NEXT;
 }
 

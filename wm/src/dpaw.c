@@ -1,5 +1,8 @@
 #include <dpaw/dpaw.h>
 #include <dpaw/atom.h>
+#include <dpaw/process.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,13 +17,15 @@ static volatile enum dpaw_state {
   DPAW_RESTART,
 } running_state;
 
+volatile bool got_sigchld = false;
+
 int dpaw_cleanup(struct dpaw* dpaw){
   if(!dpaw->initialised)
     return 0;
   dpaw->initialised = false;
   printf("Stopping dpaw...\n");
   if(dpaw->root.window.xwindow)
-    dpawindow_root_cleanup(&dpaw->root);
+    dpawindow_cleanup(&dpaw->root.window);
   if(dpaw->root.display){
     XSync(dpaw->root.display, false);
     XCloseDisplay(dpaw->root.display);
@@ -74,12 +79,18 @@ void onsighup(int x){
   running_state = DPAW_RESTART;
 }
 
+void onsigchld(int x){
+  (void)x;
+  got_sigchld = true;
+}
+
 int dpaw_init(struct dpaw* dpaw){
   memset(dpaw, 0, sizeof(*dpaw));
   dpaw->initialised = true;
   signal(SIGTERM, onsigterm);
   signal(SIGINT, onsigterm);
   signal(SIGHUP, onsighup);
+  signal(SIGCHLD, onsigchld);
   XSetErrorHandler(&dpaw_error_handler);
   dpaw->root.display = XOpenDisplay(0);
   if(!dpaw->root.display){
@@ -137,6 +148,23 @@ int dpaw_run(struct dpaw* dpaw){
     fd_set fdset;
     FD_ZERO(&fdset);
     FD_SET(dpaw->x11_fd, &fdset);
+
+    if(got_sigchld){
+      int status = 0;
+      pid_t child = 0;
+      while((child=waitpid(-1, &status, WNOHANG)) > 0){
+        printf("Child %ld died\n", (long)child);
+        for(struct dpaw_list_entry *it = dpaw->process_list.first; it; it=it->next){
+          struct dpaw_process* process = container_of(it, struct dpaw_process, dpaw_process_entry);
+          if(process->pid != child)
+            continue;
+          process->pid = -1;
+          DPAW_CALL_BACK_AND_REMOVE(dpaw_process, process, exited, &status);
+          // process and it may have been freed now
+          break;
+        }
+      }
+    }
 
     if(!XPending(dpaw->root.display))
       select(dpaw->x11_fd+1, &fdset, 0, 0, 0);

@@ -13,7 +13,7 @@ LD_OPTS += -fsanitize=address
 endif
 endif
 
-LD_OPTS += -lX11 -lXi -lXrandr
+LD_OPTS += -lX11 -lXi -lXrandr -lXRes
 
 SOURCES = $(shell find src/ -iname "*.c") $(shell find include/ -iname "*.c")
 HEADERS = $(shell find include/ -type f)
