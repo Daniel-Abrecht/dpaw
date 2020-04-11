@@ -18,6 +18,23 @@ static void app_cleanup_handler(
   dpawindow_xembed_cleanup(xembed); // See dpawindow_xembed_cleanup for more info
 }
 
+static void parent_boundary_changed(
+  struct dpawindow* app_window,
+  void* a, void* b
+){
+  (void)a;
+  (void)b;
+  struct dpawindow_app* app = container_of(app_window, struct dpawindow_app, window);
+  struct dpawindow_xembed* xembed = container_of(app, struct dpawindow_xembed, parent);
+  struct dpaw_rect boundary = {
+    .top_left.x = 0,
+    .top_left.y = 0,
+    .bottom_right.x = app_window->boundary.bottom_right.x - app_window->boundary.top_left.x,
+    .bottom_right.y = app_window->boundary.bottom_right.y - app_window->boundary.top_left.y,
+  };
+  dpawindow_place_window(&xembed->window, boundary);
+}
+
 int dpawindow_xembed_init(
   struct dpaw* dpaw,
   struct dpawindow_xembed* xembed
@@ -27,7 +44,7 @@ int dpawindow_xembed_init(
   xembed->parent.window.dpaw = dpaw;
   Window xwindow = XCreateWindow(
     dpaw->root.display, dpaw->root.window.xwindow,
-    0, 0, 800, 600, 0,
+    0, 0, 1, 1, 0,
     CopyFromParent, InputOutput,
     CopyFromParent, CWBackPixel, &(XSetWindowAttributes){0}
   );
@@ -39,6 +56,8 @@ int dpawindow_xembed_init(
     return -1;
   xembed->pre_cleanup.callback = app_cleanup_handler;
   DPAW_CALLBACK_ADD(dpawindow, &xembed->parent.window, pre_cleanup, &xembed->pre_cleanup);
+  xembed->parent_boundary_changed.callback = parent_boundary_changed;
+  DPAW_CALLBACK_ADD(dpawindow, &xembed->parent.window, boundary_changed, &xembed->parent_boundary_changed);
   return 0;
 }
 
@@ -69,9 +88,9 @@ int dpawindow_xembed_exec_v(
         fprintf(stderr, "dpaw_process_create failed\n");
         return -1;
       }
-      xembed->new_window_handler.callback = xembed_exec_take_first_window_of_process;
-      xembed->new_window_handler.regptr = xembed;
-      DPAW_CALLBACK_ADD(dpawindow_root, &xembed->parent.window.dpaw->root, window_mapped, &xembed->new_window_handler);
+      xembed->new_window.callback = xembed_exec_take_first_window_of_process;
+      xembed->new_window.regptr = xembed;
+      DPAW_CALLBACK_ADD(dpawindow_root, &xembed->parent.window.dpaw->root, window_mapped, &xembed->new_window);
     } break;
 
     case XEMBED_METHOD_GIVE_WINDOW_BY_ARGUMENT: {
@@ -126,7 +145,7 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
   }
   dpaw_process_kill(&xembed->process, SIGTERM);
   dpaw_process_cleanup(&xembed->process);
-  DPAW_CALLBACK_REMOVE(&xembed->new_window_handler);
+  DPAW_CALLBACK_REMOVE(&xembed->new_window);
   if(xwindow){
     xembed->window.xwindow = xwindow;
     XReparentWindow(xembed->parent.window.dpaw->root.display, xembed->window.xwindow, xembed->parent.window.xwindow, 0, 0);
@@ -134,7 +153,9 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
       fprintf(stderr, "dpawindow_register failed\n");
       return -1;
     }
-    XMapWindow(xembed->parent.window.dpaw->root.display, xembed->window.xwindow);
+    dpawindow_set_mapping(&xembed->window, true);
+    dpawindow_hide(&xembed->window, false);
+    parent_boundary_changed(&xembed->parent.window, 0, 0);
   }
   DPAW_CALL_BACK(dpawindow_xembed, xembed, window_changed, 0);
   return 0;

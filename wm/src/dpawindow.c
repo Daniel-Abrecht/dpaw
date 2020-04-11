@@ -37,6 +37,7 @@ void dpawindow_cleanup(struct dpawindow* window){
   if(!window->type)
     return;
   DPAW_CALL_BACK_AND_REMOVE(dpawindow, window, pre_cleanup, 0);
+  dpaw_linked_list_clear(&window->boundary_changed.list);
   window->type->cleanup(window);
   dpawindow_unregister(window);
   window->type = 0;
@@ -59,25 +60,28 @@ int dpawindow_close(struct dpawindow* window){
   return 0;
 }
 
-int update_window_config(struct dpawindow* window){
+static void update_window_config(struct dpawindow* window){
   window->d_update_config = true;
   dpaw_linked_list_set(&window->dpaw->window_update_list, &window->dpaw_window_update_entry, 0);
-  return 0;
 }
 
 int dpawindow_hide(struct dpawindow* window, bool hidden){
   window->hidden = hidden;
-  return update_window_config(window);
+  update_window_config(window);
+  return 0;
 }
 
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping){
   window->mapped = mapping;
-  return update_window_config(window);
+  update_window_config(window);
+  return 0;
 }
 
 int dpawindow_place_window(struct dpawindow* window, struct dpaw_rect boundary){
   window->boundary = boundary;
-  return update_window_config(window);
+  update_window_config(window);
+  DPAW_CALL_BACK(dpawindow, window, boundary_changed, 0);
+  return 0;
 }
 
 int dpawindow_register(struct dpawindow* window){

@@ -125,7 +125,7 @@ EV_ON(root, MapRequest){
       if(rwin && rwin->type->is_workspace)
         is_in_root_or_workspace = true;
     }
-    if(!is_in_root_or_workspace){
+    if(is_in_root_or_workspace){
       // give other components an oppurtunity to take the window
       Window xwin = event->window;
       DPAW_CALL_BACK(dpawindow_root, window, window_mapped, &xwin);

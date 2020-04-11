@@ -32,8 +32,9 @@ DPAW_DECLARE_CALLBACK_TYPE(dpawindow)
 
 struct dpawindow {
   const struct dpawindow_type* type;
-  struct dpaw_callback_list_dpawindow pre_cleanup, post_cleanup;
   struct dpaw* dpaw;
+  struct dpaw_callback_list_dpawindow pre_cleanup, post_cleanup;
+  struct dpaw_callback_list_dpawindow boundary_changed;
   struct dpaw_list_entry dpaw_window_entry;
   struct dpaw_list_entry dpaw_window_update_entry;
   struct dpaw_rect boundary;
