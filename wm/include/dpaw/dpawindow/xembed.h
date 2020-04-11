@@ -33,7 +33,7 @@ int dpawindow_xembed_exec_v(
   struct dpaw_process_create_options options
 );
 #define dpawindow_xembed_exec(XEMBED, EXMET, ...) \
-  dpawindow_xembed_exec_v(XEMBED, EXMET, &(const struct dpaw_process_create_options){.args=__VA_ARGS__})
+  dpawindow_xembed_exec_v(XEMBED, EXMET, (const struct dpaw_process_create_options){.args=__VA_ARGS__})
 
 int dpawindow_xembed_set(struct dpawindow_xembed*, Window);
 
