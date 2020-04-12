@@ -173,14 +173,18 @@ static void workspace_pre_cleanup(struct dpawindow* window, void* pworkspace, vo
   dpaw_linked_list_set(0, &workspace->wmgr_workspace_list_entry, 0);
   update_virtual_root_property(wmgr);
 
+  // xwindows won't be destroyed. dpaw_workspace_remove_window will reparent them back to the root.
+  // after that, they may be taken up by the manager again, and assigned to another workspace
   while(workspace->window_list.first)
     dpawindow_cleanup(&container_of(workspace->window_list.first, struct dpawindow_app, workspace_window_entry)->window);
 }
 
-static void workspace_post_cleanup(struct dpawindow* window, void* workspace, void* ptr){
-  (void)workspace;
+static void workspace_post_cleanup(struct dpawindow* window, void* pworkspace, void* ptr){
+  (void)pworkspace;
   (void)ptr;
 
+  struct dpaw_workspace* workspace = pworkspace;
+  assert(!workspace->window_list.first);
   XDestroyWindow(window->dpaw->root.display, window->xwindow);
   free(window);
 }
@@ -346,14 +350,6 @@ int dpaw_workspace_add_window(struct dpaw_workspace* workspace, struct dpawindow
 }
 
 
-static void workspace_app_pre_cleanup(struct dpawindow* window, void* regptr, void* callptr){
-  (void)regptr;
-  (void)callptr;
-  struct dpawindow_app* app = container_of(window, struct dpawindow_app, window);
-  if(app->workspace)
-    dpaw_workspace_remove_window(app);
-}
-
 static void workspace_app_post_cleanup(struct dpawindow* window, void* regptr, void* callptr){
   (void)regptr;
   (void)callptr;
@@ -378,7 +374,9 @@ int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Wi
   {
     struct dpawindow_workspace_app {
       struct dpawindow_app window;
-      struct dpaw_callback_dpawindow pre_cleanup;
+      // Don't add a pre_cleanup function or other stuff to post_cleanup.
+      // They don't cover windows added using dpaw_workspace_add_window.
+      // This post_cleanup is just for freeing what we allocate here
       struct dpaw_callback_dpawindow post_cleanup;
     };
     struct dpawindow_workspace_app* wapp = calloc(sizeof(struct dpawindow_workspace_app), 1);
@@ -386,10 +384,8 @@ int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Wi
       perror("calloc failed");
       return -1;
     }
-    wapp->pre_cleanup.callback  = workspace_app_pre_cleanup;
     wapp->post_cleanup.callback = workspace_app_post_cleanup;
     app_window = &wapp->window;
-    DPAW_CALLBACK_ADD(dpawindow, &app_window->window, pre_cleanup , &wapp->pre_cleanup);
     DPAW_CALLBACK_ADD(dpawindow, &app_window->window, post_cleanup, &wapp->post_cleanup);
   }
   if(dpawindow_app_init(wmgr->dpaw, app_window, window))

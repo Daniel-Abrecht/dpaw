@@ -15,7 +15,12 @@ static void app_cleanup_handler(
   (void)b;
   struct dpawindow_app* app = container_of(app_window, struct dpawindow_app, window);
   struct dpawindow_xembed* xembed = container_of(app, struct dpawindow_xembed, parent);
-  dpawindow_xembed_cleanup(xembed); // See dpawindow_xembed_cleanup for more info
+  if(app_window->xwindow){
+    XDestroyWindow(app_window->dpaw->root.display, app_window->xwindow);
+    app_window->xwindow = 0;
+  }
+  if(!xembed->window.cleanup)
+    dpawindow_cleanup(&xembed->window);
 }
 
 static void parent_boundary_changed(
@@ -33,6 +38,13 @@ static void parent_boundary_changed(
     .bottom_right.y = app_window->boundary.bottom_right.y - app_window->boundary.top_left.y,
   };
   dpawindow_place_window(&xembed->window, boundary);
+}
+
+static int got_new_window(struct dpawindow_app* app, Window xwindow){
+  struct dpawindow_xembed* xembed = container_of(app, struct dpawindow_xembed, parent);
+  dpaw_process_cleanup(&xembed->process);
+  dpawindow_xembed_set(xembed, xwindow);
+  return 0;
 }
 
 int dpawindow_xembed_init(
@@ -58,6 +70,7 @@ int dpawindow_xembed_init(
   DPAW_CALLBACK_ADD(dpawindow, &xembed->parent.window, pre_cleanup, &xembed->pre_cleanup);
   xembed->parent_boundary_changed.callback = parent_boundary_changed;
   DPAW_CALLBACK_ADD(dpawindow, &xembed->parent.window, boundary_changed, &xembed->parent_boundary_changed);
+  xembed->parent.got_foreign_window = got_new_window;
   return 0;
 }
 
@@ -103,7 +116,7 @@ int dpawindow_xembed_exec_v(
       const char** args = malloc(sizeof(char*[count+1]));
       if(!args)
         return -1;
-      for(const char *const* src=options.args, ** dst=args; *src; src++){
+      for(const char *const* src=options.args, ** dst=args; *src; src++,dst++){
         if(!strcmp(*src, "<XID>")){
           had_xid_arg = true;
           *dst = xid_str;
@@ -138,14 +151,17 @@ int dpawindow_xembed_exec_v(
 int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
   if(xembed->window.xwindow == xwindow)
     return 0;
+
   if(xembed->window.xwindow){
     dpawindow_unregister(&xembed->window);
     XKillClient(xembed->window.dpaw->root.display, xembed->window.xwindow);
     xembed->window.xwindow = 0;
   }
+
   dpaw_process_kill(&xembed->process, SIGTERM);
   dpaw_process_cleanup(&xembed->process);
   DPAW_CALLBACK_REMOVE(&xembed->new_window);
+
   if(xwindow){
     xembed->window.xwindow = xwindow;
     XReparentWindow(xembed->parent.window.dpaw->root.display, xembed->window.xwindow, xembed->parent.window.xwindow, 0, 0);
@@ -157,26 +173,18 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
     dpawindow_hide(&xembed->window, false);
     parent_boundary_changed(&xembed->parent.window, 0, 0);
   }
+
   DPAW_CALL_BACK(dpawindow_xembed, xembed, window_changed, 0);
+
   return 0;
 }
 
 static void dpawindow_xembed_cleanup(struct dpawindow_xembed* xembed){
-
-  // This window and it's parent share a lifetime.
-  // The destruction of the parent window will call this function as last thing of the pre_cleanup.
-  // dpawindow_cleanup will also call the parents pre_cleanup list, but if it was already called,
-  // it'll be empty, it won't reexecute this function.
-  // This function is always called before the post_cleanup of the parent.
-  // The post_cleanup of the parent is added to this function's post_cleanup to make sure
-  // it's run after this function, and before this functions post_cleanup handlers.
-  dpaw_linked_list_move(&xembed->window.post_cleanup.list, &xembed->parent.window.post_cleanup.list, xembed->window.post_cleanup.list.first);
-  dpawindow_cleanup(&xembed->parent.window);
-
+  if(!xembed->parent.window.cleanup){
+    dpawindow_cleanup(&xembed->parent.window);
+  }else{
+    dpaw_linked_list_move(&xembed->parent.window.post_cleanup.list, &xembed->window.post_cleanup.list, 0);
+  }
   dpawindow_xembed_set(xembed, 0);
   dpaw_linked_list_clear(&xembed->window_changed.list);
-  if(xembed->parent.window.xwindow)
-    XDestroyWindow(xembed->parent.window.dpaw->root.display, xembed->parent.window.xwindow);
-  memset(xembed, 0, sizeof(*xembed));
-
 }

@@ -26,7 +26,7 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
   window->window.xwindow = xwindow;
   printf("dpawindow_app_init %lx\n", xwindow);
 
-  window->window.type = &dpawindow_type_app; \
+  window->window.type = &dpawindow_type_app;
   window->window.dpaw = dpaw;
   if(dpawindow_register(&window->window)){
     fprintf(stderr, "dpawindow_register failed\n");
@@ -84,8 +84,9 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
   return 0;
 }
 
-static void dpawindow_app_cleanup(struct dpawindow_app* window){
-  (void)window;
+static void dpawindow_app_cleanup(struct dpawindow_app* app){
+  if(app->workspace)
+    dpaw_workspace_remove_window(app);
 }
 
 EV_ON(app, ConfigureRequest){
@@ -115,5 +116,25 @@ EV_ON(app, ClientMessage){
     puts("_NET_MOVERESIZE_WINDOW"); // TODO: Set window.observable.desired_placement
   if(event->message_type == _NET_CLOSE_WINDOW)
     puts("_NET_CLOSE_WINDOW");
+  return EHR_OK;
+}
+
+EV_ON(app, ReparentNotify){
+  printf("app ReparentNotify %lx\n", event->window);
+
+  if(window->window.xwindow == event->window)
+    return EHR_NEXT; // It's me
+
+  struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
+  if(win) // This is one of our windows
+    return EHR_NEXT;
+
+  if(window->got_foreign_window && !window->got_foreign_window(window, event->window))
+    return EHR_OK;
+
+  // Nope, let's get rid of it and whatever put it there!
+  fprintf(stderr, "Getting rid of unexpected foreign window 0x%lx!\n", (unsigned long)event->window);
+  XKillClient(window->window.dpaw->root.display, event->window);
+  XDestroyWindow(window->window.dpaw->root.display, event->window);
   return EHR_OK;
 }

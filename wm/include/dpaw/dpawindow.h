@@ -39,6 +39,7 @@ struct dpawindow {
   struct dpaw_list_entry dpaw_window_update_entry;
   struct dpaw_rect boundary;
   Window xwindow;
+  bool cleanup : 1;
   bool mapped : 1;
   bool hidden : 1;
   bool d_update_config : 1;

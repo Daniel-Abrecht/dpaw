@@ -189,8 +189,8 @@ EV_ON(root, ConfigureRequest){
 
 EV_ON(root, ReparentNotify){
   (void)window;
-  printf("ReparentNotify %lx\n", event->window);
-  return EHR_OK;
+  printf("root ReparentNotify %lx\n", event->window);
+  return EHR_NEXT;
 }
 
 EV_ON(root, ClientMessage){

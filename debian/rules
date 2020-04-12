@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-export NO_ASAN=1
+export RELEASE=1
 
 %:
 	dh $@

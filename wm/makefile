@@ -5,7 +5,7 @@ CC_OPTS += -D_DEFAULT_SOURCE
 CC_OPTS += -Iinclude/ -Ibuild/include/
 
 ifndef RELEASE
-CC_OPTS += -Werror -g -O0
+CC_OPTS += -Werror -g -Og
 LD_OPTS += -g -rdynamic
 ifndef NO_ASAN
 CC_OPTS += -fsanitize=address

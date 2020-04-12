@@ -66,12 +66,13 @@
 DECLARE_DPAW_DERIVED_WINDOW( app,
   struct dpaw_list_entry workspace_window_entry;
   struct dpaw_workspace* workspace;
+  void* workspace_private;
+
+  int (*got_foreign_window)(struct dpawindow_app* app, Window xwindow);
 
   struct {
     DPAW_APP_STATE_LIST
   } wm_state;
-
-  void* workspace_private;
   struct {
     DPAW_APP_OBSERVABLE(Atom) type;
     DPAW_APP_OBSERVABLE(XWMHints) window_hints;

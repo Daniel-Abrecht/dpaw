@@ -36,11 +36,13 @@ enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, con
 void dpawindow_cleanup(struct dpawindow* window){
   if(!window->type)
     return;
+  assert(!window->cleanup);
+  window->cleanup = true;
   DPAW_CALL_BACK_AND_REMOVE(dpawindow, window, pre_cleanup, 0);
   dpaw_linked_list_clear(&window->boundary_changed.list);
   window->type->cleanup(window);
   dpawindow_unregister(window);
-  window->type = 0;
+  window->cleanup = false;
   DPAW_CALL_BACK_AND_REMOVE(dpawindow, window, post_cleanup, 0);
 }
 
@@ -142,7 +144,8 @@ int dpawindow_register(struct dpawindow* window){
 int dpawindow_unregister(struct dpawindow* window){
   if(!window || !window->dpaw)
     return -1;
-  XRemoveFromSaveSet(window->dpaw->root.display, window->xwindow);
+  if(window->xwindow)
+    XRemoveFromSaveSet(window->dpaw->root.display, window->xwindow);
   dpaw_linked_list_set(0, &window->dpaw_window_entry, 0);
   dpaw_linked_list_set(0, &window->dpaw_window_update_entry, 0);
   return 0;
