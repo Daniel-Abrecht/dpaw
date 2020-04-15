@@ -2,7 +2,11 @@
 #include <dpaw/dpawindow/xembed.h>
 #include <dpaw/xev/X.c>
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <signal.h>
+#include <poll.h>
 #include <stdio.h>
 
 DEFINE_DPAW_DERIVED_WINDOW(xembed)
@@ -47,6 +51,17 @@ static int got_new_window(struct dpawindow_app* app, Window xwindow){
   return 0;
 }
 
+static void abort_starting_applications(struct dpawindow_xembed* xembed){
+  DPAW_CALLBACK_REMOVE(&xembed->new_window);
+  dpaw_process_kill(&xembed->process, SIGTERM);
+  dpaw_process_cleanup(&xembed->process);
+  if(xembed->stdout){
+    dpaw_poll_remove(xembed->parent.window.dpaw, (&(struct dpaw_fd){ .fd = xembed->stdout-1 }));
+    close(xembed->stdout-1);
+  }
+  xembed->stdout = 0;
+}
+
 int dpawindow_xembed_init(
   struct dpaw* dpaw,
   struct dpawindow_xembed* xembed
@@ -89,11 +104,42 @@ static void xembed_exec_take_first_window_of_process(struct dpawindow_root* root
   }
 }
 
+static void xembed_exec_got_input(struct dpaw* dpaw, int fd, int events, void* pxembed){
+  (void)dpaw;
+  if(!(events & POLLIN))
+    return;
+  struct dpawindow_xembed* xembed = pxembed;
+  assert(xembed->stdout-1 == fd);
+  char buf[65] = {0};
+  long long xwindow = 0;
+  while(true){
+    ssize_t size = read(fd, buf, sizeof(buf)-1);
+    if(size == -1 && errno == EINTR)
+      continue;
+    if(size <= 0 || size >= (ssize_t)sizeof(buf))
+      goto error;
+    break;
+  }
+  xwindow = strtoll(buf, 0, 0);
+  if(!xwindow)
+    goto error;
+  dpaw_process_cleanup(&xembed->process);
+  close(fd);
+  xembed->stdout = 0;
+  dpawindow_xembed_set(xembed, xwindow);
+  return;
+error:
+  abort_starting_applications(xembed);
+}
+
 int dpawindow_xembed_exec_v(
   struct dpawindow_xembed* xembed,
   enum dpaw_xembed_exec_id_exchange_method exmet,
   struct dpaw_process_create_options options
 ){
+
+  abort_starting_applications(xembed);
+
   switch(exmet){
 
     case XEMBED_UNSUPPORTED_TAKE_FIRST_WINDOW: {
@@ -104,7 +150,7 @@ int dpawindow_xembed_exec_v(
       xembed->new_window.callback = xembed_exec_take_first_window_of_process;
       xembed->new_window.regptr = xembed;
       DPAW_CALLBACK_ADD(dpawindow_root, &xembed->parent.window.dpaw->root, window_mapped, &xembed->new_window);
-    } break;
+    } return 0;
 
     case XEMBED_METHOD_GIVE_WINDOW_BY_ARGUMENT: {
       size_t count = 0;
@@ -137,15 +183,49 @@ int dpawindow_xembed_exec_v(
         free(args);
         return -1;
       }
-    }; break;
+    }; return 0;
 
     case XEMBED_METHOD_TAKE_WINDOW_FROM_STDOUT: {
-      puts("XEMBED_METHOD_TAKE_WINDOW_FROM_STDOUT isn't implemented yet");
-      return -1; // TODO
-    } break;
+      int process_stdout[2];
+      if(pipe(process_stdout)){
+        perror("pipe failed");
+        return -1;
+      }
+      if(fcntl(process_stdout[0], F_SETFD, FD_CLOEXEC) == -1){
+        perror("fcntl(process_stdout[0], F_SETFD, FD_CLOEXEC) failed");
+        close(process_stdout[0]);
+        close(process_stdout[1]);
+        return -1;
+      }
+      dpaw_int_pair_t* fdmap = calloc(options.fdmap_count+1, sizeof(dpaw_int_pair_t));
+      memcpy(fdmap, options.fdmap, options.fdmap_count * sizeof(dpaw_int_pair_t));
+      fdmap[options.fdmap_count][0] = process_stdout[1];
+      fdmap[options.fdmap_count][1] = STDOUT_FILENO;
+      options.fdmap_count += 1;
+      options.fdmap = fdmap;
+      if(dpaw_process_create_v(xembed->parent.window.dpaw, &xembed->process, &options)){
+        fprintf(stderr, "dpaw_process_create failed\n");
+        close(process_stdout[0]);
+        close(process_stdout[1]);
+        free(fdmap);
+        return -1;
+      }
+      free(fdmap);
+      close(process_stdout[1]);
+      if(dpaw_poll_add(xembed->parent.window.dpaw, (&(struct dpaw_fd){
+        .fd = process_stdout[0],
+        .callback = xembed_exec_got_input,
+        .ptr = xembed
+      }), POLLIN)){
+        fprintf(stderr, "dpaw_poll_add failed\n");
+        close(process_stdout[0]);
+        return -1;
+      };
+      xembed->stdout = process_stdout[0] + 1;
+    } return 0;
 
   }
-  return 0;
+  return -1;
 }
 
 int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
@@ -158,9 +238,7 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
     xembed->window.xwindow = 0;
   }
 
-  dpaw_process_kill(&xembed->process, SIGTERM);
-  dpaw_process_cleanup(&xembed->process);
-  DPAW_CALLBACK_REMOVE(&xembed->new_window);
+  abort_starting_applications(xembed);
 
   if(xwindow){
     xembed->window.xwindow = xwindow;

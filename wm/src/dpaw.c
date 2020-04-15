@@ -3,12 +3,15 @@
 #include <dpaw/process.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
+#include <poll.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <signal.h>
+
 
 static volatile enum dpaw_state {
   DPAW_KEEP_RUNNING,
@@ -18,6 +21,7 @@ static volatile enum dpaw_state {
 } running_state;
 
 volatile bool got_sigchld = false;
+
 
 int dpaw_cleanup(struct dpaw* dpaw){
   if(!dpaw->initialised)
@@ -30,6 +34,8 @@ int dpaw_cleanup(struct dpaw* dpaw){
     XSync(dpaw->root.display, false);
     XCloseDisplay(dpaw->root.display);
   }
+  dpaw_array_free(&dpaw->input_list);
+  dpaw_array_free(&dpaw->fd_list);
   memset(dpaw, 0, sizeof(*dpaw));
   return 0;
 }
@@ -87,6 +93,14 @@ void onsigchld(int x){
 int dpaw_init(struct dpaw* dpaw){
   memset(dpaw, 0, sizeof(*dpaw));
   dpaw->initialised = true;
+  if(dpaw_array_init(&dpaw->input_list, 16, true)){
+    fprintf(stderr, "dpaw_array_prealloc failed");
+    return -1;
+  }
+  if(dpaw_array_init(&dpaw->fd_list, 16, true)){
+    fprintf(stderr, "dpaw_array_prealloc failed");
+    return -1;
+  }
   signal(SIGTERM, onsigterm);
   signal(SIGINT, onsigterm);
   signal(SIGHUP, onsighup);
@@ -100,6 +114,10 @@ int dpaw_init(struct dpaw* dpaw){
   dpaw->x11_fd = ConnectionNumber(dpaw->root.display);
   if(dpaw->x11_fd == -1){
     fprintf(stderr, "ConnectionNumber failed\n");
+    goto error;
+  }
+  if(dpaw_poll_add(dpaw, (&(struct dpaw_fd){ .fd = dpaw->x11_fd, .keep=true }), POLLIN)){
+    fprintf(stderr, "dpaw_poll_add for x11 fd failed\n");
     goto error;
   }
   dpaw->root.window.xwindow = DefaultRootWindow(dpaw->root.display);
@@ -141,13 +159,42 @@ int dpaw_error_handler(Display* display, XErrorEvent* error){
   return 0;
 }
 
+int dpaw_poll_add(struct dpaw* dpaw, const struct dpaw_fd* input, int events){
+  if(dpaw_array_add(&dpaw->input_list, input))
+    goto error;
+  if(dpaw_array_add(&dpaw->fd_list, (&(struct pollfd){
+    .fd = input->fd,
+    .events = events
+  }))){
+    dpaw_array_remove(&dpaw->fd_list, dpaw->input_list.count-1, 1);
+    goto error;
+  }
+  assert(dpaw->input_list.count == dpaw->fd_list.count);
+  return 0;
+error:
+  assert(dpaw->input_list.count == dpaw->fd_list.count);
+  return -1;
+}
+
+void dpaw_poll_remove(struct dpaw* dpaw, const struct dpaw_fd* input){
+  for(size_t i=dpaw->input_list.count; i--;){
+    if(input->fd >= 0 && input->fd != dpaw->input_list.data[i].fd)
+      continue;
+    if(input->ptr && input->ptr != dpaw->input_list.data[i].ptr)
+      continue;
+    if(input->callback && input->callback != dpaw->input_list.data[i].callback)
+      continue;
+    dpaw_array_remove(&dpaw->input_list, i, 1);
+    dpaw_array_remove(&dpaw->fd_list, i, 1);
+    break;
+  }
+  assert(dpaw->input_list.count == dpaw->fd_list.count);
+}
+
 int dpaw_run(struct dpaw* dpaw){
   bool debug_x_events = !!getenv("DEBUG_X_EVENTS");
-  while(running_state == DPAW_KEEP_RUNNING){
 
-    fd_set fdset;
-    FD_ZERO(&fdset);
-    FD_SET(dpaw->x11_fd, &fdset);
+  while(running_state == DPAW_KEEP_RUNNING){
 
     if(got_sigchld){
       int status = 0;
@@ -166,8 +213,49 @@ int dpaw_run(struct dpaw* dpaw){
       }
     }
 
-    if(!XPending(dpaw->root.display))
-      select(dpaw->x11_fd+1, &fdset, 0, 0, 0);
+    if(!XPending(dpaw->root.display)){
+      dpaw_array_gc(&dpaw->input_list);
+      dpaw_array_gc(&dpaw->fd_list);
+      assert(dpaw->fd_list.count == dpaw->input_list.count);
+//      printf("polling %zu entries\n", dpaw->fd_list.count);
+      int ret = poll(dpaw->fd_list.data, dpaw->fd_list.count, -1);
+//      printf("poll return with %d\n", ret);
+      if( ret == -1 && errno != EINTR ){
+        perror("poll failed");
+        running_state = DPAW_ERROR;
+        break;
+      }
+      if(ret > 0)
+      for(size_t i=dpaw->fd_list.count; i--; ){
+        size_t c = dpaw->fd_list.count;
+        struct pollfd* pfd = dpaw->fd_list.data + i;
+        struct dpaw_fd* dfd = dpaw->input_list.data + i;
+        if(pfd->revents & pfd->events){
+          if(dfd->callback)
+            dfd->callback(dpaw, pfd->fd, pfd->revents, dfd->ptr);
+          if(!dfd->keep && c == dpaw->fd_list.count){
+            dpaw_array_remove(&dpaw->fd_list, i, 1);
+            dpaw_array_remove(&dpaw->input_list, i, 1);
+            continue;
+          }
+        }
+        if(pfd->revents & (POLLERR|POLLHUP|POLLNVAL)){
+          if(pfd->revents & (POLLERR|POLLNVAL))
+            fprintf(stderr, "Warning: got POLLERR or POLLNVAL for fd %d\n", pfd->fd);
+          if(dfd->callback){
+            dfd->callback(dpaw, pfd->fd, pfd->revents, 0);
+          }else if(pfd->revents & POLLHUP){
+            close(pfd->fd);
+          }
+          dpaw_array_remove(&dpaw->fd_list, i, 1);
+          dpaw_array_remove(&dpaw->input_list, i, 1);
+          printf("Removing entry %zu fd %d\n", i, pfd->fd);
+          continue;
+        }
+        pfd->revents = 0;
+      }
+      assert(dpaw->fd_list.count == dpaw->input_list.count);
+    }
     if(!XPending(dpaw->root.display))
       continue;
 
