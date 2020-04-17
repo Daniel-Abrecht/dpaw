@@ -227,13 +227,13 @@ int dpaw_run(struct dpaw* dpaw){
       }
       if(ret > 0)
       for(size_t i=dpaw->fd_list.count; i--; ){
-        size_t c = dpaw->fd_list.count;
+        int fd = dpaw->fd_list.data[i].fd;
         struct pollfd* pfd = dpaw->fd_list.data + i;
         struct dpaw_fd* dfd = dpaw->input_list.data + i;
         if(pfd->revents & pfd->events){
           if(dfd->callback)
-            dfd->callback(dpaw, pfd->fd, pfd->revents, dfd->ptr);
-          if(!dfd->keep && c == dpaw->fd_list.count){
+            dfd->callback(dpaw, fd, pfd->revents, dfd->ptr);
+          if(!dfd->keep && dpaw->fd_list.count && fd == dpaw->fd_list.data[i].fd){
             dpaw_array_remove(&dpaw->fd_list, i, 1);
             dpaw_array_remove(&dpaw->input_list, i, 1);
             continue;
@@ -241,15 +241,17 @@ int dpaw_run(struct dpaw* dpaw){
         }
         if(pfd->revents & (POLLERR|POLLHUP|POLLNVAL)){
           if(pfd->revents & (POLLERR|POLLNVAL))
-            fprintf(stderr, "Warning: got POLLERR or POLLNVAL for fd %d\n", pfd->fd);
+            fprintf(stderr, "Warning: got POLLERR or POLLNVAL for fd %d\n", fd);
           if(dfd->callback){
-            dfd->callback(dpaw, pfd->fd, pfd->revents, 0);
+            dfd->callback(dpaw, fd, pfd->revents, 0);
           }else if(pfd->revents & POLLHUP){
-            close(pfd->fd);
+            close(fd);
           }
-          dpaw_array_remove(&dpaw->fd_list, i, 1);
-          dpaw_array_remove(&dpaw->input_list, i, 1);
-          printf("Removing entry %zu fd %d\n", i, pfd->fd);
+          if(dpaw->fd_list.count && fd == dpaw->fd_list.data[i].fd){
+            dpaw_array_remove(&dpaw->fd_list, i, 1);
+            dpaw_array_remove(&dpaw->input_list, i, 1);
+            printf("Removing entry %zu fd %d\n", i, fd);
+          }
           continue;
         }
         pfd->revents = 0;

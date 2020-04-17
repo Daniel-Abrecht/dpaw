@@ -1,6 +1,8 @@
 #include <dpaw/dpaw.h>
 #include <dpaw/dpawindow/xembed.h>
+#include <dpaw/atom.h>
 #include <dpaw/xev/X.c>
+#include <dpaw/atom/xembed.c>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -10,6 +12,27 @@
 #include <stdio.h>
 
 DEFINE_DPAW_DERIVED_WINDOW(xembed)
+
+static void send_xembed_message(
+  struct dpawindow_xembed* xembed,
+  long message,
+  long detail,
+  long data1,
+  long data2
+){
+  XEvent ev;
+  memset(&ev, 0, sizeof(ev));
+  ev.xclient.type = ClientMessage;
+  ev.xclient.window = xembed->window.xwindow;
+  ev.xclient.message_type = _XEMBED;
+  ev.xclient.format = 32;
+  ev.xclient.data.l[0] = CurrentTime;
+  ev.xclient.data.l[1] = message;
+  ev.xclient.data.l[2] = detail;
+  ev.xclient.data.l[3] = data1;
+  ev.xclient.data.l[4] = data2;
+  XSendEvent(xembed->window.dpaw->root.display, xembed->window.xwindow, False, NoEventMask, &ev);
+}
 
 static void app_cleanup_handler(
   struct dpawindow* app_window,
@@ -228,6 +251,23 @@ int dpawindow_xembed_exec_v(
   return -1;
 }
 
+int xembed_update_info(dpawindow_xembed* xembed){
+  long* res = 0;
+  xembed->info.version = 0;
+  xembed->info.flags = 0;
+  if(dpaw_get_property(&xembed->window, _XEMBED_INFO, (size_t[]){8}, 0, (void**)&res) == -1){
+    fprintf(stderr, "dpaw_get_property _XEMBED_INFO failed\n");
+    if(res) XFree(res);
+    return -1;
+  }
+  if(res){
+    xembed->info.version = res[0];
+    xembed->info.flags = res[1];
+    XFree(res);
+  }
+  return 0;
+}
+
 int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
   if(xembed->window.xwindow == xwindow)
     return 0;
@@ -248,6 +288,9 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
       return -1;
     }
     dpawindow_set_mapping(&xembed->window, true);
+    xembed_update_info(xembed);
+    long min_version = xembed->info.version < DPAW_XEMBED_VERSION ? xembed->info.version : DPAW_XEMBED_VERSION;
+    send_xembed_message(xembed, XEMBED_EMBEDDED_NOTIFY, 0, xembed->window.xwindow, min_version);
     dpawindow_hide(&xembed->window, false);
     parent_boundary_changed(&xembed->parent.window, 0, 0);
   }
