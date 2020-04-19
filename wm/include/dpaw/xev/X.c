@@ -6,41 +6,41 @@
 
 #define XEV_EVENTS \
   X(XEV_BaseEvent, ( \
-    Y(XEV_BaseEvent, XAnyEvent) \
-    Y(KeyPress, XKeyPressedEvent) \
-    Y(KeyRelease, XKeyReleasedEvent) \
-    Y(ButtonPress, XButtonPressedEvent) \
-    Y(ButtonRelease, XButtonReleasedEvent) \
-    Y(MotionNotify, XMotionEvent) \
-    Y(EnterNotify, XEnterWindowEvent) \
-    Y(LeaveNotify, XLeaveWindowEvent) \
-    Y(FocusIn, XFocusInEvent) \
-    Y(FocusOut, XFocusOutEvent) \
-    Y(KeymapNotify, XKeymapEvent) \
-    Y(Expose, XExposeEvent) \
-    Y(GraphicsExpose, XGraphicsExposeEvent) \
-    Y(NoExpose, XNoExposeEvent) \
-    Y(VisibilityNotify, XVisibilityEvent) \
-    Y(CreateNotify, XCreateWindowEvent) \
-    Y(DestroyNotify, XDestroyWindowEvent) \
-    Y(UnmapNotify, XUnmapEvent) \
-    Y(MapNotify, XMapEvent) \
-    Y(MapRequest, XMapRequestEvent) \
-    Y(ReparentNotify, XReparentEvent) \
-    Y(ConfigureNotify, XConfigureEvent) \
-    Y(ConfigureRequest, XConfigureRequestEvent) \
-    Y(GravityNotify, XGravityEvent) \
-    Y(ResizeRequest, XResizeRequestEvent) \
-    Y(CirculateNotify, XCirculateEvent) \
-    Y(CirculateRequest, XCirculateRequestEvent) \
-    Y(PropertyNotify, XPropertyEvent) \
-    Y(SelectionClear, XSelectionClearEvent) \
-    Y(SelectionRequest, XSelectionRequestEvent) \
-    Y(SelectionNotify, XSelectionEvent) \
-    Y(ColormapNotify, XColormapEvent) \
-    Y(ClientMessage, XClientMessageEvent) \
-    Y(MappingNotify, XMappingEvent) \
-    Y(GenericEvent, XGenericEvent) \
+    Y(XEV_BaseEvent, XAnyEvent, 0) \
+    Y(KeyPress, XKeyPressedEvent, KeyPressMask) \
+    Y(KeyRelease, XKeyReleasedEvent, KeyReleaseMask) \
+    Y(ButtonPress, XButtonPressedEvent, ButtonPressMask) \
+    Y(ButtonRelease, XButtonReleasedEvent, ButtonReleaseMask) \
+    Y(MotionNotify, XMotionEvent, PointerMotionMask) \
+    Y(EnterNotify, XEnterWindowEvent, EnterWindowMask) \
+    Y(LeaveNotify, XLeaveWindowEvent, LeaveWindowMask) \
+    Y(FocusIn, XFocusInEvent, FocusChangeMask) \
+    Y(FocusOut, XFocusOutEvent, FocusChangeMask) \
+    Y(KeymapNotify, XKeymapEvent, KeymapStateMask) \
+    Y(Expose, XExposeEvent, ExposureMask) \
+    Y(GraphicsExpose, XGraphicsExposeEvent, ExposureMask) \
+    Y(NoExpose, XNoExposeEvent, ExposureMask) \
+    Y(VisibilityNotify, XVisibilityEvent, VisibilityChangeMask) \
+    Y(CreateNotify, XCreateWindowEvent, StructureNotifyMask) \
+    Y(DestroyNotify, XDestroyWindowEvent, StructureNotifyMask) \
+    Y(UnmapNotify, XUnmapEvent, StructureNotifyMask) \
+    Y(MapNotify, XMapEvent, StructureNotifyMask) \
+    Y(MapRequest, XMapRequestEvent, SubstructureRedirectMask) \
+    Y(ReparentNotify, XReparentEvent, StructureNotifyMask) \
+    Y(ConfigureNotify, XConfigureEvent, StructureNotifyMask) \
+    Y(ConfigureRequest, XConfigureRequestEvent, SubstructureRedirectMask) \
+    Y(GravityNotify, XGravityEvent, StructureNotifyMask) \
+    Y(ResizeRequest, XResizeRequestEvent, ResizeRedirectMask) \
+    Y(CirculateNotify, XCirculateEvent, StructureNotifyMask) \
+    Y(CirculateRequest, XCirculateRequestEvent, SubstructureRedirectMask) \
+    Y(PropertyNotify, XPropertyEvent, PropertyChangeMask) \
+    Y(SelectionClear, XSelectionClearEvent, 0) \
+    Y(SelectionRequest, XSelectionRequestEvent, 0) \
+    Y(SelectionNotify, XSelectionEvent, 0) \
+    Y(ColormapNotify, XColormapEvent, ColormapChangeMask) \
+    Y(ClientMessage, XClientMessageEvent, 0) \
+    Y(MappingNotify, XMappingEvent, 0) \
+    Y(GenericEvent, XGenericEvent, 0) \
   ))
 
 #define XEV_EXT X

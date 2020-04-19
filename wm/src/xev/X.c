@@ -70,7 +70,7 @@ int dpaw_xev_X_listen(struct xev_event_extension* extension, struct dpawindow* w
             continue;
           if(evi->event_list->parent_event != &dpaw_xev_ev2ext_XEV_BaseEvent)
             continue;
-          mask |= 1ul << evi->type;
+          mask |= evi->mask;
         }
       }
     }

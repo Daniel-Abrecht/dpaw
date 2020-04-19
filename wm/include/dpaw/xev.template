@@ -4,7 +4,7 @@
 // Look into the xev folder for an example on how to use this.
 
 #define X(A, B) DPAW_UNPACK B
-#define Y(C, T) typedef T xev_ ## C ## _t;
+#define Y(C, T, ...) typedef T xev_ ## C ## _t;
   XEV_EVENTS
 #undef Y
 #undef X
@@ -14,7 +14,7 @@ struct dpaw;
 extern struct xev_event_extension DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
 
 #define X(A, B) DPAW_UNPACK B
-#define Y(C, T) extern struct xev_event_info dpaw_xev_ev2ext_ ## C;
+#define Y(C, T, ...) extern struct xev_event_info dpaw_xev_ev2ext_ ## C;
   XEV_EVENTS
 #undef Y
 #undef X
@@ -39,18 +39,19 @@ struct xev_event_extension DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
 #undef X
 
 #define X(A, B) DPAW_UNPACK B
-#define Y(C, T) \
+#define Y(C, T, ...) \
   extern struct xev_event_specializer dpaw_xev_spec_ ## C __attribute__((weak)); \
   struct xev_event_info dpaw_xev_ev2ext_ ## C = { \
     .name = #C, \
     .type = C, \
     .spec = &dpaw_xev_spec_ ## C, \
+    __VA_ARGS__ \
   };
   XEV_EVENTS // Enumerate events
 #undef Y
 #undef X
 
-#define Y(C, T) [1+(C)] = &dpaw_xev_ev2ext_ ## C,
+#define Y(C, T, ...) [1+(C)] = &dpaw_xev_ev2ext_ ## C,
 #define X(A, B) \
   extern struct xev_event_info dpaw_xev_ev2ext_ ## A; \
   struct xev_event_list DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_list__, XEV_EXT), __ ## A) = { \
@@ -65,7 +66,7 @@ struct xev_event_extension DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
 #undef Y
 
 struct xev_event_list*const DPAW_CONCAT(dpaw_xev_list__, XEV_EXT)[] = {
-#define Y(C, T)
+#define Y(C, T, ...)
 #define X(A, B) &DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_list__, XEV_EXT), __ ## A),
     XEV_EVENTS // Enumerate events
 #undef X

@@ -254,7 +254,7 @@ int dpawindow_xembed_exec_v(
 int xembed_update_info(dpawindow_xembed* xembed){
   long* res = 0;
   xembed->info.version = 0;
-  xembed->info.flags = 0;
+  xembed->info.flags = XEMBED_MAPPED;
   if(dpaw_get_property(&xembed->window, _XEMBED_INFO, (size_t[]){8}, 0, (void**)&res) == -1){
     fprintf(stderr, "dpaw_get_property _XEMBED_INFO failed\n");
     if(res) XFree(res);
@@ -266,6 +266,13 @@ int xembed_update_info(dpawindow_xembed* xembed){
     XFree(res);
   }
   return 0;
+}
+
+EV_ON(xembed, PropertyNotify){
+  char* name = XGetAtomName(window->window.dpaw->root.display, event->atom);
+  printf("PropertyNotify %s %d\n", name, event->state);
+  if(name) XFree(name);
+  return EHR_OK;
 }
 
 int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
@@ -287,12 +294,15 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
       fprintf(stderr, "dpawindow_register failed\n");
       return -1;
     }
-    dpawindow_set_mapping(&xembed->window, true);
     xembed_update_info(xembed);
     long min_version = xembed->info.version < DPAW_XEMBED_VERSION ? xembed->info.version : DPAW_XEMBED_VERSION;
     send_xembed_message(xembed, XEMBED_EMBEDDED_NOTIFY, 0, xembed->window.xwindow, min_version);
     dpawindow_hide(&xembed->window, false);
+    if(!dpawindow_get_reasonable_size_hints(&xembed->window, &xembed->parent.observable.desired_placement.value)){
+      DPAW_APP_OBSERVABLE_NOTIFY(&xembed->parent, desired_placement);
+    }
     parent_boundary_changed(&xembed->parent.window, 0, 0);
+    dpawindow_set_mapping(&xembed->window, true);
   }
 
   DPAW_CALL_BACK(dpawindow_xembed, xembed, window_changed, 0);

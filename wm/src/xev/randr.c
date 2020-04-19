@@ -64,7 +64,7 @@ int dpaw_xev_randr_listen(struct xev_event_extension* extension, struct dpawindo
           continue;
         if(evi->event_list->extension != extension)
           continue;
-        mask |= 1ul << evi->type;
+        mask |= evi->mask;
       }
     }
   }

@@ -42,12 +42,13 @@ struct xev_event_specializer {
 };
 
 struct xev_event_info {
-  struct xev_event_list* event_list;
-  struct xev_event_list* children;
   char* name;
   int type;
-  size_t index;
   const struct xev_event_specializer* spec;
+  long mask;
+  struct xev_event_list* event_list;
+  struct xev_event_list* children;
+  size_t index;
 };
 
 struct xev_event_list {

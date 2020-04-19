@@ -4,7 +4,6 @@
 #include <dpaw/dpawindow/root.h>
 #include <X11/extensions/XRes.h>
 #include <X11/Xatom.h>
-#include <X11/Xutil.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -236,4 +235,38 @@ pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow){
     XFree(client_ids);
 
   return pid;
+}
+
+int dpawindow_get_reasonable_size_hints(const struct dpawindow* window, XSizeHints* ret){
+  {
+    XSizeHints* size_hints = XAllocSizeHints();
+    if(!size_hints)
+      return -1;
+    long s = 0;
+    int status = XGetWMNormalHints(window->dpaw->root.display, window->xwindow, size_hints, &s);
+    if(!size_hints)
+      return -1;
+    *ret = *size_hints;
+    XFree(size_hints);
+    if(!status)
+      return -1;
+  }
+  printf("min(%dx%d) base(%dx%d)\n",ret->min_width, ret->min_height, ret->base_width, ret->base_height);
+  if(ret->width <= 16)
+    ret->width = window->boundary.bottom_right.x - window->boundary.top_left.x;
+  if(ret->height <= 16)
+    ret->height = window->boundary.bottom_right.y - window->boundary.top_left.y;
+  if(ret->width <= ret->min_width)
+    ret->width = ret->min_width;
+  if(ret->height <= ret->min_height)
+    ret->height = ret->min_height;
+  if(ret->width <= ret->base_width)
+    ret->width = ret->base_width;
+  if(ret->height <= ret->base_height)
+    ret->height = ret->base_height;
+  if(ret->width <= 16)
+    ret->width = 600;
+  if(ret->height <= 16)
+    ret->height = 400;
+  return 0;
 }

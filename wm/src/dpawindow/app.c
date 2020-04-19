@@ -47,28 +47,8 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
     window->is_keyboard = res && *res;
     if(res) XFree(res);
   }
-  {
-    XSizeHints* size_hints = XAllocSizeHints();
-    if(size_hints){
-      long s = 0;
-      XGetWMNormalHints(dpaw->root.display, xwindow, size_hints, &s);
-      if(size_hints->width <= 0)
-        size_hints->width = size_hints->base_width;
-      if(size_hints->height <= 0)
-        size_hints->height = size_hints->base_height;
-      if(size_hints->width <= 0)
-        size_hints->width = window->window.boundary.bottom_right.x - window->window.boundary.top_left.x;
-      if(size_hints->height <= 0)
-        size_hints->height = window->window.boundary.bottom_right.y - window->window.boundary.top_left.y;
-      if(size_hints->width <= 0)
-        size_hints->width = 600;
-      if(size_hints->height <= 0)
-        size_hints->height = 400;
-      DPAW_APP_OBSERVABLE_SET(window, desired_placement, *size_hints);
-      XFree(size_hints);
-    }else{
-      DPAW_APP_OBSERVABLE_SET(window, desired_placement, (XSizeHints){0});
-    }
+  if(!dpawindow_get_reasonable_size_hints(&window->window, &window->observable.desired_placement.value)){
+    DPAW_APP_OBSERVABLE_NOTIFY(window, desired_placement);
   }
   {
     XWMHints* wm_hints = XGetWMHints(dpaw->root.display, xwindow);

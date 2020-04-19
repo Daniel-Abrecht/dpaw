@@ -7,32 +7,32 @@ struct dpaw_touch_event;
 
 #define XEV_EVENTS \
   X(GenericEvent, ( \
-    Y(XI_DeviceChanged, XIDeviceChangedEvent) \
-    Y(XI_KeyPress, XIDeviceEvent) \
-    Y(XI_KeyRelease, XIDeviceEvent) \
-    Y(XI_ButtonPress, XIDeviceEvent) \
-    Y(XI_ButtonRelease, XIDeviceEvent) \
-    Y(XI_Motion, XIDeviceEvent) \
-    Y(XI_Enter, XIEnterEvent) \
-    Y(XI_Leave, XILeaveEvent) \
-    Y(XI_FocusIn, XIFocusInEvent) \
-    Y(XI_FocusOut, XIFocusOutEvent) \
-    Y(XI_HierarchyChanged, XIHierarchyEvent) \
-    Y(XI_PropertyEvent, XIPropertyEvent) \
-    Y(XI_RawKeyPress, XIRawEvent) \
-    Y(XI_RawKeyRelease, XIRawEvent) \
-    Y(XI_RawButtonPress, XIRawEvent) \
-    Y(XI_RawButtonRelease, XIRawEvent) \
-    Y(XI_RawMotion, XIRawEvent) \
-    Y(XI_TouchBegin, struct dpaw_touch_event) \
-    Y(XI_TouchUpdate, struct dpaw_touch_event) \
-    Y(XI_TouchEnd, struct dpaw_touch_event) \
-    Y(XI_TouchOwnership, XITouchOwnershipEvent) \
-    Y(XI_RawTouchBegin, XIRawEvent) \
-    Y(XI_RawTouchUpdate, XIRawEvent) \
-    Y(XI_RawTouchEnd, XIRawEvent) \
-    Y(XI_BarrierHit, XIBarrierEvent) \
-    Y(XI_BarrierLeave, XIBarrierEvent) \
+    Y(XI_DeviceChanged, XIDeviceChangedEvent, 0) \
+    Y(XI_KeyPress, XIDeviceEvent, 0) \
+    Y(XI_KeyRelease, XIDeviceEvent, 0) \
+    Y(XI_ButtonPress, XIDeviceEvent, 0) \
+    Y(XI_ButtonRelease, XIDeviceEvent, 0) \
+    Y(XI_Motion, XIDeviceEvent, 0) \
+    Y(XI_Enter, XIEnterEvent, 0) \
+    Y(XI_Leave, XILeaveEvent, 0) \
+    Y(XI_FocusIn, XIFocusInEvent, 0) \
+    Y(XI_FocusOut, XIFocusOutEvent, 0) \
+    Y(XI_HierarchyChanged, XIHierarchyEvent, 0) \
+    Y(XI_PropertyEvent, XIPropertyEvent, 0) \
+    Y(XI_RawKeyPress, XIRawEvent, 0) \
+    Y(XI_RawKeyRelease, XIRawEvent, 0) \
+    Y(XI_RawButtonPress, XIRawEvent, 0) \
+    Y(XI_RawButtonRelease, XIRawEvent, 0) \
+    Y(XI_RawMotion, XIRawEvent, 0) \
+    Y(XI_TouchBegin, struct dpaw_touch_event, 0) \
+    Y(XI_TouchUpdate, struct dpaw_touch_event, 0) \
+    Y(XI_TouchEnd, struct dpaw_touch_event, 0) \
+    Y(XI_TouchOwnership, XITouchOwnershipEvent, 0) \
+    Y(XI_RawTouchBegin, XIRawEvent, 0) \
+    Y(XI_RawTouchUpdate, XIRawEvent, 0) \
+    Y(XI_RawTouchEnd, XIRawEvent, 0) \
+    Y(XI_BarrierHit, XIBarrierEvent, 0) \
+    Y(XI_BarrierLeave, XIBarrierEvent, 0) \
   ))
 
 #define XEV_EXT xinput2

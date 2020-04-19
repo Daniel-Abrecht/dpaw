@@ -6,6 +6,7 @@
 #include <dpaw/primitives.h>
 #include <dpaw/linked_list.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,5 +102,6 @@ int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);
 int dpawindow_close(struct dpawindow* window); // Asks the window to close itself or kills the client if it doesn't support that, don't use it on own windows
 pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow); // Not always possible
+int dpawindow_get_reasonable_size_hints(const struct dpawindow* window, XSizeHints* ret);
 
 #endif
