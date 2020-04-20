@@ -46,7 +46,7 @@ enum event_handler_result dpaw_xev_X_dispatch(struct dpaw* dpaw, struct xev_even
   return result;
 }
 
-int dpaw_xev_X_listen(struct xev_event_extension* extension, struct dpawindow* window){
+int dpaw_xev_X_subscribe(struct xev_event_extension* extension, struct dpawindow* window){
   (void)extension;
   unsigned long mask = 0;
   struct dpawindow* set[] = {
@@ -79,6 +79,12 @@ int dpaw_xev_X_listen(struct xev_event_extension* extension, struct dpawindow* w
   dpawindow_has_error_occured(window->dpaw->root.display);
   XSelectInput(window->dpaw->root.display, window->xwindow, mask);
   return dpawindow_has_error_occured(window->dpaw->root.display);
+}
+
+int dpaw_xev_X_unsubscribe(struct xev_event_extension* extension, struct dpawindow* window){
+  (void)extension;
+  XSelectInput(window->dpaw->root.display, window->xwindow, 0);
+  return 0;
 }
 
 static void load_generic_event(struct dpaw* dpaw, void** data){

@@ -66,7 +66,7 @@ void dpaw_xev_xinput2_preprocess_event(struct dpaw* dpaw, XEvent* event){
 
 enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xev_event* event){
   {
-    // Let's ignore any fake events
+    // Let's unsubscribe any fake events
     XAnyEvent* xany = event->data;
     if(xany->send_event)
       return EHR_UNHANDLED;
@@ -124,7 +124,7 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
   return EHR_UNHANDLED;
 }
 
-int dpaw_xev_xinput2_listen(struct xev_event_extension* extension, struct dpawindow* window){
+int dpaw_xev_xinput2_subscribe(struct xev_event_extension* extension, struct dpawindow* window){
   (void)extension;
   XIEventMask mask = {
     .deviceid = XIAllMasterDevices,
@@ -206,6 +206,15 @@ int dpaw_xev_xinput2_listen(struct xev_event_extension* extension, struct dpawin
     free(mask.mask);
 
   return dpawindow_has_error_occured(window->dpaw->root.display);
+}
+
+int dpaw_xev_xinput2_unsubscribe(struct xev_event_extension* extension, struct dpawindow* window){
+  (void)extension;
+  XIEventMask mask = {
+    .deviceid = XIAllMasterDevices,
+  };
+  XISelectEvents(window->dpaw->root.display, window->xwindow, &mask, 1);
+  return 0;
 }
 
 static void load_touch_event(struct dpaw* dpaw, void** data){

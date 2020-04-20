@@ -45,7 +45,7 @@ enum event_handler_result dpaw_xev_randr_dispatch(struct dpaw* dpaw, struct xev_
   return EHR_UNHANDLED;
 }
 
-int dpaw_xev_randr_listen(struct xev_event_extension* extension, struct dpawindow* window){
+int dpaw_xev_randr_subscribe(struct xev_event_extension* extension, struct dpawindow* window){
   if(window != &window->dpaw->root.window)
     return 0;
   if(!window->type->event_lookup_table.event_handler_list)
@@ -70,4 +70,12 @@ int dpaw_xev_randr_listen(struct xev_event_extension* extension, struct dpawindo
   }
   XRRSelectInput(window->dpaw->root.display, window->dpaw->root.window.xwindow, mask);
   return 0;
+}
+
+int dpaw_xev_randr_unsubscribe(struct xev_event_extension* extension, struct dpawindow* window){
+  (void)extension;
+  if(window != &window->dpaw->root.window)
+    return 0;
+  XRRSelectInput(window->dpaw->root.display, window->dpaw->root.window.xwindow, 0);
+  return -1;
 }

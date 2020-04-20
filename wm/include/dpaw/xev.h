@@ -72,7 +72,8 @@ struct xev_event_extension {
   int first_error;
   int(*init)(struct dpaw*, struct xev_event_extension*);
   int(*cleanup)(struct dpaw*, struct xev_event_extension*);
-  int(*listen)(struct xev_event_extension*, struct dpawindow*);
+  int(*subscribe)(struct xev_event_extension*, struct dpawindow*);
+  int(*unsubscribe)(struct xev_event_extension*, struct dpawindow*);
   void(*preprocess_event)(struct dpaw*, XEvent*);
   int(*dispatch)(struct dpaw*, struct xev_event*);
 };

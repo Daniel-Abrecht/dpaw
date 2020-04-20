@@ -21,7 +21,8 @@ extern struct xev_event_extension DPAW_CONCAT(dpaw_xev_ext_, XEV_EXT);
 
 extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _init)(struct dpaw*, struct xev_event_extension*);
 extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _cleanup)(struct dpaw*, struct xev_event_extension*);
-extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _listen)(struct xev_event_extension*, struct dpawindow*);
+extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _subscribe)(struct xev_event_extension*, struct dpawindow*);
+extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _unsubscribe)(struct xev_event_extension*, struct dpawindow*);
 extern void DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _preprocess_event)(struct dpaw*, XEvent*);
 extern int DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _dispatch)(struct dpaw*, struct xev_event*);
 
@@ -81,7 +82,8 @@ static void xev_constructor(void){
 
   extension->name = DPAW_STR(XEV_EXT);
   extension->init = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _init);
-  extension->listen = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _listen);
+  extension->subscribe = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _subscribe);
+  extension->unsubscribe = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _unsubscribe);
   extension->cleanup = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _cleanup);
   extension->dispatch = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _dispatch);
   extension->preprocess_event = DPAW_CONCAT(DPAW_CONCAT(dpaw_xev_, XEV_EXT), _preprocess_event);

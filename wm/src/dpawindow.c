@@ -127,10 +127,10 @@ int dpawindow_register(struct dpawindow* window){
   for(struct xev_event_extension* extension=dpaw_event_extension_list; extension; extension=extension->next){
     if(!extension->initialised)
       continue;
-    if(!extension->listen)
+    if(!extension->subscribe)
       continue;
-    if(extension->listen(extension, window)){
-      fprintf(stderr, "Failed to listen for events of extension %s on window of type %s\n", extension->name, window->type->name);
+    if(extension->subscribe(extension, window)){
+      fprintf(stderr, "Failed to subscribe for events of extension %s on window of type %s\n", extension->name, window->type->name);
       if(extension->required)
         return -1;
     }
@@ -145,6 +145,9 @@ int dpawindow_unregister(struct dpawindow* window){
     return -1;
   if(window->xwindow)
     XRemoveFromSaveSet(window->dpaw->root.display, window->xwindow);
+  for(struct xev_event_extension* extension=dpaw_event_extension_list; extension; extension=extension->next)
+    if(extension->unsubscribe)
+      extension->unsubscribe(extension, window);
   dpaw_linked_list_set(0, &window->dpaw_window_entry, 0);
   dpaw_linked_list_set(0, &window->dpaw_window_update_entry, 0);
   return 0;

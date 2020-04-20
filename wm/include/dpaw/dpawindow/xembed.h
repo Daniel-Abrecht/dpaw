@@ -78,8 +78,9 @@ DECLARE_DPAW_DERIVED_WINDOW( xembed,
   struct dpaw_callback_dpawindow pre_cleanup;
   struct dpaw_callback_dpawindow parent_boundary_changed;
   struct dpaw_callback_dpawindow_root new_window;
-  int stdout;
   struct dpaw_xembed_info info;
+  int stdout;
+  bool ready;
 )
 
 int dpawindow_xembed_init(
