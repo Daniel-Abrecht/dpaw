@@ -1,0 +1,59 @@
+
+#ifndef DPAW_PLUGIN_C_GENCODE
+
+#define X(R, N, P) typedef R DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N ## _t) P;
+#ifdef DPAW_PLUGIN_CALLBACKS
+DPAW_PLUGIN_CALLBACKS(X)
+#endif
+#ifdef DPAW_PLUGIN_FUNCTIONS
+DPAW_PLUGIN_FUNCTIONS(X)
+#endif
+#undef X
+
+#endif
+
+#ifndef DPAW_WM
+
+#define X(R, N, P) \
+  extern DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N ## _t)* DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N); \
+  __attribute__((weak,visibility("default"))) DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N ## _t)* DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N);
+#ifdef DPAW_PLUGIN_CALLBACKS
+DPAW_PLUGIN_CALLBACKS(X)
+#endif
+#undef X
+
+#define X(R, N, P) __attribute__((visibility("default"),used)) DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N ## _t) DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N);
+#ifdef DPAW_PLUGIN_FUNCTIONS
+DPAW_PLUGIN_FUNCTIONS(X)
+#endif
+#undef X
+
+#else
+#ifndef DPAW_PLUGIN_C_GENCODE
+
+#define X(R, N, P) DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N ## _t) DPAW_P_CONCAT(DPAW_P_CONCAT(dpaw_, DPAW_PLUGIN_TYPE), _ ## N);
+#ifdef DPAW_PLUGIN_CALLBACKS
+DPAW_PLUGIN_CALLBACKS(X)
+#endif
+#undef X
+
+#else
+
+#if defined(DPAW_PLUGIN_CALLBACKS) && defined(CALLBACK_CODE_GENERATOR)
+DPAW_PLUGIN_CALLBACKS(CALLBACK_CODE_GENERATOR)
+#endif
+
+#if defined(DPAW_PLUGIN_FUNCTIONS) && defined(FUNCTION_CODE_GENERATOR)
+DPAW_PLUGIN_FUNCTIONS(FUNCTION_CODE_GENERATOR)
+#endif
+
+#endif
+#endif
+
+#ifdef DPAW_PLUGIN_CALLBACKS
+#undef DPAW_PLUGIN_CALLBACKS
+#endif
+#ifdef DPAW_PLUGIN_FUNCTIONS
+#undef DPAW_PLUGIN_FUNCTIONS
+#endif
+#undef DPAW_PLUGIN_TYPE

@@ -2,7 +2,7 @@ Source: dpaw
 Section: x11
 Priority: optional
 Maintainer: Daniel Patrick Abrecht <deb@danielabrecht.ch>
-Build-Depends: debhelper (>= 11), libx11-dev, libxi-dev, libxrandr-dev, libxres-dev
+Build-Depends: debhelper (>= 11), libx11-dev, libxi-dev, libxrandr-dev, libxres-dev, libatspi2.0-dev
 Standards-Version: 4.1.3
 Homepage: https://daniel.abrecht.li/p/dpaw
 #Vcs-Browser: https://salsa.debian.org/debian/dpaw
@@ -20,11 +20,19 @@ Description: Meta package for DPAW mobile & desktop environment
 Package: dpaw-wm
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends: onboard, at-spi2-core, qt-at-spi, default-dbus-session-bus | dbus-session-bus
+Recommends: dpaw-wm-plugin-0-at-spi2, onboard, default-dbus-session-bus | dbus-session-bus
 Suggests: dpaw
 Description: window manager suitable for mobile phones
  Contains only the dpaw window manager. To get all packages of the DPAW
  mobile & desktop enviromnet, consider installing the DPAW package instead.
+
+Package: dpaw-wm-dev
+Architecture: all
+Depends: ${misc:Depends}
+Suggests: dpaw
+Description: Development files for the DPAW WM
+ Contains development files for interacting with the dpaw window manager.
+ This includes all header files necessary for plugin development.
 
 Package: dpaw-session
 Architecture: all
@@ -37,3 +45,14 @@ Description: X11 DPAW session
  To get the full dpaw desktop environment, install the dpaw
  metapackage instead. This package may become more complex and
  independent of dpaw-wm at some point!
+
+Package: dpaw-wm-plugin-0-at-spi2
+Architecture: any
+Depends: at-spi2-core, ${shlibs:Depends}, ${misc:Depends}
+Suggests: dpaw
+Description: at-spi2 plugin for DPAW WM - needed for some accessibillity stuff
+ This is needed for stuff like automatically showing the onscreen keyboard.
+ This plugin adds some support for the at-spi2 accessibillity bus to the
+ DPAW window manager.
+ Automatically showing the onscreen keyboard is the only thing it currently
+ does, though.

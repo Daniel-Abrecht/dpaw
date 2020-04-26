@@ -1,6 +1,6 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/atom.h>
-#include <dpaw/process.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/atom.h>
+#include <-dpaw/process.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>

@@ -1,9 +1,9 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/X.c>
-#include <dpaw/atom/ewmh.c>
-#include <dpaw/workspace.h>
-#include <dpaw/screenchange.h>
-#include <dpaw/dpawindow/root.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/X.c>
+#include <-dpaw/atom/ewmh.c>
+#include <-dpaw/workspace.h>
+#include <-dpaw/screenchange.h>
+#include <-dpaw/dpawindow/root.h>
 #include <X11/Xatom.h>
 #include <stdio.h>
 #include <stdlib.h>

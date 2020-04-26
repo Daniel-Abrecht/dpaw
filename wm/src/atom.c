@@ -1,6 +1,6 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/atom.h>
-#include <dpaw/dpawindow.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/atom.h>
+#include <-dpaw/dpawindow.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>

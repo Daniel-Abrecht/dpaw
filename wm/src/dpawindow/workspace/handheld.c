@@ -1,12 +1,12 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/X.c>
-#include <dpaw/xev/xinput2.c>
-#include <dpaw/atom/ewmh.c>
-#include <dpaw/dpawindow.h>
-#include <dpaw/dpawindow/app.h>
-#include <dpaw/dpawindow/root.h>
-#include <dpaw/dpawindow/workspace/handheld.h>
-#include <dpaw/touch_gesture_detector/sideswipe.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/X.c>
+#include <-dpaw/xev/xinput2.c>
+#include <-dpaw/atom/ewmh.c>
+#include <-dpaw/dpawindow.h>
+#include <-dpaw/dpawindow/app.h>
+#include <-dpaw/dpawindow/root.h>
+#include <-dpaw/dpawindow/workspace/handheld.h>
+#include <-dpaw/touch_gesture_detector/sideswipe.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -220,6 +220,11 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     return -1;
   }
 
+/*  if(dpawindow_xembed_init(workspace->window.dpaw, &workspace->keyboard)){
+    fprintf(stderr, "dpawindow_xembed_init failed\n");
+    return -1;
+  }*/
+
   struct dpaw_sideswipe_detector_params sideswipe_params = {
     .mask = (1<<DPAW_DIRECTION_RIGHTWARDS)
           | (1<<DPAW_DIRECTION_LEFTWARDS)
@@ -256,12 +261,25 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     return -1;
   }
 
+/*  if(dpawindow_xembed_exec(
+    &workspace->keyboard,
+    XEMBED_METHOD_TAKE_WINDOW_FROM_STDOUT,
+    (const char*const[]){"onboard","--xid",0},
+    .keep_env = true
+  )){
+    fprintf(stderr, "dpawindow_xembed_exec failed\n");
+    return -1;
+  }
+  workspace->keyboard.parent.is_keyboard = true;
+  dpaw_workspace_add_window(&workspace->workspace, &workspace->keyboard.parent);*/
+
   return ret;
 }
 
 static void dpawindow_workspace_handheld_cleanup(struct dpawindow_workspace_handheld* workspace){
   puts("handheld_workspace cleanup");
   dpaw_touch_gesture_manager_cleanup(&workspace->touch_gesture_manager);
+  dpawindow_cleanup(&workspace->keyboard.window); // Technically, this is currently not necessary
 }
 
 static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpaw_workspace_screen* screen){
@@ -381,6 +399,7 @@ int desired_placement_change_handler(void* private, struct dpawindow_app* app, X
   (void)private;
   (void)size;
   struct dpawindow_handheld_window* handheld_window = app->workspace_private;
+  printf("desired_placement_change_handler %ld %dx%d\n", app->window.xwindow, app->observable.desired_placement.value.width, app->observable.desired_placement.value.height);
   update_window_area(handheld_window);
   update_window_size(handheld_window->workspace);
   return 0;

@@ -1,7 +1,7 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/atom/icccm.c>
-#include <dpaw/dpawindow.h>
-#include <dpaw/dpawindow/root.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/atom/icccm.c>
+#include <-dpaw/dpawindow.h>
+#include <-dpaw/dpawindow/root.h>
 #include <X11/extensions/XRes.h>
 #include <X11/Xatom.h>
 #include <stdio.h>

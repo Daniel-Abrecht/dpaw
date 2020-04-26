@@ -1,5 +1,5 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/touch_gesture_manager.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/touch_gesture_manager.h>
 #include <string.h>
 #include <stdio.h>
 

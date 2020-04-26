@@ -1,8 +1,8 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/dpawindow/xembed.h>
-#include <dpaw/atom.h>
-#include <dpaw/xev/X.c>
-#include <dpaw/atom/xembed.c>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/dpawindow/xembed.h>
+#include <-dpaw/atom.h>
+#include <-dpaw/xev/X.c>
+#include <-dpaw/atom/xembed.c>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -290,6 +290,8 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
     return 0;
 
   if(xembed->window.xwindow){
+    dpawindow_set_mapping(&xembed->window, false);
+    dpawindow_hide(&xembed->window, true);
     dpawindow_unregister(&xembed->window);
     XKillClient(xembed->window.dpaw->root.display, xembed->window.xwindow);
     xembed->window.xwindow = 0;

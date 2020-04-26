@@ -1,7 +1,10 @@
 PREFIX=/usr
 
+include plugin/version.mk
+
 CC_OPTS += -Wall -Wextra -pedantic -std=c11
 CC_OPTS += -D_DEFAULT_SOURCE
+CC_OPTS += -DDPAW_WM
 CC_OPTS += -Iinclude/ -Ibuild/include/
 
 ifndef RELEASE
@@ -13,25 +16,56 @@ LD_OPTS += -fsanitize=address
 endif
 endif
 
-LD_OPTS += -lX11 -lXi -lXrandr -lXRes
+ifdef RELEASE
+CC_OPTS += -ffunction-sections -fdata-sections
+LD_OPTS += -Wl,--gc-sections
+endif
+
+LDLIBS += -lX11 -lXi -lXrandr -lXRes -ldl
 
 SOURCES = $(shell find src/ -iname "*.c") $(shell find include/ -iname "*.c")
 HEADERS = $(shell find include/ -type f)
 
 OBJECTS = $(patsubst %.c,build/%.c.o,$(SOURCES))
 
-all: bin/dpaw
+.PHONY: all clean plugin
+
+all: bin/dpaw plugin
+
+plugin:
+	$(MAKE) -C plugin
 
 bin/dpaw: $(OBJECTS)
 	mkdir -p "$(dir $@)"
-	$(CC) -o "$@" $(LD_OPTS) $^
+	$(CC) -o "$@" $(LD_OPTS) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS)
+
+build/include/api/dpaw/plugin/all.h: $(wildcard include/api/dpaw/plugin/*)
+	mkdir -p "$(dir $@)"
+	( \
+	  echo '#ifdef DPAW_WM'; \
+	  for plugin in $^; \
+	  do \
+	    echo "#include <api/dpaw/plugin/$$(basename "$$plugin")>"; \
+	  done; \
+	  echo '#else'; \
+	  for plugin in $^; \
+	  do \
+	    echo "#include <dpaw/plugin/$$(basename "$$plugin")>"; \
+	  done; \
+	  echo '#endif'; \
+	) >"$@"
+
+build/src/plugin.c.o: build/include/api/dpaw/plugin/all.h
 
 build/include/%.c.o: CC_OPTS += -DGENERATE_DEFINITIONS
 build/%.c.o: %.c $(HEADERS)
 	mkdir -p "$(dir $@)"
 	$(CC) -c -o "$@" $(CC_OPTS) $(CFLAGS) $(CPPFLAGS) "$<"
 
-clean:
+plugin-clean:
+	$(MAKE) -C plugin clean
+
+clean: plugin-clean
 	rm -rf build bin
 
 test-run-valgrind:
@@ -48,4 +82,8 @@ test-run: all
 install:
 	mkdir -p "$(DESTDIR)$(PREFIX)/bin/"
 	cp bin/dpaw "$(DESTDIR)$(PREFIX)/bin/dpaw"
-
+	mkdir -p "$(DESTDIR)$(PREFIX)/include/"
+	cp -r include/api/* "$(DESTDIR)$(PREFIX)/include/"
+	cp -r build/include/api/* "$(DESTDIR)$(PREFIX)/include/"
+	mkdir -p "$(DESTDIR)$(PREFIX)/lib/dpaw/plugin-$(DPAW_PLUGIN_MAJOR)/"
+	cp bin/plugin/*.so "$(DESTDIR)$(PREFIX)/lib/dpaw/plugin-$(DPAW_PLUGIN_MAJOR)/"

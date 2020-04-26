@@ -1,9 +1,9 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/X.c>
-#include <dpaw/atom/ewmh.c>
-#include <dpaw/atom/misc.c>
-#include <dpaw/dpawindow/app.h>
-#include <dpaw/workspace.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/X.c>
+#include <-dpaw/atom/ewmh.c>
+#include <-dpaw/atom/misc.c>
+#include <-dpaw/dpawindow/app.h>
+#include <-dpaw/workspace.h>
 #include <stdio.h>
 
 DEFINE_DPAW_DERIVED_WINDOW(app)

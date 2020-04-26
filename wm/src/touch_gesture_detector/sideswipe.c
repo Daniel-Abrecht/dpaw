@@ -1,4 +1,4 @@
-#include <dpaw/touch_gesture_detector/sideswipe.h>
+#include <-dpaw/touch_gesture_detector/sideswipe.h>
 #include <string.h>
 
 static void reset(struct dpaw_touch_gesture_detector* detector){

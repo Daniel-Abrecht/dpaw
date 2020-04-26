@@ -1,6 +1,6 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/X.c>
-#include <dpaw/dpawindow.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/X.c>
+#include <-dpaw/dpawindow.h>
 #include <stddef.h>
 #include <stdio.h>
 

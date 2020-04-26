@@ -1,0 +1,25 @@
+#include <-dpaw/atom.h>
+
+#define X(Y) \
+  extern Atom Y; \
+  extern struct dpaw_atom dpaw_atom_ ## Y;
+ATOMS
+#undef X
+
+#ifdef GENERATE_DEFINITIONS
+
+#define X(Y) \
+  Atom Y; \
+  struct dpaw_atom dpaw_atom_ ## Y; \
+  __attribute__((constructor,used)) void dpaw_const_ ## Y(void) { \
+    dpaw_atom_ ## Y.atom = &Y; \
+    dpaw_atom_ ## Y.name = #Y; \
+    dpaw_atom_ ## Y.next = dpaw_atom_list; \
+    dpaw_atom_list = &dpaw_atom_ ## Y; \
+  }
+ATOMS
+#undef X
+
+#endif
+
+#undef ATOMS

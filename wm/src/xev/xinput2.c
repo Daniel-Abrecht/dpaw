@@ -1,6 +1,6 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/X.c>
-#include <dpaw/xev/xinput2.c>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/X.c>
+#include <-dpaw/xev/xinput2.c>
 #include <X11/extensions/XInput2.h>
 #include <stdio.h>
 #include <stdlib.h>

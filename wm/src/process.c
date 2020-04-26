@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdnoreturn.h>
-#include <dpaw/dpaw.h>
-#include <dpaw/process.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/process.h>
 
 
 static noreturn void dpaw_process_create_sub_child(

@@ -8,11 +8,14 @@ xprop -root -remove AT_SPI_BUS
 /usr/lib/at-spi2-core/at-spi-bus-launcher &
 
 xfce4-terminal &
-onboard &
 
 export ASAN_OPTIONS=abort_on_error=1
 
+project_root="$(dirname "$(realpath "$0")")"
+
+export DPAW_PLUGIN_DIR="$project_root/bin/plugin/"
+
 if [ -z "$VALGRIND" ]
-  then exec "$(dirname "$(realpath "$0")")/bin/dpaw"
-  else exec valgrind --leak-check=full --show-leak-kinds=all --suppressions="$(dirname "$(realpath "$0")")/dpaw.supp" "$(dirname "$(realpath "$0")")/bin/dpaw"
+  then exec "$project_root/bin/dpaw"
+  else exec valgrind --leak-check=full --show-leak-kinds=all --suppressions="$project_root/dpaw.supp" "$project_root/bin/dpaw"
 fi

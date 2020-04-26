@@ -1,7 +1,7 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/X.c>
-#include <dpaw/xev/randr.c>
-#include <dpaw/dpawindow.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/X.c>
+#include <-dpaw/xev/randr.c>
+#include <-dpaw/dpawindow.h>
 #include <stdio.h>
 
 struct xev_event_specializer dpaw_xev_spec_RRNotify = {

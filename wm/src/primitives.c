@@ -1,6 +1,6 @@
 #define _GNU_SOURCE // I need qsort_r here. Otherwise, I would have to create 4 comperator functions...
-#include <dpaw/dpaw.h>
-#include <dpaw/primitives.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/primitives.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>

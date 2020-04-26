@@ -1,7 +1,7 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/randr.c>
-#include <dpaw/screenchange.h>
-#include <dpaw/dpawindow/root.h>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/randr.c>
+#include <-dpaw/screenchange.h>
+#include <-dpaw/dpawindow/root.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

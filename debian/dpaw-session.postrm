@@ -1,9 +1,0 @@
-#!/bin/sh
-
-set -e
-
-##DEBHELPER##
-
-if [ "$1" != upgrade ]
-  then update-alternatives --remove x-session-manager /usr/bin/dpaw-session
-fi

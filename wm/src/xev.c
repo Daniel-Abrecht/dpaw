@@ -1,5 +1,5 @@
-#include <dpaw/dpaw.h>
-#include <dpaw/xev/X.c>
+#include <-dpaw/dpaw.h>
+#include <-dpaw/xev/X.c>
 #include <stdint.h>
 #include <stdio.h>
 
