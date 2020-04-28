@@ -29,6 +29,7 @@ struct dpaw {
   struct dpaw_list window_list;
   struct dpaw_list window_update_list;
   struct dpaw_list process_list;
+  struct dpaw_list plugin_list;
   struct dpaw_touchevent_window_map touch_source[DPAW_WORKSPACE_MAX_TOUCH_SOURCES];
   DPAW_ARRAY(struct dpaw_fd) input_list;
   DPAW_ARRAY(struct pollfd) fd_list;

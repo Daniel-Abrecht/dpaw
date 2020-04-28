@@ -9,11 +9,7 @@ CC_OPTS += -I$(PROJECT)/include/api/ -I$(PROJECT)/build/include/api/
 
 ifndef RELEASE
 CC_OPTS += -Werror -g -Og
-LD_OPTS += -g -rdynamic
-ifndef NO_ASAN
-CC_OPTS += -fsanitize=address
-LD_OPTS += -fsanitize=address
-endif
+LD_OPTS += -g
 endif
 
 CC_OPTS += -fPIC -fvisibility=hidden

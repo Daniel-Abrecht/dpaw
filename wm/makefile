@@ -2,9 +2,12 @@ PREFIX=/usr
 
 include plugin/version.mk
 
+PLUGIN_INSTALL_DIR = $(DESTDIR)$(PREFIX)/lib/dpaw/plugin-$(DPAW_PLUGIN_MAJOR)/
+
 CC_OPTS += -Wall -Wextra -pedantic -std=c11
 CC_OPTS += -D_DEFAULT_SOURCE
 CC_OPTS += -DDPAW_WM
+CC_OPTS += -DDPAW_PLUGIN_PATH='"$(PLUGIN_INSTALL_DIR)"'
 CC_OPTS += -Iinclude/ -Ibuild/include/
 
 ifndef RELEASE
@@ -25,6 +28,7 @@ LDLIBS += -lX11 -lXi -lXrandr -lXRes -ldl
 
 SOURCES = $(shell find src/ -iname "*.c") $(shell find include/ -iname "*.c")
 HEADERS = $(shell find include/ -type f)
+HEADERS += build/include/api/dpaw/plugin/all.h
 
 OBJECTS = $(patsubst %.c,build/%.c.o,$(SOURCES))
 
@@ -55,8 +59,6 @@ build/include/api/dpaw/plugin/all.h: $(wildcard include/api/dpaw/plugin/*)
 	  echo '#endif'; \
 	) >"$@"
 
-build/src/plugin.c.o: build/include/api/dpaw/plugin/all.h
-
 build/include/%.c.o: CC_OPTS += -DGENERATE_DEFINITIONS
 build/%.c.o: %.c $(HEADERS)
 	mkdir -p "$(dir $@)"
@@ -86,4 +88,4 @@ install:
 	cp -r include/api/* "$(DESTDIR)$(PREFIX)/include/"
 	cp -r build/include/api/* "$(DESTDIR)$(PREFIX)/include/"
 	mkdir -p "$(DESTDIR)$(PREFIX)/lib/dpaw/plugin-$(DPAW_PLUGIN_MAJOR)/"
-	cp bin/plugin/*.so "$(DESTDIR)$(PREFIX)/lib/dpaw/plugin-$(DPAW_PLUGIN_MAJOR)/"
+	cp bin/plugin/*.so "$(PLUGIN_INSTALL_DIR)"

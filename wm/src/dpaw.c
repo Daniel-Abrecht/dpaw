@@ -1,5 +1,6 @@
 #include <-dpaw/dpaw.h>
 #include <-dpaw/atom.h>
+#include <-dpaw/plugin.h>
 #include <-dpaw/process.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -11,7 +12,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <signal.h>
-
 
 static volatile enum dpaw_state {
   DPAW_KEEP_RUNNING,
@@ -26,6 +26,7 @@ volatile bool got_sigchld = false;
 int dpaw_cleanup(struct dpaw* dpaw){
   if(!dpaw->initialised)
     return 0;
+  dpaw_plugin_unload_all(dpaw);
   dpaw->initialised = false;
   printf("Stopping dpaw...\n");
   if(dpaw->root.window.xwindow)
@@ -137,6 +138,7 @@ int dpaw_init(struct dpaw* dpaw){
     fprintf(stderr, "takeover_existing_windows failed\n");
     goto error;
   }
+  dpaw_plugin_load_all(dpaw);
   return 0;
 error:
   dpaw_cleanup(dpaw);
