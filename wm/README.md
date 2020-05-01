@@ -31,7 +31,7 @@ an approximate homophone, in normal conversations.
 This project tries to stay independent of other big desktop environments or gui frameworks
 such as gnome and kde/qt to the extent possible. If a functionality requires usage of
 such a framework or similarely common or invasive software, it'll be put into an optional
-plugin, which have a strictly separated API with limited functions accessible to them.
+program.
 
 
 # Developer notes
