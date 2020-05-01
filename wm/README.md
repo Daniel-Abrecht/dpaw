@@ -82,14 +82,10 @@ using <> instead of "". This way, `<-dpaw/*>` or `<api/*>` will be part of the i
 making it explicit if the public or private/internal api is used, and avoiding collisions with
 old already installed header files. If you see `<dpaw*>` anywhere, that's is probably wrong.
 An exception to this are files in `include/api/`, they should always use relative paths and ""
-for inclusions, and only include files of the public API. Files in `plugin/` should use <>,
-but they can only access files in `api/`, so that part is to be omitted in that case.
+for inclusions, and only include files of the public API.
 
 There are some special files in `include/-dpaw/` which the extensio `.c` instead of `.h`.
 These files generate code if compiled using `-DGENERATE_DEFINITIONS`, but are regular header
 files otherwise. The makefile will compile them this way once. The code generation of
 those files is usually handled by a separate `*.template` file, and have the purpose
 of abstracting away common boilerplate code for things like used X11 extensions and X11 atoms.
-This approach has a few limitations, due to which this is handled differently for plugin
-interfaces.
-

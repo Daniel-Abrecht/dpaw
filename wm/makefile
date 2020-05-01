@@ -1,13 +1,8 @@
 PREFIX=/usr
 
-include plugin/version.mk
-
-PLUGIN_INSTALL_DIR = $(DESTDIR)$(PREFIX)/lib/dpaw/plugin-$(DPAW_PLUGIN_MAJOR)/
-
 CC_OPTS += -Wall -Wextra -pedantic -std=c11
 CC_OPTS += -D_DEFAULT_SOURCE
 CC_OPTS += -DDPAW_WM
-CC_OPTS += -DDPAW_PLUGIN_PATH='"$(PLUGIN_INSTALL_DIR)"'
 CC_OPTS += -Iinclude/ -Ibuild/include/
 
 ifndef RELEASE
@@ -28,46 +23,23 @@ LDLIBS += -lX11 -lXi -lXrandr -lXRes -ldl
 
 SOURCES = $(shell find src/ -iname "*.c") $(shell find include/ -iname "*.c")
 HEADERS = $(shell find include/ -type f)
-HEADERS += build/include/api/dpaw/plugin/all.h
 
 OBJECTS = $(patsubst %.c,build/%.c.o,$(SOURCES))
 
-.PHONY: all clean plugin
+.PHONY: all clean
 
-all: bin/dpaw plugin
-
-plugin:
-	$(MAKE) -C plugin
+all: bin/dpaw
 
 bin/dpaw: $(OBJECTS)
 	mkdir -p "$(dir $@)"
 	$(CC) -o "$@" $(LD_OPTS) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS)
-
-build/include/api/dpaw/plugin/all.h: $(wildcard include/api/dpaw/plugin/*)
-	mkdir -p "$(dir $@)"
-	( \
-	  echo '#ifdef DPAW_WM'; \
-	  for plugin in $^; \
-	  do \
-	    echo "#include <api/dpaw/plugin/$$(basename "$$plugin")>"; \
-	  done; \
-	  echo '#else'; \
-	  for plugin in $^; \
-	  do \
-	    echo "#include <dpaw/plugin/$$(basename "$$plugin")>"; \
-	  done; \
-	  echo '#endif'; \
-	) >"$@"
 
 build/include/%.c.o: CC_OPTS += -DGENERATE_DEFINITIONS
 build/%.c.o: %.c $(HEADERS)
 	mkdir -p "$(dir $@)"
 	$(CC) -c -o "$@" $(CC_OPTS) $(CFLAGS) $(CPPFLAGS) "$<"
 
-plugin-clean:
-	$(MAKE) -C plugin clean
-
-clean: plugin-clean
+clean:
 	rm -rf build bin
 
 test-run-valgrind:
@@ -86,6 +58,4 @@ install:
 	cp bin/dpaw "$(DESTDIR)$(PREFIX)/bin/dpaw"
 	mkdir -p "$(DESTDIR)$(PREFIX)/include/"
 	cp -r include/api/* "$(DESTDIR)$(PREFIX)/include/"
-	cp -r build/include/api/* "$(DESTDIR)$(PREFIX)/include/"
-	mkdir -p "$(DESTDIR)$(PREFIX)/lib/dpaw/plugin-$(DPAW_PLUGIN_MAJOR)/"
-	cp bin/plugin/*.so "$(PLUGIN_INSTALL_DIR)"
+#	cp -r build/include/api/* "$(DESTDIR)$(PREFIX)/include/"
