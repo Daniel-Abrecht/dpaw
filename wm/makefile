@@ -4,7 +4,7 @@ SOURCES += $(shell find include/-dpaw/ -type f -iname "*.c")
 
 CC_OPTS += -Ibuild/include/
 
-LD_LIBS += -Llib -ldpaw-$(LIBDPAW_MAJOR)
+LD_LIBS += -Llib -ldpaw-wm
 LD_LIBS += -lX11 -lXi -lXrandr -lXRes -ldl
 
 include common.mk
