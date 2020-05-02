@@ -2,5 +2,6 @@ debhelper-build-stamp
 .debhelper/
 *.substvars
 dpaw*/
+libdpaw*/
 files
 tmp/

@@ -1,5 +1,5 @@
-#ifndef ATOM_MISC_H
-#define ATOM_MISC_H
+#ifndef DPAW_ATOM_XEMBED_H
+#define DPAW_ATOM_XEMBED_H
 
 #define ATOMS \
   X(_XEMBED) \

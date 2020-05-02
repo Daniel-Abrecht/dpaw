@@ -19,16 +19,16 @@ Description: Meta package for DPAW mobile & desktop environment
 
 Package: dpaw-wm
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: libdpaw-wm0 (>= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Recommends: onboard, default-dbus-session-bus | dbus-session-bus
 Suggests: dpaw
 Description: window manager suitable for mobile phones
  Contains only the dpaw window manager. To get all packages of the DPAW
  mobile & desktop enviromnet, consider installing the DPAW package instead.
 
-Package: dpaw-wm-dev
-Architecture: all
-Depends: ${misc:Depends}
+Package: libdpaw-wm-dev
+Architecture: any
+Depends: libdpaw-wm0 (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Suggests: dpaw
 Description: Development files for the DPAW WM
  Contains development files for interacting with the dpaw window manager.
@@ -45,3 +45,14 @@ Description: X11 DPAW session
  To get the full dpaw desktop environment, install the dpaw
  metapackage instead. This package may become more complex and
  independent of dpaw-wm at some point!
+
+Package: libdpaw-wm0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: dpaw
+Description: convenience library for interacting with dpaw-wm
+ Other applications may want to let the dpaw window manager do
+ certain things, like showing the onscreen keyboard, for example.
+ This library offers methods to make that easier. It isn't strictly
+ necessary for that, though. Most things can be done manually by
+ setting an X11 property or by sending X11 ClientMessages as well.

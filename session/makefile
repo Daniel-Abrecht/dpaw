@@ -16,6 +16,6 @@ files/%@install:
 	  *.in) \
 	    sed 's/\$$\$$/\x1/g' <"files/$$file" | envsubst | sed 's/\x1/\$$/g' >"$(DESTDIR)$(PREFIX)/$$(expr "$$file" : "\(.*\).in")" ; \
 	    chmod --reference="files/$$file" "$(DESTDIR)$(PREFIX)/$$(expr "$$file" : "\(.*\).in")"; \
-          ;; \
+	  ;; \
 	  *) cp -a "files/$$file" "$(DESTDIR)$(PREFIX)/$$file" ;; \
 	esac

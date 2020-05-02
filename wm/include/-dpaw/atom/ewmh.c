@@ -1,5 +1,5 @@
-#ifndef ATOM_EWMH_H
-#define ATOM_EWMH_H
+#ifndef DPAW_ATOM_EWMH_H
+#define DPAW_ATOM_EWMH_H
 
 #define ATOMS \
   X(_NET_ACTIVE_WINDOW) \

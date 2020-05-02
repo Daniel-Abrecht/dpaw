@@ -1,5 +1,5 @@
-#ifndef ATOM_ICCCM_H
-#define ATOM_ICCCM_H
+#ifndef DPAW_ATOM_ICCCM_H
+#define DPAW_ATOM_ICCCM_H
 
 #define ATOMS \
   X(WM_PROTOCOLS) \

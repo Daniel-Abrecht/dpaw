@@ -13,7 +13,7 @@ export ASAN_OPTIONS=abort_on_error=1
 
 project_root="$(dirname "$(realpath "$0")")"
 
-export DPAW_PLUGIN_PATH="$project_root/bin/plugin/"
+export LD_LIBRARY_PATH="$project_root/lib/:$LD_LIBRARY_PATH"
 
 if [ -z "$VALGRIND" ]
   then exec "$project_root/bin/dpaw"

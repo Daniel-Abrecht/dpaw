@@ -1,5 +1,5 @@
-#ifndef ATOM_MISC_H
-#define ATOM_MISC_H
+#ifndef DPAW_ATOM_MISC_H
+#define DPAW_ATOM_MISC_H
 
 #define ATOMS \
   X(UTF8_STRING) /* There's also XA_STRING... */ \
