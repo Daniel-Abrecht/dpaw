@@ -9,9 +9,9 @@ LD_LIBS += -lX11 -lXi -lXrandr -lXRes -ldl
 
 include common.mk
 
-$(BIN): | lib/libdpaw-wm-$(LIBDPAW_MAJOR).so
+$(BIN): | lib/libdpaw-wm.so
 
-lib/libdpaw-wm-$(LIBDPAW_MAJOR).so: api@build
+lib/libdpaw-wm.so: api@build
 
 build/include/%.c.o: CC_OPTS += -DGENERATE_DEFINITIONS
 
