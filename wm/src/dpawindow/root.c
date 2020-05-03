@@ -1,6 +1,7 @@
 #include <-dpaw/dpaw.h>
 #include <-dpaw/xev/X.c>
 #include <-dpaw/atom/ewmh.c>
+#include <-dpaw/atom/dpaw.c>
 #include <-dpaw/workspace.h>
 #include <-dpaw/screenchange.h>
 #include <-dpaw/dpawindow/root.h>
@@ -68,6 +69,9 @@ int dpawindow_root_init(struct dpaw* dpaw, struct dpawindow_root* window){
 
 //    _NET_CLOSE_WINDOW,
 //    _NET_MOVERESIZE_WINDOW
+
+// DPAW custom atoms
+    _DPAW_EDITABLE,
   })));
 #undef AL
 

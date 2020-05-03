@@ -76,16 +76,21 @@ Header files are located in the `include/` directory. Source files are located i
 Generated include files are to be placed in `build/include/`. Files corresponding / strongly
 relating to each other should have similar names and relative location to those directories.
 
-The files in `include/api` will be available for other programs to be used. It's the public API.
 Files in `include/-dpaw` are only to be used within the window manager. Always include them
-using <> instead of "". This way, `<-dpaw/*>` or `<api/*>` will be part of the include,
-making it explicit if the public or private/internal api is used, and avoiding collisions with
-old already installed header files. If you see `<dpaw*>` anywhere, that's is probably wrong.
-An exception to this are files in `include/api/`, they should always use relative paths and ""
-for inclusions, and only include files of the public API.
+using <> instead of "". This way, `<-dpaw/*>` will be part of the include, making it explicit
+that it is a internal dpaw header file.
 
 There are some special files in `include/-dpaw/` which the extensio `.c` instead of `.h`.
 These files generate code if compiled using `-DGENERATE_DEFINITIONS`, but are regular header
 files otherwise. The makefile will compile them this way once. The code generation of
 those files is usually handled by a separate `*.template` file, and have the purpose
 of abstracting away common boilerplate code for things like used X11 extensions and X11 atoms.
+
+There are variouse subprojects in this project. These are in their own folder with their
+own makefile, although they share variouse options and common makefile parts by using the
+`common.mk` makefile. The DPAW WM is usually independent of these subprojects, but they may
+enhance some of it's functionality. If a subproject becomes too large, it should become it's
+own independent project. A special subproject is the `api/` subproject, it builds the `libdpaw-wm.so`
+convenience library, which makes it easier for programs to interact with the DPAW WM.
+The `api/` subproject is also currently the only one the DPAW WM directly depends on, and
+should be considered part of the DPAW WM itself.
