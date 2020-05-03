@@ -62,7 +62,7 @@ There are benefitts and some drawbacks to this. The reasons for using C are:
   for another day.)
 * It doesn't depend on a speciffic architecture.
 
-If another programming language is to be added to the project ni the future, it should
+If another programming language is to be added to the project in the future, it should
 satisfy the above points as well, and have a signifficant benefit justifying it's usage.
 
 ## Build system
@@ -80,7 +80,7 @@ Files in `include/-dpaw` are only to be used within the window manager. Always i
 using <> instead of "". This way, `<-dpaw/*>` will be part of the include, making it explicit
 that it is a internal dpaw header file.
 
-There are some special files in `include/-dpaw/` which the extensio `.c` instead of `.h`.
+There are some special files in `include/-dpaw/` which the extension `.c` instead of `.h`.
 These files generate code if compiled using `-DGENERATE_DEFINITIONS`, but are regular header
 files otherwise. The makefile will compile them this way once. The code generation of
 those files is usually handled by a separate `*.template` file, and have the purpose
