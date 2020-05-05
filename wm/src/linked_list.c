@@ -41,13 +41,17 @@ bool dpaw_linked_list_set(
     list->last  = entry;
     return true;
   }
-  if(!before)
-    before = list->first;
   entry->next = before;
-  entry->previous = before->previous;
-  if(before->previous)
-    before->previous->next = entry;
-  before->previous = entry;
+  if(!before){
+    entry->previous = list->last;
+    if(list->last)
+      list->last->next = entry;
+  }else{
+    entry->previous = before->previous;
+    if(before->previous)
+      before->previous->next = entry;
+    before->previous = entry;
+  }
   if(!entry->previous)
     list->first = entry;
   if(!entry->next)
