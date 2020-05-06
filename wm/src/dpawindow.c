@@ -1,4 +1,5 @@
 #include <-dpaw/dpaw.h>
+#include <-dpaw/atom/dpaw.c>
 #include <-dpaw/atom/icccm.c>
 #include <-dpaw/dpawindow.h>
 #include <-dpaw/dpawindow/root.h>
@@ -202,7 +203,15 @@ int dpawindow_deferred_update(struct dpawindow* window){
     state = NormalState;
   if(!window->mapped)
     state = WithdrawnState;
-  XChangeProperty(window->dpaw->root.display, window->xwindow, WM_STATE, WM_STATE, 32, PropModeReplace, (unsigned char*)(long[]){state,0}, 2);
+
+  {
+    // Only client windows or their frame should have the WM_STATE property.
+    // Otherwise, programs such as xwininfo may get confused sometimes
+    extern struct dpawindow_type dpawindow_type_app;
+    Atom state_atom = window->type == &dpawindow_type_app ? WM_STATE : _DPAW_WIN_STATE;
+    XChangeProperty(window->dpaw->root.display, window->xwindow, state_atom, WM_STATE, 32, PropModeReplace, (unsigned char*)(long[]){state,0}, 2);
+  }
+
   return 0;
 }
 
