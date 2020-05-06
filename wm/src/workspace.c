@@ -157,7 +157,7 @@ static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
     Window root_window_list[wmgr->workspace_list.size]; // Don't use window, an entry it may not be 32 bit long.
     size_t i = 0;
     for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next)
-      root_window_list[i] = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->window->xwindow;
+      root_window_list[i++] = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->window->xwindow;
     XChangeProperty(wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow, _NET_VIRTUAL_ROOTS, XA_WINDOW, 32, PropModeReplace, (void*)root_window_list, wmgr->workspace_list.size);
   }
   return 0;
