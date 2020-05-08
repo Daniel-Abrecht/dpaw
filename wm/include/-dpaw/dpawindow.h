@@ -19,9 +19,13 @@ struct dpawindow;
 
 struct dpawindow_type {
   const char* name;
-  bool is_workspace;
   struct xev_event_lookup_table event_lookup_table;
   void (*cleanup)(struct dpawindow*);
+
+  // Stuff for super types. This isn't pritty, but it has to go here, and
+  // since there is only a very low static amount of window types, it doesn't
+  // really matter how much stuff goes here anyway
+  const struct dpaw_workspace_type* workspace_type;
 };
 
 #define DPAW_SUPPORTED_WM_PROTOCOLS \
@@ -84,11 +88,7 @@ struct dpawindow {
   struct dpawindow_type dpawindow_type_ ## NAME = { \
     .name = #NAME, \
     .cleanup = (void(*)(struct dpawindow*))dpawindow_ ## NAME ## _cleanup \
-  }; \
-  __attribute__((constructor)) \
-  static void dpawindow_type_constructor_ ## NAME(void){ \
-    dpawindow_type_ ## NAME.is_workspace = !strncmp("workspace_", #NAME, 10); \
-  }
+  };
 
 bool dpawindow_has_error_occured(Display* display);
 void dpawindow_cleanup(struct dpawindow*);
@@ -101,6 +101,7 @@ int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);
 int dpawindow_register(struct dpawindow* window);
 int dpawindow_unregister(struct dpawindow* window);
 int dpawindow_close(struct dpawindow* window); // Asks the window to close itself or kills the client if it doesn't support that, don't use it on own windows
+void dpawindow_update_window_config(struct dpawindow* window);
 pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow); // Not always possible
 int dpawindow_get_reasonable_size_hints(const struct dpawindow* window, XSizeHints* ret);
 

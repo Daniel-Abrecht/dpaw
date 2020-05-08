@@ -4,6 +4,7 @@
 #include <-dpaw/atom/dpaw.c>
 #include <-dpaw/workspace.h>
 #include <-dpaw/screenchange.h>
+#include <-dpaw/dpawindow/app.h>
 #include <-dpaw/dpawindow/root.h>
 #include <X11/Xatom.h>
 #include <stdio.h>
@@ -126,7 +127,7 @@ EV_ON(root, MapRequest){
     bool is_in_root_or_workspace = parent == window->window.xwindow;
     if(!attribute.override_redirect && !is_in_root_or_workspace){
       struct dpawindow* rwin = dpawindow_lookup(window->window.dpaw, parent);
-      if(rwin && rwin->type->is_workspace)
+      if(rwin && rwin->type->workspace_type)
         is_in_root_or_workspace = true;
     }
     if(is_in_root_or_workspace){
@@ -141,7 +142,7 @@ EV_ON(root, MapRequest){
       XMapWindow(window->display, event->window);
       return EHR_NEXT;
     }
-    if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window) != 0)
+    if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window, 0) != 0)
       return EHR_ERROR;
   }else{
     // Probably already managed
@@ -152,7 +153,6 @@ EV_ON(root, MapRequest){
 
 EV_ON(root, UnmapNotify){
   printf("UnmapNotify %lx\n", event->window);
-  extern struct dpawindow_type dpawindow_type_app;
   struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
   if(!win)
     return EHR_NEXT;
@@ -194,6 +194,29 @@ EV_ON(root, ConfigureRequest){
 EV_ON(root, ReparentNotify){
   (void)window;
   printf("root ReparentNotify %lx\n", event->window);
+  struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
+  struct dpawindow* parent = dpawindow_lookup(window->window.dpaw, event->parent);
+  struct dpaw_workspace* workspace = dpawindow_to_dpaw_workspace(parent);
+  if(!win && workspace){
+    dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window, &(struct dpaw_workspace_manager_manage_window_options){
+      .workspace = workspace
+    });
+    return EHR_OK;
+  }
+  if(!win)
+    return EHR_NEXT;
+  dpawindow_update_window_config(win);
+  if(win->type != &dpawindow_type_app)
+    return EHR_NEXT;
+  if(!parent){
+    dpawindow_cleanup(win);
+    return EHR_OK;
+  }
+  struct dpawindow_app* app_window = container_of(win, struct dpawindow_app, window);
+  if(workspace){
+    dpaw_workspace_add_window(workspace, app_window);
+    return EHR_OK;
+  }
   return EHR_NEXT;
 }
 

@@ -188,7 +188,7 @@ int dpaw_xev_xinput2_subscribe(struct xev_event_extension* extension, struct dpa
           if(evi->event_list->extension != &dpaw_xev_ext_xinput2)
             continue;
           int type = evi->type;
-          if( window->type->is_workspace && (
+          if( window->type->workspace_type && (
               type == XI_TouchBegin
            || type == XI_TouchUpdate
            || type == XI_TouchEnd

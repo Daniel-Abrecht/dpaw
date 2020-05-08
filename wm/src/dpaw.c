@@ -64,7 +64,7 @@ static int takeover_existing_windows(struct dpaw* dpaw){
       printf("Not managing window %lx, either an override_redirect window or not viewable\n", window_list[i]);
       continue;
     }
-    if(dpaw_workspace_manager_manage_window(&dpaw->root.workspace_manager, window_list[i])){
+    if(dpaw_workspace_manager_manage_window(&dpaw->root.workspace_manager, window_list[i], 0)){
       fprintf(stderr, "dpaw_workspace_manager_manage_window failed\n");
     }
   }

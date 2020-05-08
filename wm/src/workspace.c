@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// TODO: Replace with dpaw_list
 static struct dpaw_workspace_type* workspace_type_list;
 
 int dpaw_workspace_set_focus(struct dpawindow_app* window){
@@ -189,6 +190,12 @@ static void workspace_post_cleanup(struct dpawindow* window, void* pworkspace, v
   free(window);
 }
 
+struct dpaw_workspace* dpawindow_to_dpaw_workspace(struct dpawindow* window){
+  if(!window || !window->type->workspace_type)
+    return 0;
+  return (struct dpaw_workspace*)((char*)window+window->type->workspace_type->derived_offset);
+}
+
 static struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_type* type){
   if(type->size+type->derived_offset < sizeof(struct dpaw_workspace)){
     fprintf(stderr, "Error: Invalid workspace type size\n");
@@ -290,6 +297,7 @@ void dpaw_workspace_screen_cleanup(struct dpaw_workspace_screen* screen){
 }
 
 void dpaw_workspace_type_register(struct dpaw_workspace_type* type){
+  type->window_type->workspace_type = type;
   type->next = workspace_type_list;
   workspace_type_list = type;
 }
@@ -357,7 +365,7 @@ static void workspace_app_post_cleanup(struct dpawindow* window, void* regptr, v
   free(app);
 }
 
-int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window){
+int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window, const struct dpaw_workspace_manager_manage_window_options* options){
   {
     struct dpawindow* win = dpawindow_lookup(wmgr->dpaw, window);
     if(win){
@@ -369,7 +377,13 @@ int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Wi
     fprintf(stderr, "Error: No workspaces available\n");
     return -1;
   }
-  struct dpaw_workspace* workspace = container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry);
+  struct dpaw_workspace* workspace = 0;
+  if(options)
+    workspace = options->workspace;
+  if(!workspace){
+    // TODO: add some more logic to this
+    workspace = container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry);
+  }
   struct dpawindow_app* app_window;
   {
     struct dpawindow_workspace_app {
@@ -412,7 +426,6 @@ error:
 void dpaw_workspace_manager_destroy(struct dpaw_workspace_manager* wmgr){
   if(!wmgr->dpaw)
     return;
-  // TODO: Reparent all windows to root & remove all workspaces
   dpaw_screenchange_listener_unregister(&wmgr->dpaw->root.screenchange_detector, screenchange_handler, wmgr);
   while(wmgr->workspace_list.first)
     dpawindow_cleanup(container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry)->window);

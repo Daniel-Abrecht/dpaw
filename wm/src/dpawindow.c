@@ -62,26 +62,26 @@ int dpawindow_close(struct dpawindow* window){
   return 0;
 }
 
-static void update_window_config(struct dpawindow* window){
+void dpawindow_update_window_config(struct dpawindow* window){
   window->d_update_config = true;
   dpaw_linked_list_set(&window->dpaw->window_update_list, &window->dpaw_window_update_entry, 0);
 }
 
 int dpawindow_hide(struct dpawindow* window, bool hidden){
   window->hidden = hidden;
-  update_window_config(window);
+  dpawindow_update_window_config(window);
   return 0;
 }
 
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping){
   window->mapped = mapping;
-  update_window_config(window);
+  dpawindow_update_window_config(window);
   return 0;
 }
 
 int dpawindow_place_window(struct dpawindow* window, struct dpaw_rect boundary){
   window->boundary = boundary;
-  update_window_config(window);
+  dpawindow_update_window_config(window);
   DPAW_CALL_BACK(dpawindow, window, boundary_changed, 0);
   return 0;
 }
@@ -165,7 +165,7 @@ int dpawindow_deferred_update(struct dpawindow* window){
   );
   bool is_visible = window->mapped && !window->hidden && valid_placement;
 /*  printf(
-    "update_window_config: %lx %ld %ld %ld %ld %c%c %c\n",
+    "dpawindow_update_window_config: %lx %ld %ld %ld %ld %c%c %c\n",
     window->xwindow,
     boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x, boundary.bottom_right.y,
     window->mapped ? 'm' : 'u',

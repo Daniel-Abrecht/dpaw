@@ -17,6 +17,7 @@ struct dpaw_workspace_manager {
   struct dpawindow_workspace_ ## NAME; \
   struct dpaw_ ## T ## _type { \
     struct dpaw_workspace_type* next; \
+    struct dpawindow_type* window_type; \
     const char* name; \
     size_t size; \
     size_t derived_offset; \
@@ -52,14 +53,19 @@ struct dpaw_workspace_screen {
   const struct dpaw_screen_info* info;
 };
 
+struct dpaw_workspace_manager_manage_window_options {
+  struct dpaw_workspace* workspace;
+};
+
 int dpaw_workspace_manager_init(struct dpaw_workspace_manager*, struct dpaw*);
 void dpaw_workspace_manager_destroy(struct dpaw_workspace_manager*);
 int dpaw_workspace_screen_init(struct dpaw_workspace_manager*, struct dpaw_workspace_screen*, const struct dpaw_screen_info* info);
 int dpaw_workspace_manager_designate_screen_to_workspace(struct dpaw_workspace_manager*, struct dpaw_workspace_screen*);
 void dpaw_workspace_screen_cleanup(struct dpaw_workspace_screen*);
 int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, struct dpaw_workspace* workspace);
-int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window);
+int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window, const struct dpaw_workspace_manager_manage_window_options* options);
 
+struct dpaw_workspace* dpawindow_to_dpaw_workspace(struct dpawindow* window);
 int dpaw_workspace_add_window(struct dpaw_workspace*, struct dpawindow_app*);
 int dpaw_workspace_remove_window(struct dpawindow_app* window);
 struct dpawindow_app* dpaw_workspace_lookup_xwindow(struct dpaw_workspace*, Window);
@@ -84,6 +90,7 @@ void dpaw_workspace_type_unregister(struct dpaw_workspace_type* type);
       .name = #NAME, \
       .size = sizeof(struct dpawindow_workspace_ ## NAME), \
       .derived_offset = offsetof(struct dpawindow_workspace_ ## NAME, workspace), \
+      .window_type = &dpawindow_type_workspace_ ## NAME, \
       __VA_ARGS__ \
     }; \
     dpaw_workspace_type_register((struct dpaw_workspace_type*)&type); \
