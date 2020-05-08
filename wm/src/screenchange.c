@@ -35,6 +35,13 @@ void remove_screen_info(struct dpaw_screenchange_detector* detector, struct dpaw
   free(entry);
 }
 
+static void copy_screen_info(struct dpaw_screen_info* dst, const struct dpaw_screen_info* src){
+  // The list mustn't be changed, and the list con't simply be copied like that
+  struct dpaw_list_entry screen_entry = dst->screen_entry;
+  *dst = *src;
+  dst->screen_entry = screen_entry;
+}
+
 int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned long id, const struct dpaw_screen_info* info, enum screenchange_detector_source source){
   struct dpaw_rect boundary = info->boundary;
   if( boundary.top_left.x > boundary.bottom_right.x
@@ -57,7 +64,7 @@ int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned lon
     );
     if(si->info.name)
       free(si->info.name);
-    si->info = *info;
+    copy_screen_info(&si->info, info);
     if(si->info.name)
       si->info.name = strdup(si->info.name);
     si->info.boundary = boundary;
@@ -72,9 +79,9 @@ int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned lon
     if(!si)
       return -1;
     si->source = source;
-    dpaw_linked_list_set(&detector->screen_list, &si->screen_entry, detector->screen_list.first);
+    dpaw_linked_list_set(&detector->screen_list, &si->screen_entry, 0);
     si->id = id;
-    si->info = *info;
+    copy_screen_info(&si->info, info);
     if(si->info.name)
       si->info.name = strdup(si->info.name);
     si->info.boundary = boundary;
@@ -166,7 +173,8 @@ static int randr_init(struct dpaw_screenchange_detector* detector){
 static void randr_destroy(struct dpaw_screenchange_detector* detector){
   if(!detector->xrandr)
     return;
-  for(struct dpaw_list_entry *it=detector->screen_list.first, *next=it?it->next:0; it; it=next){
+  for(struct dpaw_list_entry *it=detector->screen_list.first, *next; it; it=next){
+    next = it->next;
     struct dpaw_screen_info_list_entry* entry = container_of(it, struct dpaw_screen_info_list_entry, screen_entry);
     if(entry->source != SCREENCHANGE_DETECTOR_XRANDR)
       continue;
