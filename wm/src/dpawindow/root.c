@@ -125,9 +125,11 @@ EV_ON(root, MapRequest){
     if(children)
       XFree(children);
     bool is_in_root_or_workspace = parent == window->window.xwindow;
+    struct dpaw_workspace* workspace = 0;
     if(!attribute.override_redirect && !is_in_root_or_workspace){
       struct dpawindow* rwin = dpawindow_lookup(window->window.dpaw, parent);
-      if(rwin && rwin->type->workspace_type)
+      workspace = dpawindow_to_dpaw_workspace(rwin);
+      if(workspace)
         is_in_root_or_workspace = true;
     }
     if(is_in_root_or_workspace){
@@ -142,8 +144,10 @@ EV_ON(root, MapRequest){
       XMapWindow(window->display, event->window);
       return EHR_NEXT;
     }
-    if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window, 0) != 0)
-      return EHR_ERROR;
+    if(dpaw_workspace_manager_manage_window(&window->workspace_manager, event->window, &(struct dpaw_workspace_manager_manage_window_options){
+        .workspace = workspace
+      }) != 0
+    ) return EHR_ERROR;
   }else{
     // Probably already managed
     return EHR_NEXT;
