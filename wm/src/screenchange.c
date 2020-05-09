@@ -7,10 +7,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-enum screenchange_detector_source {
-  SCREENCHANGE_DETECTOR_XRANDR
-};
-
 struct screenchange_listener {
   struct dpaw_list_entry screenchange_detector_listener_entry;
   dpaw_screenchange_handler_t callback;
@@ -22,16 +18,20 @@ struct dpaw_screen_info_list_entry {
     struct dpaw_list_entry screen_entry; // This makes the address of screen_entry, dpaw_screen_info_list_entry and dpaw_screen_info the same, thus allowing casting between them. Removing this would require quiet a few more container_of usages, which isn't pretty either.
     struct dpaw_screen_info info;
   };
-  enum screenchange_detector_source source;
   unsigned long id;
 };
 
 void remove_screen_info(struct dpaw_screenchange_detector* detector, struct dpaw_screen_info_list_entry* entry){
-  (void)detector;
+  if(!entry)
+    return;
+  dpaw_linked_list_set(0, &entry->screen_entry, 0);
+  for(struct dpaw_list_entry* it=detector->screenchange_listener_list.first; it; it=it->next){
+    struct screenchange_listener* listener = container_of(it, struct screenchange_listener, screenchange_detector_listener_entry);
+    listener->callback(listener->ptr, DPAW_SCREENCHANGE_SCREEN_REMOVED, &entry->info);
+  }
   if(entry->info.name)
     free(entry->info.name);
   entry->info.name = 0;
-  dpaw_linked_list_set(0, &entry->screen_entry, 0);
   free(entry);
 }
 
@@ -42,19 +42,28 @@ static void copy_screen_info(struct dpaw_screen_info* dst, const struct dpaw_scr
   dst->screen_entry = screen_entry;
 }
 
-int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned long id, const struct dpaw_screen_info* info, enum screenchange_detector_source source){
-  struct dpaw_rect boundary = info->boundary;
-  if( boundary.top_left.x > boundary.bottom_right.x
-   || boundary.top_left.y > boundary.bottom_right.y
-  ) memset(&boundary, 0, sizeof(boundary));
-  struct dpaw_screen_info_list_entry* si = 0;
+static struct dpaw_screen_info_list_entry* find_screen(struct dpaw_screenchange_detector* detector, unsigned long id){
   for(struct dpaw_list_entry* it=detector->screen_list.first; it; it=it->next){
     struct dpaw_screen_info_list_entry* entry = container_of(it, struct dpaw_screen_info_list_entry, screen_entry);
-    if(entry->id != id)
-      continue;
-    si = entry;
-    break;
+    if(entry->id == id)
+      return entry;
   }
+  return 0;
+}
+
+static void remove_screen(struct dpaw_screenchange_detector* detector, unsigned long id){
+  remove_screen_info(detector,find_screen(detector, id));
+}
+
+static int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned long id, const struct dpaw_screen_info* info){
+  struct dpaw_rect boundary = info->boundary;
+  if( boundary.top_left.x >= boundary.bottom_right.x
+   || boundary.top_left.y >= boundary.bottom_right.y
+  ){
+    remove_screen(detector, id);
+    return 0;
+  }
+  struct dpaw_screen_info_list_entry* si = find_screen(detector, id);
   if(si){
     bool changed = (
         si->info.boundary.top_left.x != boundary.top_left.x
@@ -78,7 +87,6 @@ int update_screen_info(struct dpaw_screenchange_detector* detector, unsigned lon
     si = calloc(sizeof(struct dpaw_screen_info_list_entry), 1);
     if(!si)
       return -1;
-    si->source = source;
     dpaw_linked_list_set(&detector->screen_list, &si->screen_entry, 0);
     si->id = id;
     copy_screen_info(&si->info, info);
@@ -115,6 +123,7 @@ static int randr_add_or_update_output(struct dpaw_screenchange_detector* detecto
     goto error;
   }
   if(output_info->connection != RR_Connected){
+    remove_screen(detector, outputid);
     ret = 0;
     goto error_after_XRRGetOutputInfo;
   }
@@ -140,7 +149,7 @@ static int randr_add_or_update_output(struct dpaw_screenchange_detector* detecto
       .y = output_info->mm_height,
     },
   };
-  ret = update_screen_info(detector, outputid, &info, SCREENCHANGE_DETECTOR_XRANDR);
+  ret = update_screen_info(detector, outputid, &info);
 
 //error_after_XRRGetCrtcInfo:
   XRRFreeCrtcInfo(crtc_info);
@@ -176,8 +185,6 @@ static void randr_destroy(struct dpaw_screenchange_detector* detector){
   for(struct dpaw_list_entry *it=detector->screen_list.first, *next; it; it=next){
     next = it->next;
     struct dpaw_screen_info_list_entry* entry = container_of(it, struct dpaw_screen_info_list_entry, screen_entry);
-    if(entry->source != SCREENCHANGE_DETECTOR_XRANDR)
-      continue;
     remove_screen_info(detector, entry);
   }
   XRRFreeScreenResources(detector->xrandr->screen_resources);
