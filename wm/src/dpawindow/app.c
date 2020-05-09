@@ -67,6 +67,8 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
 static void dpawindow_app_cleanup(struct dpawindow_app* app){
   if(app->workspace)
     dpaw_workspace_remove_window(app);
+  XReparentWindow(app->window.dpaw->root.display, app->window.xwindow, app->window.dpaw->root.window.xwindow, 0, 0);
+  XRemoveFromSaveSet(app->window.dpaw->root.display, app->window.xwindow);
 }
 
 EV_ON(app, ConfigureRequest){

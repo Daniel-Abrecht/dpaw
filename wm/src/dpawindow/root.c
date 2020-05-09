@@ -148,6 +148,7 @@ EV_ON(root, MapRequest){
         .workspace = workspace
       }) != 0
     ) return EHR_ERROR;
+    XAddToSaveSet(window->display, event->window);
   }else{
     // Probably already managed
     return EHR_NEXT;

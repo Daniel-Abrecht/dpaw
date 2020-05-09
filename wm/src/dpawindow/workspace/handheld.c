@@ -383,7 +383,7 @@ static int set_window_type(struct dpawindow_handheld_window* window){
   return make_current(window);
 }
 
-static int abandon_window(struct dpawindow_app* window){
+static void abandon_window(struct dpawindow_app* window){
   printf("abandon_window %lx\n", window->window.xwindow);
   dpawindow_hide(&window->window, true);
   unshow_window(window->workspace_private);
@@ -392,7 +392,6 @@ static int abandon_window(struct dpawindow_app* window){
   if(window->workspace_private)
     free(window->workspace_private);
   window->workspace_private = 0;
-  return 0;
 }
 
 int desired_placement_change_handler(void* private, struct dpawindow_app* app, XSizeHints size){

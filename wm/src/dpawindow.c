@@ -137,15 +137,12 @@ int dpawindow_register(struct dpawindow* window){
     }
   }
   dpaw_linked_list_set(&window->dpaw->window_list, &window->dpaw_window_entry, 0);
-  XAddToSaveSet(window->dpaw->root.display, window->xwindow);
   return 0;
 }
 
 int dpawindow_unregister(struct dpawindow* window){
   if(!window || !window->dpaw)
     return -1;
-  if(window->xwindow)
-    XRemoveFromSaveSet(window->dpaw->root.display, window->xwindow);
   for(struct xev_event_extension* extension=dpaw_event_extension_list; extension; extension=extension->next)
     if(extension->unsubscribe)
       extension->unsubscribe(extension, window);

@@ -11,6 +11,7 @@ struct dpaw;
 struct dpaw_workspace_manager {
   struct dpaw* dpaw;
   struct dpaw_list workspace_list;
+  bool cleanup;
 };
 
 #define DPAW_WORKSPACE_TYPE(T, U) \
@@ -23,7 +24,7 @@ struct dpaw_workspace_manager {
     size_t derived_offset; \
     int (*init)(U*); \
     int (*take_window)(U*, struct dpawindow_app*); \
-    int (*abandon_window)(struct dpawindow_app*); \
+    void(*abandon_window)(struct dpawindow_app*); \
     int (*screen_make_bid)(U*, struct dpaw_workspace_screen*); \
     int (*screen_added  )(U*, struct dpaw_workspace_screen*); \
     int (*screen_changed)(U*, struct dpaw_workspace_screen*); \
@@ -63,6 +64,7 @@ int dpaw_workspace_screen_init(struct dpaw_workspace_manager*, struct dpaw_works
 int dpaw_workspace_manager_designate_screen_to_workspace(struct dpaw_workspace_manager*, struct dpaw_workspace_screen*);
 void dpaw_workspace_screen_cleanup(struct dpaw_workspace_screen*);
 int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, struct dpaw_workspace* workspace);
+int dpaw_workspace_manager_manage_app_window(struct dpaw_workspace_manager* wmgr, struct dpawindow_app* app_window, const struct dpaw_workspace_manager_manage_window_options* options);
 int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window, const struct dpaw_workspace_manager_manage_window_options* options);
 
 struct dpaw_workspace* dpawindow_to_dpaw_workspace(struct dpawindow* window);
