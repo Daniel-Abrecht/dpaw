@@ -17,7 +17,7 @@ enum event_handler_result {
 };
 
 struct dpawindow;
-struct xev_event xev;
+struct xev_event;
 typedef enum event_handler_result (*dpaw_event_handler_t)(struct dpawindow*, const struct xev_event* xev, void*);
 
 struct dpaw;
