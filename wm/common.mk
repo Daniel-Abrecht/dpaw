@@ -4,7 +4,7 @@ export project_root
 BUILD_DIR ?= $(project_root)/build
 BIN_NAME = $(notdir $(BIN))
 
-PREFIX = /usr
+prefix = /usr/local
 LIBDPAW_MAJOR = 0
 LIBDPAW_MINOR = 0
 LIBDPAW_PATCH = 0

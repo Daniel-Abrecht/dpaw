@@ -11,10 +11,10 @@ include ../common.mk
 all: $(BIN)
 
 install:
-	mkdir -p "$(DESTDIR)$(PREFIX)/include/"
-	cp -r "include/api/" "$(DESTDIR)$(PREFIX)/include/"
-	mkdir -p "$(DESTDIR)$(PREFIX)/lib/"
-	cp "$(BIN)" "$(DESTDIR)$(PREFIX)/lib/$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)"
-	ln -sf "$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)" "$(DESTDIR)$(PREFIX)/lib/$(BIN_NAME)"
-	ln -sf "$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)" "$(DESTDIR)$(PREFIX)/lib/$(BIN_NAME).$(LIBDPAW_MAJOR)"
-	ln -sf "$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)" "$(DESTDIR)$(PREFIX)/lib/$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR)"
+	mkdir -p "$(DESTDIR)$(prefix)/include/"
+	cp -r "include/api/" "$(DESTDIR)$(prefix)/include/"
+	mkdir -p "$(DESTDIR)$(prefix)/lib/"
+	cp "$(BIN)" "$(DESTDIR)$(prefix)/lib/$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)"
+	ln -sf "$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)" "$(DESTDIR)$(prefix)/lib/$(BIN_NAME)"
+	ln -sf "$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)" "$(DESTDIR)$(prefix)/lib/$(BIN_NAME).$(LIBDPAW_MAJOR)"
+	ln -sf "$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR).$(LIBDPAW_PATCH)" "$(DESTDIR)$(prefix)/lib/$(BIN_NAME).$(LIBDPAW_MAJOR).$(LIBDPAW_MINOR)"

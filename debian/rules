@@ -5,3 +5,9 @@ export RELEASE=1
 
 %:
 	dh $@
+
+override_dh_auto_build:
+	dh_auto_build -- prefix=/usr RELEASE=1
+
+override_dh_auto_install:
+	dh_auto_install -- prefix=/usr RELEASE=1

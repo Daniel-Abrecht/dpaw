@@ -19,4 +19,4 @@ nm-applet &
 onboard &
 xfce4-terminal &
 
-exec $PREFIX/bin/dpaw
+exec $prefix/bin/dpaw

@@ -26,6 +26,14 @@ Description: window manager suitable for mobile phones
  Contains only the dpaw window manager. To get all packages of the DPAW
  mobile & desktop enviromnet, consider installing the DPAW package instead.
 
+Package: dpaw-tools
+Architecture: all
+Depends: exo-utils, ui-grid, ${misc:Depends}
+Suggests: dpaw
+Description: Variouse tools useful with the dpaw-wm
+ This contains useful tools, such as a dashboard application
+ for starting other applications.
+
 Package: libdpaw-wm-dev
 Architecture: any
 Depends: libdpaw-wm0 (= ${binary:Version}), ${misc:Depends}
@@ -37,7 +45,7 @@ Description: Development files for the DPAW WM
 Package: dpaw-session
 Architecture: all
 Depends: dpaw-wm, ${misc:Depends}
-Recommends: qasmixer, lxqt-panel, lxqt-powermanagement, xfce4-terminal
+Recommends: dpaw-tools, qasmixer, lxqt-panel, lxqt-powermanagement, xfce4-terminal
 Suggests: dpaw
 Description: X11 DPAW session
  provides the X11 session for DPAW, which can then be selected

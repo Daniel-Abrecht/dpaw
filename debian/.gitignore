@@ -1,5 +1,6 @@
 debhelper-build-stamp
 .debhelper/
+*.log
 *.substvars
 dpaw*/
 libdpaw*/

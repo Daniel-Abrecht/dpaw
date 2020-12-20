@@ -16,5 +16,5 @@ lib/libdpaw-wm.so: api@build
 build/include/%.c.o: CC_OPTS += -DGENERATE_DEFINITIONS
 
 install:
-	mkdir -p "$(DESTDIR)$(PREFIX)/bin/"
-	cp bin/dpaw "$(DESTDIR)$(PREFIX)/bin/dpaw"
+	mkdir -p "$(DESTDIR)$(prefix)/bin/"
+	cp bin/dpaw "$(DESTDIR)$(prefix)/bin/dpaw"

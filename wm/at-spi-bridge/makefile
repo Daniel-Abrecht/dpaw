@@ -14,5 +14,5 @@ $(BIN): | ../lib/libdpaw-wm.so
 	make -C .. lib/libdpaw-wm.so
 
 install:
-	mkdir -p "$(DESTDIR)$(PREFIX)/bin/"
-	cp $(BIN) "$(DESTDIR)$(PREFIX)/bin/$(BIN_NAME)"
+	mkdir -p "$(DESTDIR)$(prefix)/bin/"
+	cp $(BIN) "$(DESTDIR)$(prefix)/bin/$(BIN_NAME)"

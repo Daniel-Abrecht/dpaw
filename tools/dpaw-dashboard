@@ -1,0 +1,34 @@
+#!/bin/bash
+
+search_path=(
+  /usr/share/applications/
+  /usr/local/share/applications/
+  ~/.local/share/applications/
+)
+
+(
+  (
+    pids=()
+    for dir in "${search_path[@]}"
+    do
+      inotifywait -m -e create,delete,modify,moved_to,moved_from --format "%e %w%f" "$dir" & pids+=($!)
+      find "$dir" -maxdepth 1 -name "*.desktop" -exec echo 'CREATE {}' \;
+    done
+    wait "${pids[@]}" >&2
+  ) | while read event file
+  do case "$event" in
+    CREATE | MODIFY | MOVED_TO)
+      printf "%s\n" "-$file"
+      printf "%s\n" "$file"
+    ;;
+    DELETE | MOVED_FROM) printf "%s\n" "-$file" ;;
+  esac; done
+) | (
+  ui-grid "$@"
+  sleep 0.5 # Give selected programs time to start
+  kill -TERM -$$ # also kill children of this shell, inotifywait would stick around otherwise...
+) | (
+  while read app
+    do setsid exo-open "$app"
+  done
+)
