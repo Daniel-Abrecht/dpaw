@@ -20,6 +20,7 @@ DECLARE_DPAW_WORKSPACE( handheld,
   struct dpaw_line_touch_detector keyboard_top_boundary;
   struct dpaw_touch_gesture_manager touch_gesture_manager;
   struct dpawindow_xembed keyboard;
+  struct dpawindow_xembed dashboard;
   struct dpaw_list handheld_window_list;
   struct dpawindow_handheld_window *current;
   struct dpawindow_handheld_window *top_dock, *bottom_dock;

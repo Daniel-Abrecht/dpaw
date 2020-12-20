@@ -171,11 +171,16 @@ static void show_previous_window(struct dpawindow_workspace_handheld* workspace)
 static void sideswipe_handler(void *private, struct dpaw_touch_gesture_detector* detector){
   struct dpaw_sideswipe_detector* sideswipe = container_of(detector, struct dpaw_sideswipe_detector, detector);
   struct dpawindow_workspace_handheld* workspace = private;
+  int x_third = (sideswipe->initial_position.x - workspace->window.boundary.top_left.x) * 3 / (workspace->window.boundary.bottom_right.x - workspace->window.boundary.top_left.x);
   bool bottom_half = sideswipe->initial_position.y > (workspace->window.boundary.bottom_right.y + workspace->window.boundary.top_left.y) / 2;
   switch(sideswipe->direction){
     case DPAW_DIRECTION_UPWARDS: break;
     case DPAW_DIRECTION_DOWNWARDS: {
-      dpawindow_close(&workspace->current->app_window->window);
+      switch(x_third){
+        case 0: break;
+        case 1: dpawindow_close(&workspace->current->app_window->window); break;
+        case 2: break;
+      }
     } break;
     case DPAW_DIRECTION_RIGHTWARDS: {
       if(bottom_half){
@@ -225,6 +230,11 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     return -1;
   }*/
 
+  if(dpawindow_xembed_init(workspace->window.dpaw, &workspace->dashboard)){
+    fprintf(stderr, "dpawindow_xembed_init failed\n");
+    return -1;
+  }
+
   struct dpaw_sideswipe_detector_params sideswipe_params = {
     .mask = (1<<DPAW_DIRECTION_RIGHTWARDS)
           | (1<<DPAW_DIRECTION_LEFTWARDS)
@@ -273,6 +283,17 @@ static int init(struct dpawindow_workspace_handheld* workspace){
   workspace->keyboard.parent.is_keyboard = true;
   dpaw_workspace_add_window(&workspace->workspace, &workspace->keyboard.parent);*/
 
+  if(dpawindow_xembed_exec(
+    &workspace->dashboard,
+    XEMBED_METHOD_GIVE_WINDOW_BY_ARGUMENT,
+    (const char*const[]){"dpaw-dashboard","--into","<XID>",0},
+    .keep_env = true
+  )){
+    fprintf(stderr, "dpawindow_xembed_exec failed\n");
+    return -1;
+  }
+  dpaw_workspace_add_window(&workspace->workspace, &workspace->dashboard.parent);
+
   return ret;
 }
 
@@ -280,6 +301,7 @@ static void dpawindow_workspace_handheld_cleanup(struct dpawindow_workspace_hand
   puts("handheld_workspace cleanup");
   dpaw_touch_gesture_manager_cleanup(&workspace->touch_gesture_manager);
   dpawindow_cleanup(&workspace->keyboard.window); // Technically, this is currently not necessary
+  dpawindow_cleanup(&workspace->dashboard.window); // Technically, this is currently not necessary
 }
 
 static int screen_added(struct dpawindow_workspace_handheld* workspace, struct dpaw_workspace_screen* screen){

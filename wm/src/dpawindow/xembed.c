@@ -58,6 +58,8 @@ static void parent_boundary_changed(
   (void)b;
   struct dpawindow_app* app = container_of(app_window, struct dpawindow_app, window);
   struct dpawindow_xembed* xembed = container_of(app, struct dpawindow_xembed, parent);
+  if(!xembed->window.xwindow)
+    return;
   struct dpaw_rect boundary = {
     .top_left.x = 0,
     .top_left.y = 0,

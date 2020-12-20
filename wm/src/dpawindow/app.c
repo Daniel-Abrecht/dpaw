@@ -101,6 +101,20 @@ EV_ON(app, ClientMessage){
   return EHR_OK;
 }
 
+EV_ON(app, MapRequest){
+  if(window->window.xwindow == event->window)
+    return EHR_NEXT; // It's me
+
+  struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
+  if(win) // This is one of our windows
+    return EHR_NEXT;
+
+  if(window->got_foreign_window && !window->got_foreign_window(window, event->window))
+    return EHR_OK;
+
+  return EHR_NEXT;
+}
+
 EV_ON(app, ReparentNotify){
   printf("app ReparentNotify %lx\n", event->window);
 
@@ -114,9 +128,5 @@ EV_ON(app, ReparentNotify){
   if(window->got_foreign_window && !window->got_foreign_window(window, event->window))
     return EHR_OK;
 
-  // Nope, let's get rid of it and whatever put it there!
-  fprintf(stderr, "Getting rid of unexpected foreign window 0x%lx!\n", (unsigned long)event->window);
-  XKillClient(window->window.dpaw->root.display, event->window);
-  XDestroyWindow(window->window.dpaw->root.display, event->window);
-  return EHR_OK;
+  return EHR_NEXT;
 }
