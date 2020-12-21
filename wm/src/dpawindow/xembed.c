@@ -3,7 +3,8 @@
 #include <-dpaw/atom.h>
 #include <-dpaw/xev/X.c>
 #include <-dpaw/atom/xembed.c>
-
+#include <-dpaw/atom/icccm.c>
+#include <X11/Xatom.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -104,6 +105,11 @@ int dpawindow_xembed_init(
     fprintf(stderr, "XCreateWindow failed\n");
     return -1;
   }
+#define AL(X) (void*)X, sizeof(X)/sizeof(*X)
+  XChangeProperty(dpaw->root.display, xwindow, WM_PROTOCOLS, XA_ATOM, 32, PropModeReplace, AL(((Atom[]){
+    WM_DELETE_WINDOW
+  })));
+#undef AL
   if(dpawindow_app_init(dpaw, &xembed->parent, xwindow))
     return -1;
   xembed->pre_cleanup.callback = app_cleanup_handler;
