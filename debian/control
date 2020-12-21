@@ -28,7 +28,7 @@ Description: window manager suitable for mobile phones
 
 Package: dpaw-tools
 Architecture: all
-Depends: exo-utils, ui-grid, ${misc:Depends}
+Depends: inotify-tools, exo-utils, ui-grid, ${misc:Depends}
 Suggests: dpaw
 Description: Variouse tools useful with the dpaw-wm
  This contains useful tools, such as a dashboard application
