@@ -79,7 +79,7 @@ static int update_window_area(struct dpawindow_handheld_window* child){
 // Some clever applications (gimp) hide all their windows if one gets hidden (iconified).
 // This is a problem, because this window manager will only show one window at a time, hiding the other ones,
 // and cause endles switching between windows...
-// As a workaround, let's just put the window in an unviewable are and pretend it not to be iconified.
+// As a workaround, let's just put the window in an unviewable area and pretend it not to be iconified.
 static int fake_hide(struct dpawindow_handheld_window* window, bool inactive){
   window->active = !inactive;
   return update_window_area(window);
@@ -126,8 +126,6 @@ static int make_current(struct dpawindow_handheld_window* child){
         dpawindow_app_update_wm_state(old->app_window);
         fake_hide(child->workspace->current, true);
       }
-      if(!child->handheld_entry.list)
-        dpaw_linked_list_set(&child->workspace->handheld_window_list, &child->handheld_entry, 0);
       child->workspace->current = child;
       child->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = true;
       child->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = true;
@@ -174,7 +172,7 @@ static void sideswipe_handler(void *private, struct dpaw_touch_gesture_detector*
   int x_third = (sideswipe->initial_position.x - workspace->window.boundary.top_left.x) * 3 / (workspace->window.boundary.bottom_right.x - workspace->window.boundary.top_left.x);
   bool bottom_half = sideswipe->initial_position.y > (workspace->window.boundary.bottom_right.y + workspace->window.boundary.top_left.y) / 2;
   switch(sideswipe->direction){
-    case DPAW_DIRECTION_UPWARDS: break;
+    case DPAW_DIRECTION_UPWARDS: make_current(workspace->dashboard.parent.workspace_private); break;
     case DPAW_DIRECTION_DOWNWARDS: {
       switch(x_third){
         case 0: break;
@@ -234,11 +232,13 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     fprintf(stderr, "dpawindow_xembed_init failed\n");
     return -1;
   }
+  workspace->dashboard.parent.exclude_from_window_list = true;
 
   struct dpaw_sideswipe_detector_params sideswipe_params = {
     .mask = (1<<DPAW_DIRECTION_RIGHTWARDS)
           | (1<<DPAW_DIRECTION_LEFTWARDS)
-          | (1<<DPAW_DIRECTION_DOWNWARDS),
+          | (1<<DPAW_DIRECTION_DOWNWARDS)
+          | (1<<DPAW_DIRECTION_UPWARDS),
     .bounds = &workspace->window.boundary
   };
   ret = dpaw_sideswipe_init(&workspace->sideswipe, workspace->window.dpaw, &sideswipe_params);
@@ -349,7 +349,8 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
     }else if(hw->handheld_entry.previous){
       make_current(container_of(hw->handheld_entry.previous, struct dpawindow_handheld_window, handheld_entry));
     }else{
-      hw->workspace->current = 0;
+      // Nothing else there, show dashboard
+      make_current(hw->workspace->dashboard.parent.workspace_private);
     }
   }
   dpaw_linked_list_set(0, &hw->handheld_entry, 0);
@@ -402,6 +403,12 @@ static int set_window_type(struct dpawindow_handheld_window* window){
   if(window->type != DPAWINDOW_HANDHELD_UNSET)
     unshow_window(window);
   window->type = type;
+  if(type == DPAWINDOW_HANDHELD_NORMAL && !window->app_window->exclude_from_window_list){
+    if(!window->handheld_entry.list)
+      dpaw_linked_list_set(&window->workspace->handheld_window_list, &window->handheld_entry, 0);
+  }else{
+    dpaw_linked_list_set(0, &window->handheld_entry, 0);
+  }
   return make_current(window);
 }
 

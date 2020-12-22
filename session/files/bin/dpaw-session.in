@@ -17,6 +17,5 @@ nm-applet &
 #modem-manager-gui -i -m mm07 -c nm09 &
 
 onboard &
-xfce4-terminal &
 
 exec $prefix/bin/dpaw
