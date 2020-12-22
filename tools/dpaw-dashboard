@@ -19,6 +19,7 @@ search_path=(
   do case "$event" in
     CREATE | MODIFY | MOVED_TO)
       printf "%s\n" "-$file"
+      grep -q 'NoDisplay=true' "$file" && continue
       printf "%s\n" "$file"
     ;;
     DELETE | MOVED_FROM) printf "%s\n" "-$file" ;;
