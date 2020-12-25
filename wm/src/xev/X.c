@@ -1,6 +1,7 @@
 #include <-dpaw/dpaw.h>
 #include <-dpaw/xev/X.c>
 #include <-dpaw/dpawindow.h>
+#include <-dpaw/dpawindow/app.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -30,12 +31,19 @@ enum event_handler_result dpaw_xev_X_dispatch(struct dpaw* dpaw, struct xev_even
   switch(event->info->type){
     case ConfigureRequest: {
       target = dpawindow_lookup(dpaw, (&ev->xany.window)[1]);
+    } break;
+    case ClientMessage: {
       if(!window)
-        window = target;
-      if(target == window)
-        target = 0;
+        break;
+      if(window->type == &dpawindow_type_app){
+        struct dpawindow_app* app = container_of(window, struct dpawindow_app, window);
+        if(app->workspace)
+          target = app->workspace->window;
+      }
     } break;
   }
+  if(target == window)
+    target = 0;
   enum event_handler_result result = EHR_UNHANDLED;
   if((result == EHR_UNHANDLED || result == EHR_NEXT)
    && target && target != &dpaw->root.window

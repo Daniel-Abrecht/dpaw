@@ -187,6 +187,8 @@ static void sideswipe_handler(void *private, struct dpaw_touch_gesture_detector*
       }
     } break;
     case DPAW_DIRECTION_RIGHTWARDS: {
+      if(workspace->current && !workspace->current->handheld_entry.list)
+        break;
       if(bottom_half){
         show_previous_window(workspace);
       }else{
@@ -194,6 +196,8 @@ static void sideswipe_handler(void *private, struct dpaw_touch_gesture_detector*
       }
     }; break;
     case DPAW_DIRECTION_LEFTWARDS: {
+      if(workspace->current && !workspace->current->handheld_entry.list)
+        break;
       if(bottom_half){
         show_next_window(workspace);
       }else{
@@ -357,9 +361,11 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
       make_current(container_of(hw->handheld_entry.next, struct dpawindow_handheld_window, handheld_entry));
     }else if(hw->handheld_entry.previous){
       make_current(container_of(hw->handheld_entry.previous, struct dpawindow_handheld_window, handheld_entry));
-    }else{
+    }else if(&hw->workspace->dashboard.parent != hw->app_window){
       // Nothing else there, show dashboard
       make_current(hw->workspace->dashboard.parent.workspace_private);
+    }else{
+      hw->workspace->current = 0;
     }
   }
   dpaw_linked_list_set(0, &hw->handheld_entry, 0);
@@ -473,10 +479,11 @@ EV_ON(workspace_handheld, ClientMessage){
   struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
   if(!child)
     return EHR_UNHANDLED;
-  if(event->message_type == WM_DELETE_WINDOW){
-    puts("workspace_handheld ClientMessage WM_DELETE_WINDOW");
-  }else{
-    puts("workspace_handheld ClientMessage");
+  if(event->message_type == WM_PROTOCOLS){
+    if((Atom)event->data.l[0] == WM_DELETE_WINDOW){
+      if(window->handheld_window_list.first)
+        unshow_window(child);
+    }
   }
   return EHR_NEXT;
 }
