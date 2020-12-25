@@ -2,11 +2,13 @@
 #include <-dpaw/xev/X.c>
 #include <-dpaw/xev/xinput2.c>
 #include <-dpaw/atom/ewmh.c>
+#include <-dpaw/atom/icccm.c>
 #include <-dpaw/dpawindow.h>
 #include <-dpaw/dpawindow/app.h>
 #include <-dpaw/dpawindow/root.h>
 #include <-dpaw/dpawindow/workspace/handheld.h>
 #include <-dpaw/touch_gesture_detector/sideswipe.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -120,6 +122,10 @@ static int make_current(struct dpawindow_handheld_window* child){
     case DPAWINDOW_HANDHELD_NORMAL: {
       if(child->workspace->current == child)
         return 0;
+      if(child->workspace->current && child->workspace->current->handheld_entry.list) // Only go back to windows in the list of regular windows
+        child->workspace->previous = child->workspace->current;
+      if(child->workspace->previous == child)
+        child->workspace->previous = 0; // The new current window was the previous window, the window shown before that is unknown
       struct dpawindow_handheld_window* old = child->workspace->current;
       if(old){
         old->app_window->wm_state._NET_WM_STATE_FOCUSED = false;
@@ -344,7 +350,10 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
   bool was_shown = false;
   if(hw == hw->workspace->current){
     was_shown = true;
-    if(hw->handheld_entry.next){
+    if(hw->workspace->previous){
+      assert(hw->workspace->previous->handheld_entry.list); // previous window must be in regular workspace window list
+      make_current(hw->workspace->previous);
+    }else if(hw->handheld_entry.next){
       make_current(container_of(hw->handheld_entry.next, struct dpawindow_handheld_window, handheld_entry));
     }else if(hw->handheld_entry.previous){
       make_current(container_of(hw->handheld_entry.previous, struct dpawindow_handheld_window, handheld_entry));
@@ -368,6 +377,8 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
   fake_hide(hw, true);
   if(was_shown)
     update_window_size(hw->workspace);
+  if(hw == hw->workspace->previous)
+    hw->workspace->previous = 0;
   return 0;
 }
 
@@ -408,6 +419,8 @@ static int set_window_type(struct dpawindow_handheld_window* window){
       dpaw_linked_list_set(&window->workspace->handheld_window_list, &window->handheld_entry, 0);
   }else{
     dpaw_linked_list_set(0, &window->handheld_entry, 0);
+    if(window->workspace->previous == window)
+      window->workspace->previous = 0;
   }
   return make_current(window);
 }
@@ -454,6 +467,18 @@ static int take_window(struct dpawindow_workspace_handheld* workspace, struct dp
   dpawindow_set_mapping(&child->app_window->window, true);
   XRaiseWindow(child->app_window->window.dpaw->root.display, child->app_window->window.xwindow);
   return 0;
+}
+
+EV_ON(workspace_handheld, ClientMessage){
+  struct dpawindow_handheld_window* child = lookup_xwindow(window, event->window);
+  if(!child)
+    return EHR_UNHANDLED;
+  if(event->message_type == WM_DELETE_WINDOW){
+    puts("workspace_handheld ClientMessage WM_DELETE_WINDOW");
+  }else{
+    puts("workspace_handheld ClientMessage");
+  }
+  return EHR_NEXT;
 }
 
 EV_ON(workspace_handheld, ConfigureRequest){

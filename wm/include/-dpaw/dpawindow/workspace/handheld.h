@@ -22,7 +22,7 @@ DECLARE_DPAW_WORKSPACE( handheld,
   struct dpawindow_xembed keyboard;
   struct dpawindow_xembed dashboard;
   struct dpaw_list handheld_window_list;
-  struct dpawindow_handheld_window *current;
+  struct dpawindow_handheld_window *current, *previous;
   struct dpawindow_handheld_window *top_dock, *bottom_dock;
 )
 

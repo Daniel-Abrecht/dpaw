@@ -4,7 +4,6 @@
 #include <-dpaw/xev/X.c>
 #include <-dpaw/atom/xembed.c>
 #include <-dpaw/atom/icccm.c>
-#include <X11/Xatom.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
