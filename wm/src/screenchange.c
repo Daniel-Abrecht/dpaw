@@ -129,7 +129,7 @@ static int randr_add_or_update_output(struct dpaw_screenchange_detector* detecto
   }
   XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(detector->dpaw->root.display, xrandr->screen_resources, output_info->crtc);
   if(!crtc_info){
-    fprintf(stderr, "XRRFreeOutputInfo failed for crtc %lx\n", (long)output_info->crtc);
+    fprintf(stderr, "XRRGetCrtcInfo failed for crtc %lx\n", (long)output_info->crtc);
     goto error_after_XRRGetOutputInfo;
   }
   struct dpaw_screen_info info = {
@@ -235,50 +235,18 @@ int dpaw_screenchange_listener_unregister(struct dpaw_screenchange_detector* det
   return -1;
 }
 
-EV_ON(root, RRScreenChangeNotify){
-  (void)window;
-  (void)event;
-  puts("RRScreenChangeNotify");
-  return EHR_OK;
-}
-
 EV_ON(root, RRNotify_CrtcChange){
-  (void)window;
-  (void)event;
   puts("RRNotify_CrtcChange");
+  struct dpaw_screenchange_detector* detector = &window->screenchange_detector;
+  XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(window->display, detector->xrandr->screen_resources, event->crtc);
+  for(int i=0; i<crtc_info->noutput; i++)
+    randr_add_or_update_output(detector, crtc_info->outputs[i]);
+  XRRFreeCrtcInfo(crtc_info);
   return EHR_OK;
 }
 
 EV_ON(root, RRNotify_OutputChange){
-  randr_add_or_update_output(&window->screenchange_detector, event->output);
   puts("RRNotify_OutputChange");
-  return EHR_OK;
-}
-
-EV_ON(root, RRNotify_OutputProperty){
-  (void)window;
-  (void)event;
-  puts("RRNotify_OutputProperty");
-  return EHR_OK;
-}
-
-EV_ON(root, RRNotify_ProviderChange){
-  (void)window;
-  (void)event;
-  puts("RRNotify_ProviderChange");
-  return EHR_OK;
-}
-
-EV_ON(root, RRNotify_ProviderProperty){
-  (void)window;
-  (void)event;
-  puts("RRNotify_ProviderProperty");
-  return EHR_OK;
-}
-
-EV_ON(root, RRNotify_ResourceChange){
-  (void)window;
-  (void)event;
-  puts("RRNotify_ResourceChange");
+  randr_add_or_update_output(&window->screenchange_detector, event->output);
   return EHR_OK;
 }
