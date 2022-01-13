@@ -143,12 +143,21 @@ int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, stru
   return 0;
 }
 
-struct dpaw_workspace_type* choose_best_target_workspace_type(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_screen* screen){
-   (void)wmgr;
-   (void)screen;
-  // TODO: Come up with properties to determine the most fitting workspace type.
-  // For now, let's just take a random one and worry about this later.
-  return container_of(workspace_type_list.first, struct dpaw_workspace_type, workspace_type_entry);
+struct dpaw_workspace_type* choose_best_target_workspace_type(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_screen* screen, int* rmin){
+  (void)wmgr;
+  int min = *rmin;
+  struct dpaw_workspace_type* winner = min ? 0 : container_of(workspace_type_list.first, struct dpaw_workspace_type, workspace_type_entry);
+  for(struct dpaw_list_entry* wt = workspace_type_list.first; wt; wt=wt->next){
+    struct dpaw_workspace_type* type = container_of(wt, struct dpaw_workspace_type, workspace_type_entry);
+    if(!type->screen_make_bid)
+      continue;
+    int res = type->screen_make_bid(0, screen);
+    if(!res || res <= min)
+      continue;
+    min = res;
+    winner = type;
+  }
+  return winner;
 }
 
 static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
@@ -272,14 +281,14 @@ error:
 
 int dpaw_workspace_manager_designate_screen_to_workspace(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace_screen* screen){
   if(!screen->workspace){
-    struct dpaw_workspace_type* type = choose_best_target_workspace_type(wmgr, screen);
+    int min = 0;
+    struct dpaw_workspace_type* type = choose_best_target_workspace_type(wmgr, screen, &min);
     if(!type){
       fprintf(stderr, "Error: choose_best_target_workspace_type failed\n");
       return -1;
     }
     // Does any existing workspace of the desired type want this screen?
     struct dpaw_workspace* target_workspace = 0;
-    int min = 0;
     for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next){
       struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
       if(workspace->type != type)

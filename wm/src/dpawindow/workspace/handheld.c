@@ -341,10 +341,16 @@ static void screen_removed(struct dpawindow_workspace_handheld* workspace, struc
 }
 
 static int screen_make_bid(struct dpawindow_workspace_handheld* workspace, struct dpaw_workspace_screen* screen){
-  (void)workspace;
-  (void)screen;
-  puts("handheld_workspace screen_make_bid");
-  return 0;
+  if(workspace)
+    return 0; // We can't handle multiple screens. Another handheld screen needs another handheld workspace.
+  int bid = 0;
+  const struct dpaw_screen_info* sinfo = screen->info;
+  unsigned long screen_width  = sinfo->boundary.bottom_right.x - sinfo->boundary.top_left.x;
+  unsigned long screen_height = sinfo->boundary.bottom_right.y - sinfo->boundary.top_left.y;
+  if(screen_width < screen_height)
+    bid = 2;
+  printf("handheld_workspace screen_make_bid -> %d\n", bid);
+  return bid;
 }
 
 static int unshow_window(struct dpawindow_handheld_window* hw){
