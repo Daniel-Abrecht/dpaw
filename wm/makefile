@@ -17,4 +17,4 @@ build/include/%.c.o: CC_OPTS += -DGENERATE_DEFINITIONS
 
 install:
 	mkdir -p "$(DESTDIR)$(prefix)/bin/"
-	cp bin/dpaw "$(DESTDIR)$(prefix)/bin/dpaw"
+	install bin/dpaw "$(DESTDIR)$(prefix)/bin/dpaw"

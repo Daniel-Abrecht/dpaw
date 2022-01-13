@@ -17,7 +17,7 @@ struct dpaw_workspace_manager {
 #define DPAW_WORKSPACE_TYPE(T, U) \
   struct dpawindow_workspace_ ## NAME; \
   struct dpaw_ ## T ## _type { \
-    struct dpaw_workspace_type* next; \
+    struct dpaw_list_entry workspace_type_entry; \
     struct dpawindow_type* window_type; \
     const char* name; \
     size_t size; \

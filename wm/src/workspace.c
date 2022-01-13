@@ -10,8 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// TODO: Replace with dpaw_list
-static struct dpaw_workspace_type* workspace_type_list;
+static struct dpaw_list workspace_type_list;
 
 int dpaw_workspace_set_focus(struct dpawindow_app* window){
   if(!window->workspace)
@@ -147,7 +146,7 @@ struct dpaw_workspace_type* choose_best_target_workspace_type(struct dpaw_worksp
    (void)screen;
   // TODO: Come up with properties to determine the most fitting workspace type.
   // For now, let's just take a random one and worry about this later.
-  return workspace_type_list;
+  return container_of(workspace_type_list.first, struct dpaw_workspace_type, workspace_type_entry);
 }
 
 static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
@@ -310,21 +309,11 @@ void dpaw_workspace_screen_cleanup(struct dpaw_workspace_screen* screen){
 
 void dpaw_workspace_type_register(struct dpaw_workspace_type* type){
   type->window_type->workspace_type = type;
-  type->next = workspace_type_list;
-  workspace_type_list = type;
+  dpaw_linked_list_set(&workspace_type_list, &type->workspace_type_entry, 0);
 }
 
 void dpaw_workspace_type_unregister(struct dpaw_workspace_type* type){
-  struct dpaw_workspace_type** pit = 0;
-  for(pit=&workspace_type_list; *pit; pit=&(*pit)->next)
-    if(*pit == type)
-      break;
-  if(!*pit){
-    fprintf(stderr, "Warning: Couldn't find workspace type object \"%s\" to be unregistred\n", type->name);
-    return;
-  }
-  *pit = type->next;
-  type->next = 0;
+  dpaw_linked_list_set(0, &type->workspace_type_entry, 0);
 }
 
 struct dpawindow_app* dpaw_workspace_lookup_xwindow(struct dpaw_workspace* workspace, Window xwindow){
