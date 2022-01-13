@@ -1,6 +1,8 @@
 #include <-dpaw/dpaw.h>
 #include <-dpaw/xev/X.c>
+#include <-dpaw/atom/misc.c>
 #include <-dpaw/atom/ewmh.c>
+#include <-dpaw/atom/icccm.c>
 #include <-dpaw/workspace.h>
 #include <-dpaw/screenchange.h>
 #include <-dpaw/dpawindow/app.h>
@@ -236,6 +238,13 @@ static struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wm
   }
   workspace->window->type = type->window_type;
   workspace->window->xwindow = window;
+
+  {
+    char name[128];
+    snprintf(name, sizeof(name), "dpaw workspace<%s>", type->name);
+    XChangeProperty(wmgr->dpaw->root.display, window, _NET_WM_NAME, UTF8_STRING, 8, PropModeReplace, (void*)name, strlen(name));
+    XChangeProperty(wmgr->dpaw->root.display, window, WM_NAME, UTF8_STRING, 8, PropModeReplace, (void*)name, strlen(name));
+  }
 
   if(workspace->type->init){
     if(workspace->type->init(workspace->window)){

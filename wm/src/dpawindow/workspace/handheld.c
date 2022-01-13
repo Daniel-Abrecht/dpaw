@@ -442,7 +442,7 @@ static void abandon_window(struct dpawindow_app* window){
   window->workspace_private = 0;
 }
 
-int desired_placement_change_handler(void* private, struct dpawindow_app* app, XSizeHints size){
+static int desired_placement_change_handler(void* private, struct dpawindow_app* app, XSizeHints size){
   (void)private;
   (void)size;
   struct dpawindow_handheld_window* handheld_window = app->workspace_private;
