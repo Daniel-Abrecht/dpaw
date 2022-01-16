@@ -12,10 +12,11 @@ DECLARE_DPAW_WORKSPACE( desktop,
   struct dpaw_list desktop_window_list;
 )
 
-struct dpawindow_desktop_window {
+DECLARE_DPAW_DERIVED_WINDOW( desktop_window,
   struct dpaw_list_entry desktop_entry;
-  struct dpawindow_app* app_window;
+  struct dpawindow_app* app_window; // This is just the applications window / the content
   struct dpawindow_workspace_desktop* workspace;
-};
+  bool has_border;
+)
 
 #endif

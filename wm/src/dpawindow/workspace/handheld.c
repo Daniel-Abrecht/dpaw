@@ -507,6 +507,8 @@ EV_ON(workspace_handheld, ConfigureRequest){
   if(event->value_mask & CWY)
     child->app_window->observable.desired_placement.value.y = event->y;
   struct dpaw_rect boundary = determine_window_position(child);
+  if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
+    event->value_mask |= (CWWidth|CWHeight|CWX|CWY);
   XWindowChanges changes = {
     .x = boundary.top_left.x,
     .y = boundary.top_left.y,

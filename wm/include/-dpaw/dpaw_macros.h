@@ -12,4 +12,7 @@
 #define container_of(ptr, type, member) \
   ((type*)( (ptr) ? (char*)(ptr) - offsetof(type, member) : 0 ))
 
+#define DPAW_MIN(A, B) ( (A) < (B) ? (A) : (B) )
+#define DPAW_MAX(A, B) ( (A) > (B) ? (A) : (B) )
+
 #endif
