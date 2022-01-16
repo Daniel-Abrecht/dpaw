@@ -17,4 +17,6 @@ nm-applet &
 
 onboard &
 
+exec >/tmp/dpaw.log 2>&1
+
 exec $prefix/bin/dpaw

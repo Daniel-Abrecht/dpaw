@@ -86,6 +86,14 @@ int dpawindow_place_window(struct dpawindow* window, struct dpaw_rect boundary){
   return 0;
 }
 
+int dpawindow_move_to(struct dpawindow* window, struct dpaw_point top_left){
+  return dpawindow_place_window(window, (struct dpaw_rect){
+    .top_left = top_left,
+    .bottom_right.x = window->boundary.bottom_right.x + (top_left.x - window->boundary.top_left.x),
+    .bottom_right.y = window->boundary.bottom_right.y + (top_left.y - window->boundary.top_left.y)
+  });
+}
+
 int dpawindow_register(struct dpawindow* window){
   if(!window || !window->type || window->dpaw_window_entry.list){
     fprintf(stderr, "Procondition for dpawindow_register failed\n");
