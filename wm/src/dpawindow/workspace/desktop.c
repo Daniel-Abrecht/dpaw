@@ -281,16 +281,18 @@ EV_ON(workspace_desktop, XI_ButtonPress){
   if(match){
     dpaw_linked_list_set(&window->drag_list, &match->drag_list_entry, window->drag_list.first);
     match->drag_device = event->deviceid;
-    match->drag_offset = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
+    match->drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
+    match->drag_offset.bottom_right.x = match->window.boundary.bottom_right.x - match->window.boundary.top_left.x - match->drag_offset.top_left.x;
+    match->drag_offset.bottom_right.y = match->window.boundary.bottom_right.y - match->window.boundary.top_left.y - match->drag_offset.top_left.y;
     match->drag_action = 0;
     struct dpaw_rect dw_bounds = match->app_window->window.boundary;
-    if(match->drag_offset.y <= dw_bounds.top_left.y)
+    if(match->drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,3))
       match->drag_action |= DPAW_DW_DRAG_TOP;
-    if(match->drag_offset.x <= dw_bounds.top_left.x)
+    if(match->drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,3))
       match->drag_action |= DPAW_DW_DRAG_LEFT;
-    if(match->drag_offset.y >= dw_bounds.bottom_right.y)
+    if(match->drag_offset.bottom_right.y <= DPAW_MAX(match->window.boundary.bottom_right.y-match->window.boundary.top_left.y-dw_bounds.bottom_right.y,3))
       match->drag_action |= DPAW_DW_DRAG_BOTTOM;
-    if(match->drag_offset.x >= dw_bounds.bottom_right.x)
+    if(match->drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,3))
       match->drag_action |= DPAW_DW_DRAG_RIGHT;
 //    printf("XI_ButtonPress %d %lf %lf %lf %lf\n", match->drag_action, event->root_x, event->root_y, event->event_x, event->event_y);
   }
@@ -326,23 +328,53 @@ EV_ON(workspace_desktop, XI_Motion){
   }
   if(match){
     switch(match->drag_action){
-      case DPAW_DW_DRAG_MIDDLE      : break;
-      case DPAW_DW_DRAG_TOP         : dpawindow_move_to(&match->window, (struct dpaw_point){
-        point.x-match->drag_offset.x, point.y-match->drag_offset.y
+      case DPAW_DW_DRAG_MIDDLE      : dpawindow_move_to(&match->window, (struct dpaw_point){
+        point.x-match->drag_offset.top_left.x, point.y-match->drag_offset.top_left.y
       }); break;
-      case DPAW_DW_DRAG_LEFT        : break;
-      case DPAW_DW_DRAG_RIGHT       : break;
-      case DPAW_DW_DRAG_BOTTOM      : break;
-      case DPAW_DW_DRAG_TOP_LEFT    : dpawindow_place_window(&match->window, (struct dpaw_rect){
-        .top_left.x = point.x - match->drag_offset.x,
-        .top_left.y = point.y - match->drag_offset.y,
+      case DPAW_DW_DRAG_TOP         : dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left.y = point.y - match->drag_offset.top_left.y,
+        .top_left.x = match->window.boundary.top_left.x,
         .bottom_right = match->window.boundary.bottom_right
       }); break;
-      case DPAW_DW_DRAG_TOP_RIGHT   : break;
-      case DPAW_DW_DRAG_BOTTOM_LEFT : break;
-      case DPAW_DW_DRAG_BOTTOM_RIGHT: break;
+      case DPAW_DW_DRAG_LEFT        : dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left.x = point.x - match->drag_offset.top_left.x,
+        .top_left.y = match->window.boundary.top_left.y,
+        .bottom_right = match->window.boundary.bottom_right
+      }); break;
+      case DPAW_DW_DRAG_RIGHT       : dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left = match->window.boundary.top_left,
+        .bottom_right.y = match->window.boundary.bottom_right.y,
+        .bottom_right.x = point.x + match->drag_offset.bottom_right.x,
+      }); break;
+      case DPAW_DW_DRAG_BOTTOM      : dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left = match->window.boundary.top_left,
+        .bottom_right.x = match->window.boundary.bottom_right.x,
+        .bottom_right.y = point.y + match->drag_offset.bottom_right.y,
+      }); break;
+      case DPAW_DW_DRAG_TOP_LEFT    : dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left.x = point.x - match->drag_offset.top_left.x,
+        .top_left.y = point.y - match->drag_offset.top_left.y,
+        .bottom_right = match->window.boundary.bottom_right
+      }); break;
+      case DPAW_DW_DRAG_TOP_RIGHT   : dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left.y = point.y - match->drag_offset.top_left.y,
+        .top_left.x = match->window.boundary.top_left.x,
+        .bottom_right.y = match->window.boundary.bottom_right.y,
+        .bottom_right.x = point.x + match->drag_offset.bottom_right.x,
+      }); break;
+      case DPAW_DW_DRAG_BOTTOM_LEFT :dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left.y = match->window.boundary.top_left.y,
+        .top_left.x = point.x - match->drag_offset.top_left.x,
+        .bottom_right.x = match->window.boundary.bottom_right.x,
+        .bottom_right.y = point.y + match->drag_offset.bottom_right.y,
+      }); break;
+      case DPAW_DW_DRAG_BOTTOM_RIGHT: dpawindow_place_window(&match->window, (struct dpaw_rect){
+        .top_left = match->window.boundary.top_left,
+        .bottom_right.x = point.x + match->drag_offset.bottom_right.x,
+        .bottom_right.y = point.y + match->drag_offset.bottom_right.y,
+      }); break;
     }
-    if(match->drag_action != DPAW_DW_DRAG_MIDDLE && match->drag_action != DPAW_DW_DRAG_TOP)
+    if(match->drag_action != DPAW_DW_DRAG_MIDDLE)
       update_frame_content_boundary(match, 1);
   }
   return EHR_OK;
