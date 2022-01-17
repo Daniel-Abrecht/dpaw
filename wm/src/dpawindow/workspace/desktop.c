@@ -267,16 +267,24 @@ EV_ON(workspace_desktop, ConfigureRequest){
 }
 
 EV_ON(workspace_desktop, XI_ButtonPress){
+  const int edge_grab_rim = 4;
 //  printf("XI_ButtonPress %lf %lf %lf %lf\n", event->root_x, event->root_y, event->event_x, event->event_y);
   struct dpaw_point point = {event->event_x, event->event_y};
   struct dpawindow_desktop_window* match = 0;
   for(struct dpaw_list_entry* it=window->workspace.window_list.first; it; it=it->next){
     struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
     struct dpawindow_desktop_window* dw = app->workspace_private;
-    if(dpaw_in_rect(dw->window.boundary, point)){
+    bool in_super_area = !match && dpaw_in_rect((struct dpaw_rect){
+      .top_left.x     = dw->window.boundary.top_left.x     - edge_grab_rim,
+      .top_left.y     = dw->window.boundary.top_left.y     - edge_grab_rim,
+      .bottom_right.x = dw->window.boundary.bottom_right.x + edge_grab_rim,
+      .bottom_right.y = dw->window.boundary.bottom_right.y + edge_grab_rim,
+    }, point);
+    bool in_frame = in_super_area && dpaw_in_rect(dw->window.boundary, point);
+    if(in_super_area || in_frame)
       match = dw;
+    if(in_frame)
       break;
-    }
   }
   if(match){
     dpaw_linked_list_set(&window->drag_list, &match->drag_list_entry, window->drag_list.first);
@@ -286,13 +294,13 @@ EV_ON(workspace_desktop, XI_ButtonPress){
     match->drag_offset.bottom_right.y = match->window.boundary.bottom_right.y - match->window.boundary.top_left.y - match->drag_offset.top_left.y;
     match->drag_action = 0;
     struct dpaw_rect dw_bounds = match->app_window->window.boundary;
-    if(match->drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,3))
+    if(match->drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,edge_grab_rim))
       match->drag_action |= DPAW_DW_DRAG_TOP;
-    if(match->drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,3))
+    if(match->drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,edge_grab_rim))
       match->drag_action |= DPAW_DW_DRAG_LEFT;
-    if(match->drag_offset.bottom_right.y <= DPAW_MAX(match->window.boundary.bottom_right.y-match->window.boundary.top_left.y-dw_bounds.bottom_right.y,3))
+    if(match->drag_offset.bottom_right.y <= DPAW_MAX(match->window.boundary.bottom_right.y-match->window.boundary.top_left.y-dw_bounds.bottom_right.y,edge_grab_rim))
       match->drag_action |= DPAW_DW_DRAG_BOTTOM;
-    if(match->drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,3))
+    if(match->drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,edge_grab_rim))
       match->drag_action |= DPAW_DW_DRAG_RIGHT;
 //    printf("XI_ButtonPress %d %lf %lf %lf %lf\n", match->drag_action, event->root_x, event->root_y, event->event_x, event->event_y);
   }
