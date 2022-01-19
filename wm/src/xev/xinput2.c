@@ -47,6 +47,21 @@ int dpaw_xev_xinput2_init(struct dpaw* dpaw, struct xev_event_extension* extensi
     sizeof(modifiers)/sizeof(*modifiers), modifiers
   );
 
+  memset(evmask.mask, 0, evmask.mask_len);
+  XISetMask(mask, XI_ButtonPress);
+  XIGrabButton(
+    dpaw->root.display,
+    XIAllMasterDevices,
+    Button1,
+    dpaw->root.window.xwindow,
+    0,
+    GrabModeSync,
+    GrabModeAsync,
+    false,
+    &evmask,
+    sizeof(modifiers)/sizeof(*modifiers), modifiers
+  );
+
   extension->opcode = opcode;
   extension->first_error = first_error;
 
@@ -108,17 +123,25 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     case XI_ButtonRelease:
     case XI_Motion: {
       XIDeviceEvent* ev = event->data;
-      struct dpawindow* window = 0;
+      struct dpawindow* ewin = 0;
+      struct dpawindow* cwin = 0;
       for(struct dpaw_list_entry* it=dpaw->window_list.first; it; it=it->next){
         struct dpawindow* wit = container_of(it, struct dpawindow, dpaw_window_entry);
-        if(ev->event != wit->xwindow)
-          continue;
-        window = wit;
-        break;
+        if(!cwin && ev->child == wit->xwindow)
+          cwin = wit;
+        if(!ewin && ev->event == wit->xwindow)
+          ewin = wit;
+        if(ewin && cwin)
+          break;
       }
-      if(!window)
-        break;
-      return dpawindow_dispatch_event(window, event);
+      if(event->info->type == XI_ButtonPress)
+        XIAllowEvents(dpaw->root.display, ev->deviceid, XIReplayDevice, CurrentTime);
+      enum event_handler_result result = EHR_UNHANDLED;
+      if(ewin)
+        result = dpawindow_dispatch_event(ewin, event);
+      if(cwin && (result == EHR_UNHANDLED || result == EHR_NEXT))
+        result = dpawindow_dispatch_event(cwin, event);
+      return result;
     } break;
   }
   return EHR_UNHANDLED;

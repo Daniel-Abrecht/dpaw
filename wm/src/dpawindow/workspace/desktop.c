@@ -182,9 +182,17 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
   return 0;
 }
 
+static void set_focus(struct dpawindow_desktop_window* dw){
+  Display*const display = dw->window.dpaw->root.display;
+  XRaiseWindow(display, dw->window.xwindow);
+  XRaiseWindow(display, dw->app_window->window.xwindow);
+  dpaw_workspace_set_focus(dw->app_window);
+  dpaw_linked_list_set(&dw->workspace->workspace.window_list, &dw->app_window->workspace_window_entry, dw->workspace->workspace.window_list.first);
+}
+
 static int take_window(struct dpawindow_workspace_desktop* workspace, struct dpawindow_app* app){
   printf("take_window %lx\n", app->window.xwindow);
-  Display*const display = workspace->window.dpaw->root.display;
+
   struct dpawindow_desktop_window* dw = calloc(sizeof(struct dpawindow_desktop_window), 1);
   if(!dw)
     return -1;
@@ -200,7 +208,7 @@ static int take_window(struct dpawindow_workspace_desktop* workspace, struct dpa
   dpawindow_set_mapping(&dw->window, true);
   dpawindow_hide(&app->window, false);
   dpawindow_set_mapping(&app->window, true);
-  XRaiseWindow(display, dw->app_window->window.xwindow);
+  set_focus(dw);
 
   return 0;
 }
@@ -280,14 +288,15 @@ EV_ON(workspace_desktop, XI_ButtonPress){
       .bottom_right.x = dw->window.boundary.bottom_right.x + edge_grab_rim,
       .bottom_right.y = dw->window.boundary.bottom_right.y + edge_grab_rim,
     }, point);
-    bool in_frame = in_super_area && dpaw_in_rect(dw->window.boundary, point);
+    bool in_frame = in_super_area
+                 && !dpaw_in_rect(dw->app_window->window.boundary, (struct dpaw_point){point.x-dw->window.boundary.top_left.x,point.y-dw->window.boundary.top_left.y})
+                 &&  dpaw_in_rect(dw->window.boundary, point);
     if(in_super_area || in_frame)
       match = dw;
     if(in_frame)
       break;
   }
   if(match){
-    dpaw_linked_list_set(&window->drag_list, &match->drag_list_entry, window->drag_list.first);
     match->drag_device = event->deviceid;
     match->drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
     match->drag_offset.bottom_right.x = match->window.boundary.bottom_right.x - match->window.boundary.top_left.x - match->drag_offset.top_left.x;
@@ -302,6 +311,9 @@ EV_ON(workspace_desktop, XI_ButtonPress){
       match->drag_action |= DPAW_DW_DRAG_BOTTOM;
     if(match->drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,edge_grab_rim))
       match->drag_action |= DPAW_DW_DRAG_RIGHT;
+    if(match->drag_action || match->drag_offset.top_left.y <= dw_bounds.top_left.y)
+      dpaw_linked_list_set(&window->drag_list, &match->drag_list_entry, window->drag_list.first);
+    set_focus(match);
 //    printf("XI_ButtonPress %d %lf %lf %lf %lf\n", match->drag_action, event->root_x, event->root_y, event->event_x, event->event_y);
   }
   return EHR_OK;
