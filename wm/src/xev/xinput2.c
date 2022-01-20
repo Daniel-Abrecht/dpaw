@@ -79,6 +79,18 @@ void dpaw_xev_xinput2_preprocess_event(struct dpaw* dpaw, XEvent* event){
   (void)event;
 }
 
+static inline XIEventMask* button_grab_mask(void){
+  static unsigned char mask[XIMaskLen(XI_LASTEVENT)] = {0};
+  XISetMask(mask, XI_ButtonPress);
+  XISetMask(mask, XI_Motion);
+  XISetMask(mask, XI_ButtonRelease);
+  static XIEventMask evmask = {
+    .mask_len = sizeof(mask),
+    .mask = mask
+  };
+  return &evmask;
+}
+
 enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xev_event* event){
   {
     // Let's unsubscribe any fake events
@@ -131,16 +143,22 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
           cwin = wit;
         if(!ewin && ev->event == wit->xwindow)
           ewin = wit;
-        if(ewin && cwin)
+        if((ewin||!ev->event) && (cwin||!ev->child))
           break;
       }
-      if(event->info->type == XI_ButtonPress)
-        XIAllowEvents(dpaw->root.display, ev->deviceid, XIReplayDevice, CurrentTime);
       enum event_handler_result result = EHR_UNHANDLED;
       if(ewin)
         result = dpawindow_dispatch_event(ewin, event);
       if(cwin && (result == EHR_UNHANDLED || result == EHR_NEXT))
         result = dpawindow_dispatch_event(cwin, event);
+      if(event->info->type == XI_ButtonPress){
+        if(ewin && result == EHR_OK)
+          XIGrabDevice(dpaw->root.display, ev->deviceid, ewin->xwindow, CurrentTime,  None, GrabModeAsync, GrabModeAsync, False, button_grab_mask());
+        XIAllowEvents(dpaw->root.display, ev->deviceid, XIReplayDevice, CurrentTime);
+      }
+      if(event->info->type == XI_ButtonRelease)
+        XIUngrabDevice(dpaw->root.display, ev->deviceid, CurrentTime);
+//      printf("[[%s]] %lx %lx %lx %.1fx%.1f %.1fx%.1f\n", event->info->name, ev->event, ev->child, ev->root, ev->event_x, ev->event_y, ev->root_x, ev->root_y);
       return result;
     } break;
   }

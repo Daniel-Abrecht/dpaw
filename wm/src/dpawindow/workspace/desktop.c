@@ -296,6 +296,7 @@ EV_ON(workspace_desktop, XI_ButtonPress){
     if(in_frame)
       break;
   }
+  bool grab = false;
   if(match){
     match->drag_device = event->deviceid;
     match->drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
@@ -312,11 +313,13 @@ EV_ON(workspace_desktop, XI_ButtonPress){
     if(match->drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,edge_grab_rim))
       match->drag_action |= DPAW_DW_DRAG_RIGHT;
     if(match->drag_action || match->drag_offset.top_left.y <= dw_bounds.top_left.y)
-      dpaw_linked_list_set(&window->drag_list, &match->drag_list_entry, window->drag_list.first);
+      grab = true;
     set_focus(match);
 //    printf("XI_ButtonPress %d %lf %lf %lf %lf\n", match->drag_action, event->root_x, event->root_y, event->event_x, event->event_y);
   }
-  return EHR_OK;
+  if(grab)
+    dpaw_linked_list_set(&window->drag_list, &match->drag_list_entry, window->drag_list.first);
+  return grab ? EHR_OK : EHR_UNHANDLED;
 }
 
 EV_ON(workspace_desktop, XI_ButtonRelease){
