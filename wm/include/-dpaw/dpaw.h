@@ -4,6 +4,7 @@
 #include <-dpaw/linked_list.h>
 #include <-dpaw/dpawindow/root.h>
 #include <-dpaw/array.h>
+#include <stddef.h>
 
 enum {
   DPAW_WORKSPACE_MAX_TOUCH_SOURCES = 128
@@ -22,6 +23,11 @@ struct dpaw_fd {
   dpaw_fd_callback callback;
   void* ptr;
   bool keep;
+};
+
+struct dpaw_string {
+  char* data;
+  size_t size;
 };
 
 struct dpaw {

@@ -1,5 +1,6 @@
 #include <-dpaw/dpaw.h>
 #include <-dpaw/atom.h>
+#include <-dpaw/font.h>
 #include <-dpaw/process.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -125,6 +126,10 @@ int dpaw_init(struct dpaw* dpaw){
     goto error;
   }
   if(dpaw_atom_init(dpaw->root.display) == -1){
+    fprintf(stderr, "dpaw_atom_init failed\n");
+    goto error;
+  }
+  if(dpaw_font_init(dpaw->root.display) == -1){
     fprintf(stderr, "dpaw_atom_init failed\n");
     goto error;
   }

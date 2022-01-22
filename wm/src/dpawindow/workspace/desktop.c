@@ -3,6 +3,7 @@
 #include <-dpaw/xev/xinput2.c>
 #include <-dpaw/atom/ewmh.c>
 #include <-dpaw/atom/icccm.c>
+#include <-dpaw/font.h>
 #include <-dpaw/dpawindow.h>
 #include <-dpaw/dpawindow/app.h>
 #include <-dpaw/dpawindow/root.h>
@@ -113,6 +114,7 @@ static void dpawindow_desktop_window_cleanup(struct dpawindow_desktop_window* dw
   dpaw_linked_list_set(0, &dw->drag_list_entry, 0);
   XDestroyWindow(dw->window.dpaw->root.display, dw->window.xwindow);
   dw->window.xwindow = 0;
+  XFreeGC(dw->window.dpaw->root.display, dw->gc);
 }
 
 static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, int mode){
@@ -140,6 +142,36 @@ static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, i
   }
 }
 
+static int window_border_draw(struct dpawindow_desktop_window* dw){
+  Display*const display = dw->window.dpaw->root.display;
+
+  XClearWindow(display, dw->window.xwindow);
+
+  struct dpaw_string name = dw->app_window->observable.name.value;
+  if(name.data){
+    XRectangle inc, logical;
+    Xutf8TextExtents(dpaw_font.normal, name.data, name.size, &inc, &logical);
+    struct dpaw_rect appbounds = dw->app_window->window.boundary;
+    int x = (appbounds.bottom_right.x - appbounds.top_left.x - inc.width) / 2;
+    int y = (appbounds.top_left.y) / 2 + inc.height / 2;
+    Xutf8DrawString(display, dw->window.xwindow, dpaw_font.normal, dw->gc, x, y, name.data, name.size);
+  }
+
+  return 0;
+}
+
+static int window_name_change_handler(void* private, struct dpawindow_app* app, struct dpaw_string title){
+  (void)private;
+  (void)title;
+  window_border_draw(app->workspace_private);
+  return 0;
+}
+
+EV_ON(desktop_window, Expose){
+  window_border_draw(window);
+  return EHR_OK;
+}
+
 static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawindow_app* app){
   dw->window.type = &dpawindow_type_desktop_window;
   dw->window.dpaw = dw->workspace->window.dpaw;
@@ -153,12 +185,14 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
   struct dpaw_rect dw_boundary = dw->window.boundary;
   printf("%ld %ld %ld %ld\n", dw_boundary.top_left.x, dw_boundary.top_left.y, dw_boundary.bottom_right.x, dw_boundary.bottom_right.y);
 
+  unsigned long white_pixel = WhitePixel(display, DefaultScreen(display));
+
   dw->window.xwindow = XCreateWindow(
     display, dw->workspace->window.xwindow,
     dw_boundary.top_left.x, dw_boundary.top_left.y, dw_boundary.bottom_right.x-dw_boundary.top_left.x, dw_boundary.bottom_right.y-dw_boundary.top_left.y, dw->has_border,
     CopyFromParent, InputOutput,
     CopyFromParent, CWBackPixel|CWBorderPixel, &(XSetWindowAttributes){
-      .border_pixel = WhitePixel(display, 0)
+      .border_pixel = white_pixel
     }
   );
   if(!dw->window.xwindow){
@@ -171,6 +205,11 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
     return -1;
   }
 
+  dw->gc = XCreateGC(display, dw->window.xwindow, 0, 0);
+//  XSetBackground(display, dw->gc, white_pixel);
+  XSetForeground(display, dw->gc, white_pixel);
+  window_border_draw(dw);
+
   XChangeProperty(display, dw->app_window->window.xwindow, _NET_FRAME_EXTENTS, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)(long[]){0,0,0,0}, 4);
   XChangeProperty(display, dw->app_window->window.xwindow, _NET_WM_ALLOWED_ACTIONS, XA_ATOM, 32, PropModeReplace, (unsigned char*)(Atom[]){_NET_WM_ACTION_CLOSE}, 1);
 
@@ -178,6 +217,7 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
 
   printf("take_window: %lx %d %d\n", dw->app_window->window.xwindow, dw->app_window->observable.desired_placement.value.width, dw->app_window->observable.desired_placement.value.height);
   DPAW_APP_OBSERVE(dw->app_window, desired_placement, 0, desired_placement_change_handler);
+  DPAW_APP_OBSERVE(dw->app_window, name, 0, window_name_change_handler);
 
   return 0;
 }

@@ -36,14 +36,14 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
   {
     Atom* res = 0; // An atom may not be 32bit big, so specifying 4 bytes is technically wrong, but in practice, there is no other way to do this right, X will allocate a whole atom.
     if(dpaw_get_property(&window->window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1)
-      fprintf(stderr, "dpaw_get_property failed\n");
+      fprintf(stderr, "dpaw_get_property(_NET_WM_WINDOW_TYPE) failed\n");
     DPAW_APP_OBSERVABLE_SET(window, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
     if(res) XFree(res);
   }
   {
     Atom* res = 0;
     if(dpaw_get_property(&window->window, ONSCREEN_KEYBOARD, (size_t[]){4}, 0, (void**)&res) == -1)
-      fprintf(stderr, "dpaw_get_property failed\n");
+      fprintf(stderr, "dpaw_get_property(ONSCREEN_KEYBOARD) failed\n");
     window->is_keyboard = res && *res;
     if(res) XFree(res);
   }
@@ -60,8 +60,30 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
     }
   }
 
+  {
+    struct dpaw_string string = {0};
+    if(dpaw_get_property(&window->window, _NET_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
+    if(dpaw_get_property(&window->window, XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
+      fprintf(stderr, "dpaw_get_property(_NET_WM_NAME) failed\n");
+    DPAW_APP_OBSERVABLE_SET(window, name, string);
+  }
+
 //  printf("%s\n", XGetAtomName(dpaw->root.display, window->observable.type.value));
   return 0;
+}
+
+EV_ON(app, PropertyNotify){
+  if(event->atom == _NET_WM_NAME || event->atom == XA_WM_NAME){
+    struct dpaw_string string = {0};
+    if(dpaw_get_property(&window->window, _NET_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
+    if(dpaw_get_property(&window->window, XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
+      fprintf(stderr, "dpaw_get_property(_NET_WM_NAME) failed\n");
+    DPAW_APP_OBSERVABLE_SET(window, name, string);
+  }
+  //char* name = XGetAtomName(window->window.dpaw->root.display, event->atom);
+  //printf("PropertyNotify %s %d\n", name, event->state);
+  //if(name) XFree(name);
+  return EHR_OK;
 }
 
 static void dpawindow_app_cleanup(struct dpawindow_app* app){

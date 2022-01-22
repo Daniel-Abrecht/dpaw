@@ -31,6 +31,7 @@ DECLARE_DPAW_DERIVED_WINDOW( desktop_window,
   struct dpawindow_workspace_desktop* workspace;
   struct dpaw_list_entry drag_list_entry;
   struct dpaw_rect drag_offset;
+  GC gc;
   enum dpaw_desktop_window_drag_action drag_action;
   int drag_device;
   bool has_border;

@@ -77,6 +77,7 @@ DECLARE_DPAW_DERIVED_WINDOW( app,
     DPAW_APP_OBSERVABLE(Atom) type;
     DPAW_APP_OBSERVABLE(XWMHints) window_hints;
     DPAW_APP_OBSERVABLE(XSizeHints) desired_placement;
+    DPAW_APP_OBSERVABLE(struct dpaw_string) name;
   } observable;
   bool is_keyboard : 1;
   bool exclude_from_window_list : 1;
