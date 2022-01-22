@@ -1,6 +1,7 @@
 #ifndef WORKSPACE_HANDHELD_H
 #define WORKSPACE_HANDHELD_H
 
+#include <-dpaw/action.h>
 #include <-dpaw/workspace.h>
 #include <-dpaw/dpawindow/xembed.h>
 #include <-dpaw/touch_gesture_manager.h>
@@ -31,9 +32,11 @@ DECLARE_DPAW_DERIVED_WINDOW( desktop_window,
   struct dpawindow_workspace_desktop* workspace;
   struct dpaw_list_entry drag_list_entry;
   struct dpaw_rect drag_offset;
-  GC gc;
-  enum dpaw_desktop_window_drag_action drag_action;
   int drag_device;
+  enum dpaw_desktop_window_drag_action drag_action;
+  struct dpaw_action deferred_redraw;
+  GC gc;
+  struct dpaw_rect border;
   bool has_border;
 )
 

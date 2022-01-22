@@ -1,10 +1,12 @@
 #ifndef DPAW_H
 #define DPAW_H
 
+#include <-dpaw/action.h>
 #include <-dpaw/linked_list.h>
 #include <-dpaw/dpawindow/root.h>
 #include <-dpaw/array.h>
 #include <stddef.h>
+#include <stdint.h>
 
 enum {
   DPAW_WORKSPACE_MAX_TOUCH_SOURCES = 128
@@ -33,7 +35,7 @@ struct dpaw_string {
 struct dpaw {
   struct dpawindow_root root;
   struct dpaw_list window_list;
-  struct dpaw_list window_update_list;
+  struct dpaw_list deferred_action_list;
   struct dpaw_list process_list;
   struct dpaw_list plugin_list;
   struct dpaw_touchevent_window_map touch_source[DPAW_WORKSPACE_MAX_TOUCH_SOURCES];
@@ -43,6 +45,13 @@ struct dpaw {
   int x11_fd;
   bool initialised;
 };
+
+// Monotonic time, it counts up, but from an undefined point. Use only relative to itself.
+// One second is exactly 0x10000
+#define DPAW_MONOSECOND 0x10000u
+typedef uint32_t dpaw_monotime_t; // This will be enough for about 18 hours
+dpaw_monotime_t dpaw_monotime_now(void);
+extern dpaw_monotime_t dpaw_last_tick;
 
 int dpaw_cleanup(struct dpaw*);
 int dpaw_init(struct dpaw*);

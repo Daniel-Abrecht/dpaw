@@ -112,15 +112,48 @@ static int desired_placement_change_handler(void* private, struct dpawindow_app*
 
 static void dpawindow_desktop_window_cleanup(struct dpawindow_desktop_window* dw){
   dpaw_linked_list_set(0, &dw->drag_list_entry, 0);
+  dpaw_linked_list_set(0, &dw->deferred_redraw.entry, 0);
   XDestroyWindow(dw->window.dpaw->root.display, dw->window.xwindow);
   dw->window.xwindow = 0;
   XFreeGC(dw->window.dpaw->root.display, dw->gc);
 }
 
+static bool has_to_be_framed(struct dpawindow_desktop_window* dw){
+  Atom type = dw->app_window->observable.type.value;
+  if( type == _NET_WM_WINDOW_TYPE_UTILITY
+   || type == _NET_WM_WINDOW_TYPE_SPLASH
+   || type == _NET_WM_WINDOW_TYPE_DIALOG
+   || type == _NET_WM_WINDOW_TYPE_NORMAL
+  ) return true;
+  return false;
+}
+
 static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, int mode){
   struct dpaw_rect border = {{0,0},{0,0}};
-  if(dw->has_border){
-    border = (struct dpaw_rect){{5,30},{5,5}};
+  bool has_border = has_to_be_framed(dw);
+  dw->has_border = has_border;
+  if(has_border){
+    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
+      border.top_left.y = 30;
+      border.bottom_right.y = 5;
+    }
+    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
+      border.top_left.x = 5;
+      border.bottom_right.x = 5;
+    }
+  }
+  if(!dpaw_rect_equal(dw->border, border)){
+    dw->border = border;
+    XChangeProperty(dw->window.dpaw->root.display, dw->app_window->window.xwindow, _NET_FRAME_EXTENTS, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)(long[]){border.top_left.x,border.top_left.y,border.bottom_right.x,border.bottom_right.y}, 4);
+  }
+  struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
+  if(dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
+    dw->window.boundary.top_left.x = 0;
+    dw->window.boundary.bottom_right.x = workspace_boundary.bottom_right.x - workspace_boundary.top_left.x;
+  }
+  if(dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
+    dw->window.boundary.top_left.y = 0;
+    dw->window.boundary.bottom_right.y = workspace_boundary.bottom_right.y - workspace_boundary.top_left.y;
   }
   if(mode){
     struct dpaw_rect dw_boundary = dw->window.boundary;
@@ -142,7 +175,8 @@ static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, i
   }
 }
 
-static int window_border_draw(struct dpawindow_desktop_window* dw){
+static void window_border_draw_deferred(struct dpaw_action* action){
+  struct dpawindow_desktop_window* dw = container_of(action, struct dpawindow_desktop_window, deferred_redraw);
   Display*const display = dw->window.dpaw->root.display;
 
   XClearWindow(display, dw->window.xwindow);
@@ -156,8 +190,10 @@ static int window_border_draw(struct dpawindow_desktop_window* dw){
     int y = (appbounds.top_left.y) / 2 + inc.height / 2;
     Xutf8DrawString(display, dw->window.xwindow, dpaw_font.normal, dw->gc, x, y, name.data, name.size);
   }
+}
 
-  return 0;
+static void window_border_draw(struct dpawindow_desktop_window* dw){
+  dpaw_linked_list_set(&dw->window.dpaw->deferred_action_list, &dw->deferred_redraw.entry, 0);
 }
 
 static int window_name_change_handler(void* private, struct dpawindow_app* app, struct dpaw_string title){
@@ -172,6 +208,13 @@ EV_ON(desktop_window, Expose){
   return EHR_OK;
 }
 
+static int update_frame_handler(void* private, struct dpawindow_app* app, Atom type){
+  (void)private;
+  (void)type;
+  update_frame_content_boundary(app->workspace_private, 1);
+  return 0;
+}
+
 static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawindow_app* app){
   dw->window.type = &dpawindow_type_desktop_window;
   dw->window.dpaw = dw->workspace->window.dpaw;
@@ -179,7 +222,7 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
   dw->app_window = app;
   app->workspace_private = dw;
 
-  dw->has_border = true;
+  dw->deferred_redraw.callback = window_border_draw_deferred;
   dw->window.boundary = dw->app_window->window.boundary;
   update_frame_content_boundary(dw, 0);
   struct dpaw_rect dw_boundary = dw->window.boundary;
@@ -210,14 +253,22 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
   XSetForeground(display, dw->gc, white_pixel);
   window_border_draw(dw);
 
-  XChangeProperty(display, dw->app_window->window.xwindow, _NET_FRAME_EXTENTS, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)(long[]){0,0,0,0}, 4);
-  XChangeProperty(display, dw->app_window->window.xwindow, _NET_WM_ALLOWED_ACTIONS, XA_ATOM, 32, PropModeReplace, (unsigned char*)(Atom[]){_NET_WM_ACTION_CLOSE}, 1);
+  XChangeProperty(display, dw->app_window->window.xwindow, _NET_WM_ALLOWED_ACTIONS, XA_ATOM, 32, PropModeReplace, (unsigned char*)(Atom[]){
+    _NET_WM_ACTION_MINIMIZE,
+    _NET_WM_ACTION_MAXIMIZE_HORZ,
+    _NET_WM_ACTION_MAXIMIZE_VERT,
+    _NET_WM_ACTION_CLOSE,
+    _NET_WM_ACTION_MOVE,
+    _NET_WM_ACTION_RESIZE,
+    _NET_WM_ACTION_CHANGE_DESKTOP,
+  }, 7);
 
   XReparentWindow(display, app->window.xwindow, dw->window.xwindow, 10, 30);
 
   printf("take_window: %lx %d %d\n", dw->app_window->window.xwindow, dw->app_window->observable.desired_placement.value.width, dw->app_window->observable.desired_placement.value.height);
   DPAW_APP_OBSERVE(dw->app_window, desired_placement, 0, desired_placement_change_handler);
   DPAW_APP_OBSERVE(dw->app_window, name, 0, window_name_change_handler);
+  DPAW_APP_OBSERVE(dw->app_window, type, 0, update_frame_handler);
 
   return 0;
 }
@@ -322,6 +373,8 @@ EV_ON(workspace_desktop, XI_ButtonPress){
   for(struct dpaw_list_entry* it=window->workspace.window_list.first; it; it=it->next){
     struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
     struct dpawindow_desktop_window* dw = app->workspace_private;
+    if(!has_to_be_framed(dw))
+      continue;
     bool in_super_area = !match && dpaw_in_rect((struct dpaw_rect){
       .top_left.x     = dw->window.boundary.top_left.x     - edge_grab_rim,
       .top_left.y     = dw->window.boundary.top_left.y     - edge_grab_rim,

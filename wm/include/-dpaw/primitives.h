@@ -40,6 +40,7 @@ struct dpaw;
 
 bool dpaw_in_rect(struct dpaw_rect rect, struct dpaw_point point);
 bool dpaw_point_equal(struct dpaw_point A, struct dpaw_point B);
+bool dpaw_rect_equal(struct dpaw_rect A, struct dpaw_rect B);
 struct dpaw_line dpaw_line_clip(struct dpaw_rect rect, struct dpaw_line line);
 struct dpaw_point dpaw_calc_distance(const struct dpaw*, struct dpaw_point A, struct dpaw_point B, enum dpaw_unit);
 struct dpaw_point dpaw_closest_point_on_line(struct dpaw_line line, struct dpaw_point P, bool clip);

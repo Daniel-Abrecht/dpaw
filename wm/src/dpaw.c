@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <time.h>
 #include <poll.h>
 #include <errno.h>
 #include <stdio.h>
@@ -12,6 +13,17 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <signal.h>
+
+#define DPAW_TARGET_FPS 60u
+
+dpaw_monotime_t dpaw_monotime_now(void){
+  struct timespec time;
+  clock_gettime(CLOCK_MONOTONIC, &time);
+  return (uint64_t)time.tv_nsec * DPAW_MONOSECOND / 1000000000 + (uint32_t)time.tv_sec * DPAW_MONOSECOND;
+}
+
+dpaw_monotime_t dpaw_last_tick;
+static dpaw_monotime_t last_deferred_tick;
 
 static volatile enum dpaw_state {
   DPAW_KEEP_RUNNING,
@@ -222,7 +234,18 @@ int dpaw_run(struct dpaw* dpaw){
       dpaw_array_gc(&dpaw->fd_list);
       assert(dpaw->fd_list.count == dpaw->input_list.count);
 //      printf("polling %zu entries\n", dpaw->fd_list.count);
-      int ret = poll(dpaw->fd_list.data, dpaw->fd_list.count, -1);
+      int timeout = -1;
+      if(dpaw->deferred_action_list.first){
+        dpaw_monotime_t now = dpaw_monotime_now();
+        dpaw_monotime_t time = (now-last_deferred_tick) * 1000 / DPAW_MONOSECOND;
+        if(time < 1000 / DPAW_TARGET_FPS){
+          timeout = 1000 / DPAW_TARGET_FPS - time;
+        }else{
+          timeout = 0;
+        }
+      }
+      int ret = poll(dpaw->fd_list.data, dpaw->fd_list.count, timeout);
+      dpaw_last_tick = dpaw_monotime_now();
 //      printf("poll return with %d\n", ret);
       if( ret == -1 && errno != EINTR ){
         perror("poll failed");
@@ -351,10 +374,16 @@ int dpaw_run(struct dpaw* dpaw){
 
     dpaw_free_xev(&xev);
 
-    while(dpaw->window_update_list.first){
-      struct dpawindow* window = container_of(dpaw->window_update_list.first, struct dpawindow, dpaw_window_update_entry);
-      dpaw_linked_list_set(0, dpaw->window_update_list.first, 0);
-      dpawindow_deferred_update(window);
+    {
+      dpaw_monotime_t now = dpaw_monotime_now();
+      if(dpaw->deferred_action_list.first && (now-last_deferred_tick) >= DPAW_TARGET_FPS){
+        last_deferred_tick = now;
+        while(dpaw->deferred_action_list.first){
+          struct dpaw_action* action = container_of(dpaw->deferred_action_list.first, struct dpaw_action, entry);
+          dpaw_linked_list_set(0, dpaw->deferred_action_list.first, 0);
+          action->callback(action);
+        }
+      }
     }
 
   }

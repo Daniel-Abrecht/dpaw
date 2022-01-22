@@ -2,6 +2,7 @@
 #define DPAWINDOW_H
 
 #include <-dpaw/xev.h>
+#include <-dpaw/action.h>
 #include <-dpaw/callback.h>
 #include <-dpaw/primitives.h>
 #include <-dpaw/linked_list.h>
@@ -41,7 +42,7 @@ struct dpawindow {
   struct dpaw_callback_list_dpawindow pre_cleanup, post_cleanup;
   struct dpaw_callback_list_dpawindow boundary_changed;
   struct dpaw_list_entry dpaw_window_entry;
-  struct dpaw_list_entry dpaw_window_update_entry;
+  struct dpaw_action deferred_update;
   struct dpaw_rect boundary;
   Window xwindow;
   bool cleanup : 1;
@@ -94,7 +95,6 @@ bool dpawindow_has_error_occured(Display* display);
 void dpawindow_cleanup(struct dpawindow*);
 struct dpawindow* dpawindow_lookup(struct dpaw*, Window);
 enum event_handler_result dpawindow_dispatch_event(struct dpawindow* window, const struct xev_event*);
-int dpawindow_deferred_update(struct dpawindow* window);
 int dpawindow_hide(struct dpawindow* window, bool hidden);
 int dpawindow_set_mapping(struct dpawindow* window, bool mapping);
 int dpawindow_place_window(struct dpawindow*, struct dpaw_rect boundary);

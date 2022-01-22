@@ -79,10 +79,15 @@ EV_ON(app, PropertyNotify){
     if(dpaw_get_property(&window->window, XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
       fprintf(stderr, "dpaw_get_property(_NET_WM_NAME) failed\n");
     DPAW_APP_OBSERVABLE_SET(window, name, string);
-  }
-  //char* name = XGetAtomName(window->window.dpaw->root.display, event->atom);
-  //printf("PropertyNotify %s %d\n", name, event->state);
-  //if(name) XFree(name);
+  }else if(event->atom == _NET_WM_WINDOW_TYPE){
+    Atom* res = 0; // An atom may not be 32bit big, so specifying 4 bytes is technically wrong, but in practice, there is no other way to do this right, X will allocate a whole atom.
+    if(dpaw_get_property(&window->window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1){
+      fprintf(stderr, "dpaw_get_property(_NET_WM_WINDOW_TYPE) failed\n");
+    }else{
+      DPAW_APP_OBSERVABLE_SET(window, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
+    }
+    if(res) XFree(res);
+  }else return EHR_UNHANDLED;
   return EHR_OK;
 }
 

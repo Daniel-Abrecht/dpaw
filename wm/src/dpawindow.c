@@ -64,7 +64,7 @@ int dpawindow_close(struct dpawindow* window){
 
 void dpawindow_update_window_config(struct dpawindow* window){
   window->d_update_config = true;
-  dpaw_linked_list_set(&window->dpaw->window_update_list, &window->dpaw_window_update_entry, 0);
+  dpaw_linked_list_set(&window->dpaw->deferred_action_list, &window->deferred_update.entry, 0);
 }
 
 int dpawindow_hide(struct dpawindow* window, bool hidden){
@@ -94,6 +94,8 @@ int dpawindow_move_to(struct dpawindow* window, struct dpaw_point top_left){
   });
 }
 
+static void dpawindow_deferred_update_action(struct dpaw_action* action);
+
 int dpawindow_register(struct dpawindow* window){
   if(!window || !window->type || window->dpaw_window_entry.list){
     fprintf(stderr, "Procondition for dpawindow_register failed\n");
@@ -111,6 +113,7 @@ int dpawindow_register(struct dpawindow* window){
       return -1; // This window
     }
   }
+  window->deferred_update.callback = dpawindow_deferred_update_action;
   {
     XWindowAttributes attrs;
     XGetWindowAttributes(window->dpaw->root.display, window->xwindow, &attrs);
@@ -155,13 +158,15 @@ int dpawindow_unregister(struct dpawindow* window){
     if(extension->unsubscribe)
       extension->unsubscribe(extension, window);
   dpaw_linked_list_set(0, &window->dpaw_window_entry, 0);
-  dpaw_linked_list_set(0, &window->dpaw_window_update_entry, 0);
+  dpaw_linked_list_set(0, &window->deferred_update.entry, 0);
+  dpaw_linked_list_clear(&window->boundary_changed.list);
   return 0;
 }
 
-int dpawindow_deferred_update(struct dpawindow* window){
+static void dpawindow_deferred_update_action(struct dpaw_action* action){
+  struct dpawindow* window = container_of(action, struct dpawindow, deferred_update);
   if(!window->d_update_config)
-    return 0;
+    return;
   window->d_update_config = false;
   const struct dpaw_rect boundary = window->boundary;
   bool valid_placement = (
@@ -217,9 +222,11 @@ int dpawindow_deferred_update(struct dpawindow* window){
     XChangeProperty(window->dpaw->root.display, window->xwindow, state_atom, WM_STATE, 32, PropModeReplace, (unsigned char*)(long[]){state,0}, 2);
   }
 
-  return 0;
+  return;
 }
 
+// FIXME: This is currently unused, but it's also wrong. It wasn't worth fixing, because
+// XResQueryClientIds used to be inherently broken (I think XResQueryClientIds got fixed meanwhile? I don't remember)
 pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow){
   pid_t pid = 0;
 

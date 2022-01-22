@@ -16,6 +16,13 @@ bool dpaw_point_equal(struct dpaw_point A, struct dpaw_point B){
   return A.x == B.x && A.y == B.y;
 }
 
+bool dpaw_rect_equal(struct dpaw_rect A, struct dpaw_rect B){
+  return A.top_left.x     == B.top_left.x
+      && A.top_left.y     == B.top_left.y
+      && A.bottom_right.x == B.bottom_right.x
+      && A.bottom_right.y == B.bottom_right.y;
+}
+
 /**
  * \returns The section of the line inside the rectangle, this can't be a single point. Returns a zero filled line in case of no overlap.
  */
