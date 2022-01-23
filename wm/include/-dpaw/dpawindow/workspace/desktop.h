@@ -26,6 +26,17 @@ DECLARE_DPAW_WORKSPACE( desktop,
   struct dpaw_list drag_list;
 )
 
+struct dpaw_desktop_window_button {
+  Window xwindow;
+};
+
+enum dpaw_desktop_window_button_e {
+  DPAW_DESKTOP_WINDOW_BUTTON_CLOSE,
+  DPAW_DESKTOP_WINDOW_BUTTON_MAXIMIZE,
+  DPAW_DESKTOP_WINDOW_BUTTON_MINIMIZE,
+  DPAW_DESKTOP_WINDOW_BUTTON_COUNT
+};
+
 DECLARE_DPAW_DERIVED_WINDOW( desktop_window,
   struct dpaw_list_entry desktop_entry;
   struct dpawindow_app* app_window; // This is just the applications window / the content
@@ -37,7 +48,9 @@ DECLARE_DPAW_DERIVED_WINDOW( desktop_window,
   struct dpaw_action deferred_redraw;
   GC gc;
   struct dpaw_rect border;
+  struct dpaw_rect old_boundary;
   bool has_border;
+  struct dpaw_desktop_window_button button[DPAW_DESKTOP_WINDOW_BUTTON_COUNT];
 )
 
 #endif

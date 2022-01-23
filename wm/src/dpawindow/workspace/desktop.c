@@ -15,6 +15,40 @@
 
 DEFINE_DPAW_DERIVED_WINDOW(desktop_window)
 
+typedef void button_meta_onclick(struct dpawindow_desktop_window*);
+struct button_meta {
+  float width_height_ratio;
+  struct dpaw_string symbol, symbol_active;
+  button_meta_onclick* onclick;
+};
+
+static button_meta_onclick window_close_handler;
+static button_meta_onclick window_maximize_handler;
+static button_meta_onclick window_minimize_handler;
+
+#define S(...) {__VA_ARGS__, sizeof(__VA_ARGS__)-1}
+static const struct button_meta button_meta[DPAW_DESKTOP_WINDOW_BUTTON_COUNT] = {
+  [DPAW_DESKTOP_WINDOW_BUTTON_CLOSE] = {
+    .width_height_ratio = 1.61803,
+    .symbol = S("X"), // 🗙✖✕ <- These didn't work...
+    .symbol_active = S("X"), // ✖✕
+    .onclick = window_close_handler,
+  },
+  [DPAW_DESKTOP_WINDOW_BUTTON_MAXIMIZE] = {
+    .width_height_ratio = 1.30901,
+    .symbol = S("□"), // 🗖  <- These didn't work...
+    .symbol_active = S("V"), // 🗗 <- These didn't work...
+    .onclick = window_maximize_handler,
+  },
+  [DPAW_DESKTOP_WINDOW_BUTTON_MINIMIZE] = {
+    .width_height_ratio = 1.30901,
+    .symbol = S("_"), // 🗕 <- This didn't work
+    .symbol_active = S("V"), // 🗗 <- These didn't work...
+    .onclick = window_minimize_handler,
+  },
+};
+#undef S
+
 static struct dpawindow_desktop_window* lookup_xwindow(struct dpawindow_workspace_desktop* desktop_workspace, Window xwindow){
   for(struct dpaw_list_entry* it=desktop_workspace->workspace.window_list.first; it; it=it->next){
     struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
@@ -111,11 +145,16 @@ static int desired_placement_change_handler(void* private, struct dpawindow_app*
 }
 
 static void dpawindow_desktop_window_cleanup(struct dpawindow_desktop_window* dw){
+  Display*const display = dw->window.dpaw->root.display;
   dpaw_linked_list_set(0, &dw->drag_list_entry, 0);
   dpaw_linked_list_set(0, &dw->deferred_redraw.entry, 0);
-  XDestroyWindow(dw->window.dpaw->root.display, dw->window.xwindow);
+  for(int i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
+    struct dpaw_desktop_window_button* button = &dw->button[i];
+    XDestroyWindow(display, button->xwindow);
+  }
+  XFreeGC(display, dw->gc);
+  XDestroyWindow(display, dw->window.xwindow);
   dw->window.xwindow = 0;
-  XFreeGC(dw->window.dpaw->root.display, dw->gc);
 }
 
 static bool has_to_be_framed(struct dpawindow_desktop_window* dw){
@@ -133,8 +172,8 @@ static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, i
   bool has_border = has_to_be_framed(dw);
   dw->has_border = has_border;
   if(has_border){
+    border.top_left.y = 30;
     if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
-      border.top_left.y = 30;
       border.bottom_right.y = 5;
     }
     if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
@@ -146,17 +185,16 @@ static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, i
     dw->border = border;
     XChangeProperty(dw->window.dpaw->root.display, dw->app_window->window.xwindow, _NET_FRAME_EXTENTS, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)(long[]){border.top_left.x,border.top_left.y,border.bottom_right.x,border.bottom_right.y}, 4);
   }
-  struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
-  if(dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
-    dw->window.boundary.top_left.x = 0;
-    dw->window.boundary.bottom_right.x = workspace_boundary.bottom_right.x - workspace_boundary.top_left.x;
-  }
-  if(dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
-    dw->window.boundary.top_left.y = 0;
-    dw->window.boundary.bottom_right.y = workspace_boundary.bottom_right.y - workspace_boundary.top_left.y;
-  }
   if(mode){
     struct dpaw_rect dw_boundary = dw->window.boundary;
+    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
+      dw->old_boundary.top_left.x = dw_boundary.top_left.x;
+      dw->old_boundary.bottom_right.x = dw_boundary.bottom_right.x;
+    }
+    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
+      dw->old_boundary.top_left.y = dw_boundary.top_left.y;
+      dw->old_boundary.bottom_right.y = dw_boundary.bottom_right.y;
+    }
     dw_boundary.bottom_right.x = dw_boundary.bottom_right.x - dw_boundary.top_left.x - border.bottom_right.x;
     dw_boundary.bottom_right.y = dw_boundary.bottom_right.y - dw_boundary.top_left.y - border.bottom_right.y;
     dw_boundary.top_left.y = border.top_left.y;
@@ -178,6 +216,47 @@ static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, i
 static void window_border_draw_deferred(struct dpaw_action* action){
   struct dpawindow_desktop_window* dw = container_of(action, struct dpawindow_desktop_window, deferred_redraw);
   Display*const display = dw->window.dpaw->root.display;
+  const struct dpaw_rect appbounds = dw->app_window->window.boundary;
+
+  if(appbounds.top_left.y < 5){
+    for(int i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
+      struct dpaw_desktop_window_button* button = &dw->button[i];
+      XUnmapWindow(display, button->xwindow);
+    }
+    return;
+  }
+
+  long end = appbounds.bottom_right.x;
+  for(enum dpaw_desktop_window_button_e i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
+    struct dpaw_desktop_window_button* button = &dw->button[i];
+    const struct button_meta* meta = &button_meta[i];
+    long width = appbounds.top_left.y * meta->width_height_ratio;
+    XMoveResizeWindow(
+      display,
+      button->xwindow,
+      end - width - 2,
+      -1,
+      width,
+      appbounds.top_left.y - 1
+    );
+    XMapWindow(display, button->xwindow);
+    end -= width + 1;
+    XRectangle inc, logical;
+    bool active = false;
+    switch(i){
+      case DPAW_DESKTOP_WINDOW_BUTTON_MAXIMIZE: active = dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT && dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ; break;
+      case DPAW_DESKTOP_WINDOW_BUTTON_MINIMIZE: active = dw->app_window->wm_state._NET_WM_STATE_HIDDEN; break;
+      default: break;
+    }
+    const struct dpaw_string symbol = active ? meta->symbol_active : meta->symbol;
+    Xutf8TextExtents(dpaw_font.normal, symbol.data, symbol.size, &inc, &logical);
+    long x = (width - inc.width) / 2;
+    if(x < appbounds.top_left.x)
+      x = appbounds.top_left.x;
+    long y = appbounds.top_left.y <= inc.height ? 0 : (appbounds.top_left.y + inc.height) / 2;
+    XClearWindow(display, button->xwindow);
+    Xutf8DrawString(display, button->xwindow, dpaw_font.normal, dw->gc, x, y, symbol.data, symbol.size);
+  }
 
   XClearWindow(display, dw->window.xwindow);
 
@@ -186,8 +265,10 @@ static void window_border_draw_deferred(struct dpaw_action* action){
     XRectangle inc, logical;
     Xutf8TextExtents(dpaw_font.normal, name.data, name.size, &inc, &logical);
     struct dpaw_rect appbounds = dw->app_window->window.boundary;
-    int x = (appbounds.bottom_right.x - appbounds.top_left.x - inc.width) / 2;
-    int y = (appbounds.top_left.y) / 2 + inc.height / 2;
+    long x = (end - appbounds.top_left.x - inc.width) / 2;
+    if(x < appbounds.top_left.x)
+      x = appbounds.top_left.x;
+    long y = appbounds.top_left.y <= inc.height ? 0 : (appbounds.top_left.y + inc.height) / 2;
     Xutf8DrawString(display, dw->window.xwindow, dpaw_font.normal, dw->gc, x, y, name.data, name.size);
   }
 }
@@ -204,6 +285,8 @@ static int window_name_change_handler(void* private, struct dpawindow_app* app, 
 }
 
 EV_ON(desktop_window, Expose){
+  if(event->y > window->app_window->window.boundary.top_left.y)
+    return EHR_OK;
   window_border_draw(window);
   return EHR_OK;
 }
@@ -262,6 +345,22 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
     _NET_WM_ACTION_RESIZE,
     _NET_WM_ACTION_CHANGE_DESKTOP,
   }, 7);
+
+  for(int i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
+    struct dpaw_desktop_window_button* button = &dw->button[i];
+    button->xwindow = XCreateWindow(
+      display, dw->window.xwindow,
+      0,0,1,1, 1, // We'll set the right size & position later
+      CopyFromParent, InputOutput,
+      CopyFromParent, CWBackPixel|CWBorderPixel, &(XSetWindowAttributes){
+        .border_pixel = white_pixel
+      }
+    );
+    if(!button->xwindow){
+      fprintf(stderr, "XCreateWindow failed for button %d\n", i);
+      return -1;
+    }
+  }
 
   XReparentWindow(display, app->window.xwindow, dw->window.xwindow, 10, 30);
 
@@ -397,6 +496,19 @@ EV_ON(workspace_desktop, XI_ButtonPress){
     match->drag_offset.bottom_right.y = match->window.boundary.bottom_right.y - match->window.boundary.top_left.y - match->drag_offset.top_left.y;
     match->drag_action = 0;
     struct dpaw_rect dw_bounds = match->app_window->window.boundary;
+    if(dw_bounds.top_left.y > 5 && match->drag_offset.top_left.y <= dw_bounds.top_left.y){
+      long end = dw_bounds.bottom_right.x;
+      for(enum dpaw_desktop_window_button_e i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
+        const struct button_meta* meta = &button_meta[i];
+        long width = dw_bounds.top_left.y * meta->width_height_ratio;
+        long start = end - width - 1;
+        if(match->drag_offset.top_left.x >= start && match->drag_offset.top_left.x < end){
+          button_meta[i].onclick(match);
+          return EHR_OK;
+        }
+        end = start;
+      }
+    }
     if(match->drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,edge_grab_rim))
       match->drag_action |= DPAW_DW_DRAG_TOP;
     if(match->drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,edge_grab_rim))
@@ -494,6 +606,54 @@ EV_ON(workspace_desktop, XI_Motion){
       update_frame_content_boundary(match, 1);
   }
   return EHR_OK;
+}
+
+void window_close_handler(struct dpawindow_desktop_window* dw){
+  dpawindow_close(&dw->app_window->window);
+}
+
+void window_minimize_handler(struct dpawindow_desktop_window* dw){
+  (void)dw;
+  puts("[[MINIMIZE]]");
+}
+
+static void maximize_x(struct dpawindow_desktop_window* dw){
+  struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
+  struct dpaw_rect boundary = dw->window.boundary;
+  boundary.top_left.x = 0;
+  boundary.bottom_right.x = workspace_boundary.bottom_right.x - workspace_boundary.top_left.x;
+  dpawindow_place_window(&dw->window, boundary);
+  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = true;
+  update_frame_content_boundary(dw, 1);
+  dpawindow_app_update_wm_state(dw->app_window);
+}
+
+static void maximize_y(struct dpawindow_desktop_window* dw){
+  struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
+  struct dpaw_rect boundary = dw->window.boundary;
+  boundary.top_left.y = 0;
+  boundary.bottom_right.y = workspace_boundary.bottom_right.y - workspace_boundary.top_left.y;
+  dpawindow_place_window(&dw->window, boundary);
+  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = true;
+  update_frame_content_boundary(dw, 1);
+  dpawindow_app_update_wm_state(dw->app_window);
+}
+
+static void normalize(struct dpawindow_desktop_window* dw){
+  dpawindow_place_window(&dw->window, dw->old_boundary);
+  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = false;
+  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = false;
+  update_frame_content_boundary(dw, 1);
+  dpawindow_app_update_wm_state(dw->app_window);
+}
+
+void window_maximize_handler(struct dpawindow_desktop_window* dw){
+  if(!(dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ && dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT)){
+    maximize_x(dw);
+    maximize_y(dw);
+  }else{
+    normalize(dw);
+  }
 }
 
 DEFINE_DPAW_WORKSPACE( desktop,
