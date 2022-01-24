@@ -302,10 +302,19 @@ static int update_frame_handler(void* private, struct dpawindow_app* app, Atom t
   return 0;
 }
 
+static void final_cleanup(struct dpawindow* window, void* a, void* b){
+  (void)a;
+  (void)b;
+  struct dpawindow_desktop_window* dw = container_of(window, struct dpawindow_desktop_window, window);
+  free(dw);
+}
+
 static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawindow_app* app){
   dw->window.type = &dpawindow_type_desktop_window;
   dw->window.dpaw = dw->workspace->window.dpaw;
   Display*const display = dw->window.dpaw->root.display;
+  dw->post_cleanup.callback = final_cleanup;
+  DPAW_CALLBACK_ADD(dpawindow, &dw->window, post_cleanup, &dw->post_cleanup);
   dw->app_window = app;
   app->workspace_private = dw;
 

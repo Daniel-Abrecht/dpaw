@@ -38,6 +38,7 @@ enum dpaw_desktop_window_button_e {
 };
 
 DECLARE_DPAW_DERIVED_WINDOW( desktop_window,
+  struct dpaw_callback_dpawindow post_cleanup;
   struct dpaw_list_entry desktop_entry;
   struct dpawindow_app* app_window; // This is just the applications window / the content
   struct dpawindow_workspace_desktop* workspace;
