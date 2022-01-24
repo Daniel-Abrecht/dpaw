@@ -182,8 +182,7 @@ static void dpawindow_deferred_update_action(struct dpaw_action* action){
     window->hidden ? 'h' : 'v',
     is_visible ? 'v' : 'i'
   );*/
-  if(valid_placement){
-    // Because of problems of resizing sometimes failing, let's try this before and after any mapping changes
+  if(is_visible){
     XMoveResizeWindow(
       window->dpaw->root.display,
       window->xwindow,
@@ -192,22 +191,11 @@ static void dpawindow_deferred_update_action(struct dpaw_action* action){
       boundary.bottom_right.x - boundary.top_left.x,
       boundary.bottom_right.y - boundary.top_left.y
     );
-  }
-  if(is_visible){
     XMapWindow(window->dpaw->root.display, window->xwindow);
   }else{
     XUnmapWindow(window->dpaw->root.display, window->xwindow);
   }
-  if(valid_placement){
-    XMoveResizeWindow(
-      window->dpaw->root.display,
-      window->xwindow,
-      boundary.top_left.x,
-      boundary.top_left.y,
-      boundary.bottom_right.x - boundary.top_left.x,
-      boundary.bottom_right.y - boundary.top_left.y
-    );
-  }
+
   long state = IconicState;
   if(!window->hidden)
     state = NormalState;

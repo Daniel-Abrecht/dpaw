@@ -49,6 +49,8 @@ static const struct button_meta button_meta[DPAW_DESKTOP_WINDOW_BUTTON_COUNT] = 
 };
 #undef S
 
+static void normalize(struct dpawindow_desktop_window* dw);
+
 static struct dpawindow_desktop_window* lookup_xwindow(struct dpawindow_workspace_desktop* desktop_workspace, Window xwindow){
   for(struct dpaw_list_entry* it=desktop_workspace->workspace.window_list.first; it; it=it->next){
     struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
@@ -113,12 +115,14 @@ static int screen_make_bid(struct dpawindow_workspace_desktop* workspace, struct
   return bid;
 }
 
-static int unshow_window(struct dpawindow_desktop_window* dwin){
-  if(!dwin)
+static int unshow_window(struct dpawindow_desktop_window* dw){
+  if(!dw)
     return 0;
-  printf("unshow_window %lx\n", dwin->app_window->window.xwindow);
-  dpawindow_hide(&dwin->app_window->window, true);
-  dpawindow_hide(&dwin->window, true);
+  printf("unshow_window %lx\n", dw->app_window->window.xwindow);
+  dw->app_window->wm_state._NET_WM_STATE_HIDDEN = true;
+  dpawindow_app_update_wm_state(dw->app_window);
+  dpawindow_hide(&dw->window, true);
+  dpawindow_hide(&dw->app_window->window, true);
   return 0;
 }
 
@@ -173,10 +177,10 @@ static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, i
   dw->has_border = has_border;
   if(has_border){
     border.top_left.y = 30;
-    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
+    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
       border.bottom_right.y = 5;
     }
-    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
+    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
       border.top_left.x = 5;
       border.bottom_right.x = 5;
     }
@@ -414,42 +418,25 @@ EV_ON(workspace_desktop, ClientMessage){
 }
 
 static enum event_handler_result configure_request_handler(struct dpawindow_desktop_window* child, xev_ConfigureRequest_t* event){
-  if(event->value_mask & CWWidth)
-    child->app_window->observable.desired_placement.value.width = event->width;
-  if(event->value_mask & CWHeight)
-    child->app_window->observable.desired_placement.value.height = event->height;
-  if(event->value_mask & CWX)
-    child->app_window->observable.desired_placement.value.x = event->x;
-  if(event->value_mask & CWY)
-    child->app_window->observable.desired_placement.value.y = event->y;
-  update_frame_content_boundary(child, 2);
-  struct dpaw_rect fbounds = child->window.boundary;
+  // We manage this window.
+  // We don't actually care what the client wants, unless it's the first time it's configured.
+  // We'll send back the actual size & stuff later anyway, if it changes
   struct dpaw_rect wbounds = child->app_window->window.boundary;
-//  printf("ConfigureRequest %lx %s\n", event->window, event->window == child->window.xwindow ? "frame" : "app");
-//  printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
-//  printf("%ld %ld %ld %ld\n", fbounds.top_left.x, fbounds.top_left.y, fbounds.bottom_right.x, fbounds.bottom_right.y);
-//  printf("%ld %ld %ld %ld\n", wbounds.top_left.x, wbounds.top_left.y, wbounds.bottom_right.x, wbounds.bottom_right.y);
-//  printf("%d %d %d %d\n", child->app_window->observable.desired_placement.value.x, child->app_window->observable.desired_placement.value.y, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
-  if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
-    event->value_mask |= (CWWidth|CWHeight|CWX|CWY);
-  XConfigureWindow(child->window.dpaw->root.display, child->app_window->window.xwindow, event->value_mask, &(XWindowChanges){
-    .x = wbounds.top_left.x,
-    .y = wbounds.top_left.y,
-    .width  = DPAW_MAX(wbounds.bottom_right.x - wbounds.top_left.x, 1),
-    .height = DPAW_MAX(wbounds.bottom_right.y - wbounds.top_left.y, 1),
-    .border_width = event->border_width,
-    .sibling      = event->above,
-    .stack_mode   = event->detail
-  });
-  if(event->value_mask & (CWWidth|CWHeight|CWX|CWY)){
-    XConfigureWindow(child->window.dpaw->root.display, child->window.xwindow, event->value_mask, &(XWindowChanges){
-      .x = fbounds.top_left.x,
-      .y = fbounds.top_left.y,
-      .width  = DPAW_MAX(fbounds.bottom_right.x - fbounds.top_left.x, 1),
-      .height = DPAW_MAX(fbounds.bottom_right.y - fbounds.top_left.y, 1),
-    });
-    DPAW_APP_OBSERVABLE_NOTIFY(child->app_window, desired_placement);
+  if(!child->configured){
+    if(event->value_mask & CWX)
+      wbounds.top_left.x = event->x;
+    if(event->value_mask & CWWidth)
+      wbounds.bottom_right.x = wbounds.top_left.x + event->width;
+    if(event->value_mask & CWY)
+      wbounds.top_left.y = event->y;
+    if(event->value_mask & CWHeight)
+      wbounds.bottom_right.y = wbounds.top_left.y + event->height;
+    if(event->value_mask & (CWWidth|CWHeight|CWX|CWY)){
+      update_frame_content_boundary(child, 2);
+      dpawindow_place_window(&child->window, wbounds);
+    }
   }
+  child->configured = true;
   return EHR_OK;
 }
 
@@ -490,6 +477,7 @@ EV_ON(workspace_desktop, XI_ButtonPress){
   }
   bool grab = false;
   if(match){
+    set_focus(match);
     match->drag_device = event->deviceid;
     match->drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
     match->drag_offset.bottom_right.x = match->window.boundary.bottom_right.x - match->window.boundary.top_left.x - match->drag_offset.top_left.x;
@@ -519,7 +507,6 @@ EV_ON(workspace_desktop, XI_ButtonPress){
       match->drag_action |= DPAW_DW_DRAG_RIGHT;
     if(match->drag_action || match->drag_offset.top_left.y <= dw_bounds.top_left.y)
       grab = true;
-    set_focus(match);
 //    printf("XI_ButtonPress %d %lf %lf %lf %lf\n", match->drag_action, event->root_x, event->root_y, event->event_x, event->event_y);
   }
   if(grab)
@@ -602,7 +589,20 @@ EV_ON(workspace_desktop, XI_Motion){
         .bottom_right.y = point.y + match->drag_offset.bottom_right.y,
       }); break;
     }
-    if(match->drag_action != DPAW_DW_DRAG_MIDDLE)
+    bool wm_state_changed = false;
+    if(match->drag_action & (DPAW_DW_DRAG_LEFT|DPAW_DW_DRAG_RIGHT)){
+      wm_state_changed |= match->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ;
+      match->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = false;
+    }
+    if(match->drag_action & (DPAW_DW_DRAG_TOP|DPAW_DW_DRAG_BOTTOM)){
+      wm_state_changed |= match->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT;
+      match->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = false;
+    }
+    if(match->drag_action == DPAW_DW_DRAG_MIDDLE)
+      normalize(match);
+    if(wm_state_changed)
+      dpawindow_app_update_wm_state(match->app_window);
+    if(match->drag_action != DPAW_DW_DRAG_MIDDLE || wm_state_changed)
       update_frame_content_boundary(match, 1);
   }
   return EHR_OK;
@@ -613,14 +613,13 @@ void window_close_handler(struct dpawindow_desktop_window* dw){
 }
 
 void window_minimize_handler(struct dpawindow_desktop_window* dw){
-  (void)dw;
-  puts("[[MINIMIZE]]");
+  unshow_window(dw);
 }
 
 static void maximize_x(struct dpawindow_desktop_window* dw){
   struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
   struct dpaw_rect boundary = dw->window.boundary;
-  boundary.top_left.x = 0;
+  boundary.top_left.x = -dw->has_border;
   boundary.bottom_right.x = workspace_boundary.bottom_right.x - workspace_boundary.top_left.x;
   dpawindow_place_window(&dw->window, boundary);
   dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = true;
@@ -631,7 +630,7 @@ static void maximize_x(struct dpawindow_desktop_window* dw){
 static void maximize_y(struct dpawindow_desktop_window* dw){
   struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
   struct dpaw_rect boundary = dw->window.boundary;
-  boundary.top_left.y = 0;
+  boundary.top_left.y = -dw->has_border;
   boundary.bottom_right.y = workspace_boundary.bottom_right.y - workspace_boundary.top_left.y;
   dpawindow_place_window(&dw->window, boundary);
   dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = true;
@@ -640,6 +639,8 @@ static void maximize_y(struct dpawindow_desktop_window* dw){
 }
 
 static void normalize(struct dpawindow_desktop_window* dw){
+  if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT && !dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ)
+    return;
   dpawindow_place_window(&dw->window, dw->old_boundary);
   dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = false;
   dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = false;
