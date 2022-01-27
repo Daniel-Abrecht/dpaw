@@ -50,7 +50,7 @@ DECLARE_DPAW_DERIVED_WINDOW( desktop_window,
   GC gc;
   struct dpaw_rect border;
   struct dpaw_rect old_boundary;
-  bool has_border, configured;
+  bool has_border;
   struct dpaw_desktop_window_button button[DPAW_DESKTOP_WINDOW_BUTTON_COUNT];
 )
 

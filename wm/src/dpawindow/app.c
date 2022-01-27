@@ -75,12 +75,17 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
 EV_ON(app, PropertyNotify){
   if(event->atom == _NET_WM_NAME || event->atom == XA_WM_NAME){
     struct dpaw_string string = {0};
-    if(dpaw_get_property(&window->window, _NET_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
-    if(dpaw_get_property(&window->window, XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
+    if( dpaw_get_property(&window->window, _NET_WM_NAME, &string.size, 0, (void**)&string.data) == -1
+     && dpaw_get_property(&window->window,   XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1
+    ){
       fprintf(stderr, "dpaw_get_property(_NET_WM_NAME) failed\n");
-    DPAW_APP_OBSERVABLE_SET(window, name, string);
+    }else{
+      if(window->observable.name.value.data)
+        XFree(window->observable.name.value.data);
+      DPAW_APP_OBSERVABLE_SET(window, name, string);
+    }
   }else if(event->atom == _NET_WM_WINDOW_TYPE){
-    Atom* res = 0; // An atom may not be 32bit big, so specifying 4 bytes is technically wrong, but in practice, there is no other way to do this right, X will allocate a whole atom.
+    Atom* res = 0;
     if(dpaw_get_property(&window->window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1){
       fprintf(stderr, "dpaw_get_property(_NET_WM_WINDOW_TYPE) failed\n");
     }else{
@@ -96,6 +101,8 @@ static void dpawindow_app_cleanup(struct dpawindow_app* app){
   if(app->workspace)
     dpaw_workspace_remove_window(app);
   XRemoveFromSaveSet(app->window.dpaw->root.display, app->window.xwindow);
+  if(app->observable.name.value.data)
+    XFree(app->observable.name.value.data);
 }
 
 EV_ON(app, ConfigureRequest){

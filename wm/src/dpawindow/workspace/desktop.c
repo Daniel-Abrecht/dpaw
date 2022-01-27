@@ -171,6 +171,18 @@ static bool has_to_be_framed(struct dpawindow_desktop_window* dw){
   return false;
 }
 
+static void update_restore_boundary(struct dpawindow_desktop_window* dw){
+  struct dpaw_rect dw_boundary = dw->window.boundary;
+  if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
+    dw->old_boundary.top_left.x = dw_boundary.top_left.x;
+    dw->old_boundary.bottom_right.x = dw_boundary.bottom_right.x;
+  }
+  if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
+    dw->old_boundary.top_left.y = dw_boundary.top_left.y;
+    dw->old_boundary.bottom_right.y = dw_boundary.bottom_right.y;
+  }
+}
+
 static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, int mode){
   struct dpaw_rect border = {{0,0},{0,0}};
   bool has_border = has_to_be_framed(dw);
@@ -191,14 +203,8 @@ static void update_frame_content_boundary(struct dpawindow_desktop_window* dw, i
   }
   if(mode){
     struct dpaw_rect dw_boundary = dw->window.boundary;
-    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ){
-      dw->old_boundary.top_left.x = dw_boundary.top_left.x;
-      dw->old_boundary.bottom_right.x = dw_boundary.bottom_right.x;
-    }
-    if(!dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
-      dw->old_boundary.top_left.y = dw_boundary.top_left.y;
-      dw->old_boundary.bottom_right.y = dw_boundary.bottom_right.y;
-    }
+    update_restore_boundary(dw);
+    printf("update_frame_content_boundary %c%c %ld %ld %ld %ld\n", dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ?'t':'f', dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ?'t':'f', dw->old_boundary.top_left.x, dw->old_boundary.top_left.y, dw->old_boundary.bottom_right.x, dw->old_boundary.bottom_right.y);
     dw_boundary.bottom_right.x = dw_boundary.bottom_right.x - dw_boundary.top_left.x - border.bottom_right.x;
     dw_boundary.bottom_right.y = dw_boundary.bottom_right.y - dw_boundary.top_left.y - border.bottom_right.y;
     dw_boundary.top_left.y = border.top_left.y;
@@ -322,6 +328,7 @@ static int init_desktop_window(struct dpawindow_desktop_window* dw, struct dpawi
   dw->window.boundary = dw->app_window->window.boundary;
   update_frame_content_boundary(dw, 0);
   struct dpaw_rect dw_boundary = dw->window.boundary;
+  dw->old_boundary = dw_boundary;
   printf("%ld %ld %ld %ld\n", dw_boundary.top_left.x, dw_boundary.top_left.y, dw_boundary.bottom_right.x, dw_boundary.bottom_right.y);
 
   unsigned long white_pixel = WhitePixel(display, DefaultScreen(display));
@@ -427,25 +434,8 @@ EV_ON(workspace_desktop, ClientMessage){
 }
 
 static enum event_handler_result configure_request_handler(struct dpawindow_desktop_window* child, xev_ConfigureRequest_t* event){
-  // We manage this window.
-  // We don't actually care what the client wants, unless it's the first time it's configured.
-  // We'll send back the actual size & stuff later anyway, if it changes
-  struct dpaw_rect wbounds = child->app_window->window.boundary;
-  if(!child->configured){
-    if(event->value_mask & CWX)
-      wbounds.top_left.x = event->x;
-    if(event->value_mask & CWWidth)
-      wbounds.bottom_right.x = wbounds.top_left.x + event->width;
-    if(event->value_mask & CWY)
-      wbounds.top_left.y = event->y;
-    if(event->value_mask & CWHeight)
-      wbounds.bottom_right.y = wbounds.top_left.y + event->height;
-    if(event->value_mask & (CWWidth|CWHeight|CWX|CWY)){
-      update_frame_content_boundary(child, 2);
-      dpawindow_place_window(&child->window, wbounds);
-    }
-  }
-  child->configured = true;
+  (void)child;
+  (void)event;
   return EHR_OK;
 }
 
@@ -611,8 +601,11 @@ EV_ON(workspace_desktop, XI_Motion){
       normalize(match);
     if(wm_state_changed)
       dpawindow_app_update_wm_state(match->app_window);
-    if(match->drag_action != DPAW_DW_DRAG_MIDDLE || wm_state_changed)
+    if(match->drag_action != DPAW_DW_DRAG_MIDDLE || wm_state_changed){
       update_frame_content_boundary(match, 1);
+    }else{
+      update_restore_boundary(match);
+    }
   }
   return EHR_OK;
 }
@@ -626,23 +619,25 @@ void window_minimize_handler(struct dpawindow_desktop_window* dw){
 }
 
 static void maximize_x(struct dpawindow_desktop_window* dw){
+  update_restore_boundary(dw);
+  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = true;
   struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
   struct dpaw_rect boundary = dw->window.boundary;
   boundary.top_left.x = -dw->has_border;
   boundary.bottom_right.x = workspace_boundary.bottom_right.x - workspace_boundary.top_left.x;
   dpawindow_place_window(&dw->window, boundary);
-  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = true;
   update_frame_content_boundary(dw, 1);
   dpawindow_app_update_wm_state(dw->app_window);
 }
 
 static void maximize_y(struct dpawindow_desktop_window* dw){
+  update_restore_boundary(dw);
+  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = true;
   struct dpaw_rect workspace_boundary = dw->app_window->workspace->window->boundary;
   struct dpaw_rect boundary = dw->window.boundary;
   boundary.top_left.y = -dw->has_border;
   boundary.bottom_right.y = workspace_boundary.bottom_right.y - workspace_boundary.top_left.y;
   dpawindow_place_window(&dw->window, boundary);
-  dw->app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = true;
   update_frame_content_boundary(dw, 1);
   dpawindow_app_update_wm_state(dw->app_window);
 }

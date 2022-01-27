@@ -23,6 +23,7 @@ endif
 endif
 
 ifdef RELEASE
+CC_OPTS += -DRELEASE
 CC_OPTS += -ffunction-sections -fdata-sections
 LD_OPTS += -Wl,--gc-sections -Wl,--as-needed
 endif

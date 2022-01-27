@@ -507,23 +507,11 @@ EV_ON(workspace_handheld, ConfigureRequest){
   if(event->value_mask & CWY)
     child->app_window->observable.desired_placement.value.y = event->y;
   struct dpaw_rect boundary = determine_window_position(child);
-  if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
+  if(event->value_mask & (CWWidth|CWHeight|CWX|CWY)){
     event->value_mask |= (CWWidth|CWHeight|CWX|CWY);
-  XWindowChanges changes = {
-    .x = boundary.top_left.x,
-    .y = boundary.top_left.y,
-    .width  = boundary.bottom_right.x - boundary.top_left.x,
-    .height = boundary.bottom_right.y - boundary.top_left.y,
-    .border_width = event->border_width,
-    .sibling      = event->above,
-    .stack_mode   = event->detail
-  };
-//  printf("ConfigureRequest: %lx %u %d %d %d %d\n", event->window, child->type, changes.x, changes.y, changes.width, changes.height);
-//  printf("%d %d %d %d\n", event->x, event->y, event->width, event->height);
-//  printf("%d %d %d %d\n", child->app_window->observable.desired_placement.value.x, child->app_window->observable.desired_placement.value.y, child->app_window->observable.desired_placement.value.width, child->app_window->observable.desired_placement.value.height);
-  XConfigureWindow(window->window.dpaw->root.display, event->window, event->value_mask, &changes);
-  if(event->value_mask & (CWWidth|CWHeight|CWX|CWY))
+    dpawindow_place_window(&window->window, boundary);
     DPAW_APP_OBSERVABLE_NOTIFY(child->app_window, desired_placement);
+  }
   return EHR_OK;
 }
 

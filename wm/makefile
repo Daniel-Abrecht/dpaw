@@ -7,6 +7,10 @@ CC_OPTS += -Ibuild/include/
 LD_LIBS += -Llib -ldpaw-wm
 LD_LIBS += -lX11 -lXi -lXrandr -lXRes -ldl
 
+#ifndef RELEASE
+LD_LIBS += -lbacktrace
+#endif
+
 include common.mk
 
 $(BIN): | lib/libdpaw-wm.so
