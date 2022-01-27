@@ -509,7 +509,7 @@ EV_ON(workspace_handheld, ConfigureRequest){
   struct dpaw_rect boundary = determine_window_position(child);
   if(event->value_mask & (CWWidth|CWHeight|CWX|CWY)){
     event->value_mask |= (CWWidth|CWHeight|CWX|CWY);
-    dpawindow_place_window(&window->window, boundary);
+    dpawindow_place_window(&child->app_window->window, boundary);
     DPAW_APP_OBSERVABLE_NOTIFY(child->app_window, desired_placement);
   }
   return EHR_OK;

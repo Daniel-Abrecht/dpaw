@@ -1,3 +1,4 @@
+#include <-dpaw/log.h>
 #include <-dpaw/dpaw.h>
 #include <-dpaw/atom/dpaw.c>
 #include <-dpaw/atom/icccm.c>
@@ -83,6 +84,8 @@ int dpawindow_place_window(struct dpawindow* window, struct dpaw_rect boundary){
   window->boundary = boundary;
   dpawindow_update_window_config(window);
   DPAW_CALL_BACK(dpawindow, window, boundary_changed, 0);
+//  printf("dpawindow_place_window %lx\n", window->xwindow);
+//  dpaw_print_trace(-1);
   return 0;
 }
 
@@ -174,7 +177,7 @@ static void dpawindow_deferred_update_action(struct dpaw_action* action){
    && boundary.top_left.y < boundary.bottom_right.y
   );
   bool is_visible = window->mapped && !window->hidden && valid_placement;
-/*  printf(
+  /*printf(
     "dpawindow_update_window_config: %lx %ld %ld %ld %ld %c%c %c\n",
     window->xwindow,
     boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x, boundary.bottom_right.y,
