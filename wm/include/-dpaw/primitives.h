@@ -45,4 +45,8 @@ struct dpaw_line dpaw_line_clip(struct dpaw_rect rect, struct dpaw_line line);
 struct dpaw_point dpaw_calc_distance(const struct dpaw*, struct dpaw_point A, struct dpaw_point B, enum dpaw_unit);
 struct dpaw_point dpaw_closest_point_on_line(struct dpaw_line line, struct dpaw_point P, bool clip);
 
+static inline struct dpaw_point dpaw_point_add(struct dpaw_point A, struct dpaw_point B){
+  return (struct dpaw_point){ A.x+B.x, A.y+B.y };
+}
+
 #endif

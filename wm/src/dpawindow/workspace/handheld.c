@@ -72,8 +72,9 @@ static int update_window_area(struct dpawindow_handheld_window* child){
   struct dpaw_rect boundary = determine_window_position(child);
 //  printf("update_window_area: %lx %d %ld %ld %ld %ld\n", child->app_window->window.xwindow, child->type, boundary.top_left.x, boundary.top_left.y, boundary.bottom_right.x-boundary.top_left.x, boundary.bottom_right.y-boundary.top_left.y);
   if(child->workspace->bottom_dock == child){
-    child->workspace->keyboard_top_boundary.params.line.A = boundary.top_left;
-    child->workspace->keyboard_top_boundary.params.line.B = (struct dpaw_point){ boundary.bottom_right.x, boundary.top_left.y };
+    struct dpaw_point offset = child->workspace->window.boundary.top_left;
+    child->workspace->keyboard_top_boundary.params.line.A = dpaw_point_add(offset, boundary.top_left);
+    child->workspace->keyboard_top_boundary.params.line.B = dpaw_point_add(offset, (struct dpaw_point){ boundary.bottom_right.x, boundary.top_left.y });
   }
   return dpawindow_place_window(&child->app_window->window, boundary);
 }
