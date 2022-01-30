@@ -24,28 +24,19 @@ int dpaw_xev_xinput2_init(struct dpaw* dpaw, struct xev_event_extension* extensi
     return -1;
   }
 
-  unsigned char mask[XIMaskLen(XI_LASTEVENT)] = {0};
-  XISetMask(mask, XI_TouchBegin);
-  XISetMask(mask, XI_TouchUpdate);
-  XISetMask(mask, XI_TouchEnd);
+  unsigned char mask[XIMaskLen(XI_LASTEVENT)];
   XIEventMask evmask = {
     .mask_len = sizeof(mask),
     .mask = mask
   };
-
   XIGrabModifiers modifiers[] = {
     {
       .modifiers = XIAnyModifier
     }
   };
-  XIGrabTouchBegin(
-    dpaw->root.display,
-    XIAllMasterDevices,
-    dpaw->root.window.xwindow,
-    false,
-    &evmask,
-    sizeof(modifiers)/sizeof(*modifiers), modifiers
-  );
+
+  // XIGrabButton must be before XIGrabTouchBegin!!!
+  // For unknown reason, we won't get any touch events otherwise anymore!!!
 
   memset(evmask.mask, 0, evmask.mask_len);
   XISetMask(mask, XI_ButtonPress);
@@ -57,6 +48,20 @@ int dpaw_xev_xinput2_init(struct dpaw* dpaw, struct xev_event_extension* extensi
     0,
     GrabModeSync,
     GrabModeAsync,
+    false,
+    &evmask,
+    sizeof(modifiers)/sizeof(*modifiers), modifiers
+  );
+
+  memset(evmask.mask, 0, evmask.mask_len);
+  XISetMask(mask, XI_TouchBegin);
+  XISetMask(mask, XI_TouchUpdate);
+  XISetMask(mask, XI_TouchEnd);
+
+  XIGrabTouchBegin(
+    dpaw->root.display,
+    XIAllMasterDevices,
+    dpaw->root.window.xwindow,
     false,
     &evmask,
     sizeof(modifiers)/sizeof(*modifiers), modifiers
@@ -98,6 +103,7 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     if(xany->send_event)
       return EHR_UNHANDLED;
   }
+  //printf("[[%s]]\n", event->info->name);
   switch(event->info->type){
     case XI_TouchBegin:
     case XI_TouchUpdate:
