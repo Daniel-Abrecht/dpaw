@@ -112,6 +112,11 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
       if(te->event.detail == -1)
         return EHR_UNHANDLED;
       if(te->twm){
+        if(XI_TouchBegin == event->info->type){
+          struct dpaw_workspace* workspace = dpawindow_to_dpaw_workspace(te->twm->window);
+          if(workspace)
+            dpaw_workspace_set_active(workspace);
+        }
         enum event_handler_result result = dpawindow_dispatch_event(te->twm->window, event);
         // Make sure to always accept or reject events at some point
         // TODO: Also reject them if it hasn't been accepted in a certain amount of time
@@ -141,6 +146,18 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     case XI_ButtonRelease:
     case XI_Motion: {
       XIDeviceEvent* ev = event->data;
+      if(event->info->type == XI_ButtonPress){
+        for(struct dpaw_list_entry* wlit = dpaw->root.workspace_manager.workspace_list.first; wlit; wlit=wlit->next){
+          struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
+          if( ev->root_x <  workspace->window->boundary.top_left.x
+            || ev->root_y <  workspace->window->boundary.top_left.y
+            || ev->root_x >= workspace->window->boundary.bottom_right.x
+            || ev->root_y >= workspace->window->boundary.bottom_right.y
+          ) continue;
+          dpaw_workspace_set_active(workspace);
+          break;
+        }
+      }
       struct dpawindow* ewin = 0;
       struct dpawindow* cwin = 0;
       for(struct dpaw_list_entry* it=dpaw->window_list.first; it; it=it->next){

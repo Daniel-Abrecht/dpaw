@@ -11,6 +11,7 @@ struct dpaw;
 struct dpaw_workspace_manager {
   struct dpaw* dpaw;
   struct dpaw_list workspace_list;
+  struct dpaw_workspace* active_workspace; // This is only used for the heuristic of where to put new windows
   bool cleanup;
 };
 
@@ -66,6 +67,8 @@ void dpaw_workspace_screen_cleanup(struct dpaw_workspace_screen*);
 int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, struct dpaw_workspace* workspace);
 int dpaw_workspace_manager_manage_app_window(struct dpaw_workspace_manager* wmgr, struct dpawindow_app* app_window, const struct dpaw_workspace_manager_manage_window_options* options);
 int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window, const struct dpaw_workspace_manager_manage_window_options* options);
+
+void dpaw_workspace_set_active(struct dpaw_workspace* workspace);
 
 struct dpaw_workspace* dpawindow_to_dpaw_workspace(struct dpawindow* window);
 int dpaw_workspace_add_window(struct dpaw_workspace*, struct dpawindow_app*);

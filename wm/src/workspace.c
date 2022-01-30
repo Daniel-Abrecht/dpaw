@@ -46,6 +46,10 @@ static struct dpaw_workspace_screen* find_workspace_screen(const struct dpaw_wor
   return 0;
 }
 
+void dpaw_workspace_set_active(struct dpaw_workspace* workspace){
+  workspace->workspace_manager->active_workspace = workspace;
+}
+
 static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, const struct dpaw_screen_info* info){
   struct dpaw_workspace_manager* wmgr = ptr;
   printf(
@@ -183,6 +187,8 @@ static void workspace_pre_cleanup(struct dpawindow* window, void* pworkspace, vo
   struct dpaw_workspace_manager* wmgr = workspace->workspace_manager;
 
   dpaw_linked_list_set(0, &workspace->wmgr_workspace_list_entry, 0);
+  if(wmgr->active_workspace == workspace)
+    dpaw_workspace_set_active(container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry));
   update_virtual_root_property(wmgr);
 
   while(workspace->window_list.first){
@@ -268,6 +274,9 @@ static struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wm
   dpawindow_set_mapping(workspace->window, true);
   dpaw_linked_list_set(&wmgr->workspace_list, &workspace->wmgr_workspace_list_entry, 0);
   update_virtual_root_property(wmgr);
+
+  if(!wmgr->active_workspace)
+    dpaw_workspace_set_active(workspace);
 
   return workspace;
 
@@ -392,10 +401,10 @@ int dpaw_workspace_manager_manage_app_window(struct dpaw_workspace_manager* wmgr
   struct dpaw_workspace* workspace = 0;
   if(options)
     workspace = options->workspace;
-  if(!workspace){
-    // TODO: add some more logic to this
+  if(!workspace) // Feel free to improve the heuristic
+    workspace = wmgr->active_workspace;
+  if(!workspace) // This should never happen, but it'd be a good fallback
     workspace = container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry);
-  }
   if(dpaw_workspace_add_window(workspace, app_window))
     return -1;
   printf("Managing window %lx\n", app_window->window.xwindow);
