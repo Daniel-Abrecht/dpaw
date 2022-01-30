@@ -233,10 +233,17 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     return -1;
   }
 
-/*  if(dpawindow_xembed_init(workspace->window.dpaw, &workspace->keyboard)){
+  if(dpawindow_xembed_init(workspace->window.dpaw, &workspace->keyboard)){
     fprintf(stderr, "dpawindow_xembed_init failed\n");
     return -1;
-  }*/
+  }
+  workspace->keyboard.parent.exclude_from_window_list = true;
+
+  if(dpawindow_xembed_init(workspace->window.dpaw, &workspace->xe_top)){
+    fprintf(stderr, "dpawindow_xembed_init failed\n");
+    return -1;
+  }
+  workspace->xe_top.parent.exclude_from_window_list = true;
 
   if(dpawindow_xembed_init(workspace->window.dpaw, &workspace->dashboard)){
     fprintf(stderr, "dpawindow_xembed_init failed\n");
@@ -281,7 +288,7 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     return -1;
   }
 
-/*  if(dpawindow_xembed_exec(
+  if(dpawindow_xembed_exec(
     &workspace->keyboard,
     XEMBED_METHOD_TAKE_WINDOW_FROM_STDOUT,
     (const char*const[]){"onboard","--xid",0},
@@ -291,7 +298,18 @@ static int init(struct dpawindow_workspace_handheld* workspace){
     return -1;
   }
   workspace->keyboard.parent.is_keyboard = true;
-  dpaw_workspace_add_window(&workspace->workspace, &workspace->keyboard.parent);*/
+  dpaw_workspace_add_window(&workspace->workspace, &workspace->keyboard.parent);
+
+  if(dpawindow_xembed_exec(
+    &workspace->xe_top,
+    XEMBED_UNSUPPORTED_TAKE_FIRST_WINDOW,
+    (const char*const[]){"lxqt-panel", "-c", "/usr/share/dpaw/lxqt-panel.conf", 0},
+    .keep_env = true
+  )){
+    fprintf(stderr, "dpawindow_xembed_exec failed\n");
+    return -1;
+  }
+  dpaw_workspace_add_window(&workspace->workspace, &workspace->xe_top.parent);
 
   if(dpawindow_xembed_exec(
     &workspace->dashboard,
@@ -310,6 +328,7 @@ static int init(struct dpawindow_workspace_handheld* workspace){
 static void dpawindow_workspace_handheld_cleanup(struct dpawindow_workspace_handheld* workspace){
   puts("handheld_workspace cleanup");
   dpaw_touch_gesture_manager_cleanup(&workspace->touch_gesture_manager);
+  dpawindow_cleanup(&workspace->xe_top.window); // Technically, this is currently not necessary
   dpawindow_cleanup(&workspace->keyboard.window); // Technically, this is currently not necessary
   dpawindow_cleanup(&workspace->dashboard.window); // Technically, this is currently not necessary
 }
@@ -396,7 +415,10 @@ static int unshow_window(struct dpawindow_handheld_window* hw){
 
 static int set_window_type(struct dpawindow_handheld_window* window){
   enum dpawindow_handheld_window_type type = DPAWINDOW_HANDHELD_NORMAL;
-  if((!window->workspace->top_dock || window->workspace->top_dock == window) && (
+  if(window->workspace->xe_top.parent.window.xwindow){
+    if(&window->workspace->xe_top.parent == window->app_window)
+      type = DPAWINDOW_HANDHELD_TOP_DOCK;
+  }else if( (!window->workspace->top_dock || window->workspace->top_dock == window) && (
       window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_TOOLBAR
    || window->app_window->observable.type.value == _NET_WM_WINDOW_TYPE_MENU
   )){

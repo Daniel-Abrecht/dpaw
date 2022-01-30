@@ -216,8 +216,6 @@ static void dpawindow_deferred_update_action(struct dpaw_action* action){
   return;
 }
 
-// FIXME: This is currently unused, but it's also wrong. It wasn't worth fixing, because
-// XResQueryClientIds used to be inherently broken (I think XResQueryClientIds got fixed meanwhile? I don't remember)
 pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow){
   pid_t pid = 0;
 
@@ -229,25 +227,13 @@ pid_t dpaw_try_get_xwindow_pid(Display* display, Window xwindow){
   XResClientIdValue* client_ids = 0;
 
   XResQueryClientIds(display, 1, &client_specs, &num_ids, &client_ids);
-
   for(long i=0; i<num_ids; i++){
-    if(!(client_ids[i].spec.mask & XRES_CLIENT_ID_PID_MASK))
-      continue;
-    if(client_ids[i].length == sizeof(uint32_t)){
-      uint32_t tmp;
-      memcpy(&tmp, client_ids[i].value, sizeof(tmp));
-      if(tmp > 0) pid = tmp;
-    }
-    if(client_ids[i].length == sizeof(uint64_t)){
-      uint64_t tmp;
-      memcpy(&tmp, client_ids[i].value, sizeof(tmp));
-      if(tmp > 0) pid = tmp;
-    }
+    pid = XResGetClientPid(&client_ids[i]);
+    if(pid > 0)
+      break;
     break;
   }
-
-  if(client_ids)
-    XFree(client_ids);
+  XResClientIdsDestroy(num_ids, client_ids);
 
   return pid;
 }

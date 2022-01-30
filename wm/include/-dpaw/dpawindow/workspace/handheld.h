@@ -19,6 +19,7 @@ DECLARE_DPAW_WORKSPACE( handheld,
   struct dpaw_sideswipe_detector sideswipe;
   struct dpaw_line_touch_detector keyboard_top_boundary;
   struct dpaw_touch_gesture_manager touch_gesture_manager;
+  struct dpawindow_xembed xe_top;
   struct dpawindow_xembed keyboard;
   struct dpawindow_xembed dashboard;
   struct dpaw_list handheld_window_list;
