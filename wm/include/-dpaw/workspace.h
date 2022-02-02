@@ -68,7 +68,7 @@ int dpaw_reassign_screen_to_workspace(struct dpaw_workspace_screen* screen, stru
 int dpaw_workspace_manager_manage_app_window(struct dpaw_workspace_manager* wmgr, struct dpawindow_app* app_window, const struct dpaw_workspace_manager_manage_window_options* options);
 int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window, const struct dpaw_workspace_manager_manage_window_options* options);
 
-void dpaw_workspace_set_active(struct dpaw_workspace* workspace);
+void dpaw_workspace_set_active(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace* workspace); // wmgr is optional if workspace is set
 
 struct dpaw_workspace* dpawindow_to_dpaw_workspace(struct dpawindow* window);
 int dpaw_workspace_add_window(struct dpaw_workspace*, struct dpawindow_app*);

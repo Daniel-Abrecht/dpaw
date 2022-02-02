@@ -46,8 +46,14 @@ static struct dpaw_workspace_screen* find_workspace_screen(const struct dpaw_wor
   return 0;
 }
 
-void dpaw_workspace_set_active(struct dpaw_workspace* workspace){
-  workspace->workspace_manager->active_workspace = workspace;
+void dpaw_workspace_set_active(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace* workspace){
+  if(!wmgr){
+    assert(workspace);
+    wmgr = workspace->workspace_manager;
+  }else if(workspace){
+    assert(workspace->workspace_manager == wmgr);
+  }
+  wmgr->active_workspace = workspace;
 }
 
 static void screenchange_handler(void* ptr, enum dpaw_screenchange_type what, const struct dpaw_screen_info* info){
@@ -188,7 +194,7 @@ static void workspace_pre_cleanup(struct dpawindow* window, void* pworkspace, vo
 
   dpaw_linked_list_set(0, &workspace->wmgr_workspace_list_entry, 0);
   if(wmgr->active_workspace == workspace)
-    dpaw_workspace_set_active(container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry));
+    dpaw_workspace_set_active(wmgr, container_of(wmgr->workspace_list.first, struct dpaw_workspace, wmgr_workspace_list_entry)); // Note: Workspace can be 0 if there are none!
   update_virtual_root_property(wmgr);
 
   while(workspace->window_list.first){
@@ -276,7 +282,7 @@ static struct dpaw_workspace* create_workspace(struct dpaw_workspace_manager* wm
   update_virtual_root_property(wmgr);
 
   if(!wmgr->active_workspace)
-    dpaw_workspace_set_active(workspace);
+    dpaw_workspace_set_active(0, workspace);
 
   return workspace;
 

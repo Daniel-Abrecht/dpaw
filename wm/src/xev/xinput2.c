@@ -115,7 +115,7 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
         if(XI_TouchBegin == event->info->type){
           struct dpaw_workspace* workspace = dpawindow_to_dpaw_workspace(te->twm->window);
           if(workspace)
-            dpaw_workspace_set_active(workspace);
+            dpaw_workspace_set_active(0, workspace);
         }
         enum event_handler_result result = dpawindow_dispatch_event(te->twm->window, event);
         // Make sure to always accept or reject events at some point
@@ -154,7 +154,7 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
             || ev->root_x >= workspace->window->boundary.bottom_right.x
             || ev->root_y >= workspace->window->boundary.bottom_right.y
           ) continue;
-          dpaw_workspace_set_active(workspace);
+          dpaw_workspace_set_active(0, workspace);
           break;
         }
       }
