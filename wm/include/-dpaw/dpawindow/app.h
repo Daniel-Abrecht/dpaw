@@ -86,5 +86,6 @@ DECLARE_DPAW_DERIVED_WINDOW( app,
 
 int dpawindow_app_init(struct dpaw*, struct dpawindow_app*, Window);
 int dpawindow_app_update_wm_state(struct dpawindow_app*);
+bool dpawindow_app_update_properties(struct dpawindow_app* app, struct dpawindow* window, Atom atom);
 
 #endif

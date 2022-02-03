@@ -284,12 +284,20 @@ int xembed_update_info(dpawindow_xembed* xembed){
 }
 
 EV_ON(xembed, PropertyNotify){
-  char* name = XGetAtomName(window->window.dpaw->root.display, event->atom);
-  if(event->atom == _XEMBED_INFO)
+  if(!event->atom)
+    return EHR_ERROR;
+  {
+    char* name = XGetAtomName(window->window.dpaw->root.display, event->atom);
+    printf("PropertyNotify %s %d\n", name, event->state);
+    if(name) XFree(name);
+  }
+  if(event->atom == _XEMBED_INFO){
     xembed_update_info(window);
-  printf("PropertyNotify %s %d\n", name, event->state);
-  if(name) XFree(name);
-  return EHR_OK;
+  }else{
+    if(dpawindow_app_update_properties(&window->parent, &window->window, event->atom))
+      return EHR_OK;
+  }
+  return EHR_UNHANDLED;
 }
 
 int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
@@ -314,6 +322,7 @@ int dpawindow_xembed_set(struct dpawindow_xembed* xembed, Window xwindow){
       fprintf(stderr, "dpawindow_register failed\n");
       return -1;
     }
+    dpawindow_app_update_properties(&xembed->parent, &xembed->window, 0);
     xembed_update_info(xembed);
     long min_version = xembed->info.version < DPAW_XEMBED_VERSION ? xembed->info.version : DPAW_XEMBED_VERSION;
     send_xembed_message(xembed, XEMBED_EMBEDDED_NOTIFY, 0, xembed->window.xwindow, min_version);

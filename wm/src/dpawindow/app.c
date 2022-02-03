@@ -22,6 +22,74 @@ int dpawindow_app_update_wm_state(struct dpawindow_app* app){
   return 0;
 }
 
+bool dpawindow_app_update_properties(struct dpawindow_app* app, struct dpawindow* window, Atom atom){
+  if(!window) // Note: in case of xembed, the actual application window isn't the app window but the xembed window
+    window = &app->window;
+
+  if(!atom || atom == _NET_WM_NAME || atom == XA_WM_NAME){
+    struct dpaw_string string = {0};
+    bool error = dpaw_get_property(window, _NET_WM_NAME, &string.size, 0, (void**)&string.data) == -1
+              && dpaw_get_property(window,   XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1;
+    if(error)
+      fprintf(stderr, "dpaw_get_property(_NET_WM_NAME) failed\n");
+    if(!error || !atom){
+      if(app->observable.name.value.data)
+        XFree(app->observable.name.value.data);
+      DPAW_APP_OBSERVABLE_SET(app, name, string);
+    }
+    if(atom)
+      return true;
+  }
+
+  if(!atom || atom == _NET_WM_WINDOW_TYPE){
+    Atom* res = 0;
+    bool error = dpaw_get_property(window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1;
+    if(error)
+      fprintf(stderr, "dpaw_get_property(_NET_WM_WINDOW_TYPE) failed\n");
+    if(!error || !atom){
+      DPAW_APP_OBSERVABLE_SET(app, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
+    }
+    if(res) XFree(res);
+    if(atom)
+      return true;
+  }
+
+  if(atom)
+    return false;
+
+  {
+    Atom* res = 0; // An atom may not be 32bit big, so specifying 4 bytes is technically wrong, but in practice, there is no other way to do this right, X will allocate a whole atom.
+    if(dpaw_get_property(window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1)
+      fprintf(stderr, "dpaw_get_property(_NET_WM_WINDOW_TYPE) failed\n");
+    DPAW_APP_OBSERVABLE_SET(app, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
+    if(res) XFree(res);
+  }
+
+  {
+    Atom* res = 0;
+    if(dpaw_get_property(window, ONSCREEN_KEYBOARD, (size_t[]){4}, 0, (void**)&res) == -1)
+      fprintf(stderr, "dpaw_get_property(ONSCREEN_KEYBOARD) failed\n");
+    app->is_keyboard = res && *res;
+    if(res) XFree(res);
+  }
+
+  if(!dpawindow_get_reasonable_size_hints(window, &app->observable.desired_placement.value)){
+    DPAW_APP_OBSERVABLE_NOTIFY(app, desired_placement);
+  }
+
+  {
+    XWMHints* wm_hints = XGetWMHints(window->dpaw->root.display, window->xwindow);
+    if(wm_hints){
+      DPAW_APP_OBSERVABLE_SET(app, window_hints, *wm_hints);
+      XFree(wm_hints);
+    }else{
+      DPAW_APP_OBSERVABLE_SET(app, window_hints, (XWMHints){0});
+    }
+  }
+
+  return true;
+}
+
 int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window xwindow){
   window->window.xwindow = xwindow;
   printf("dpawindow_app_init %lx\n", xwindow);
@@ -33,67 +101,18 @@ int dpawindow_app_init(struct dpaw* dpaw, struct dpawindow_app* window, Window x
     return -1;
   }
 
-  {
-    Atom* res = 0; // An atom may not be 32bit big, so specifying 4 bytes is technically wrong, but in practice, there is no other way to do this right, X will allocate a whole atom.
-    if(dpaw_get_property(&window->window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1)
-      fprintf(stderr, "dpaw_get_property(_NET_WM_WINDOW_TYPE) failed\n");
-    DPAW_APP_OBSERVABLE_SET(window, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
-    if(res) XFree(res);
-  }
-  {
-    Atom* res = 0;
-    if(dpaw_get_property(&window->window, ONSCREEN_KEYBOARD, (size_t[]){4}, 0, (void**)&res) == -1)
-      fprintf(stderr, "dpaw_get_property(ONSCREEN_KEYBOARD) failed\n");
-    window->is_keyboard = res && *res;
-    if(res) XFree(res);
-  }
-  if(!dpawindow_get_reasonable_size_hints(&window->window, &window->observable.desired_placement.value)){
-    DPAW_APP_OBSERVABLE_NOTIFY(window, desired_placement);
-  }
-  {
-    XWMHints* wm_hints = XGetWMHints(dpaw->root.display, xwindow);
-    if(wm_hints){
-      DPAW_APP_OBSERVABLE_SET(window, window_hints, *wm_hints);
-      XFree(wm_hints);
-    }else{
-      DPAW_APP_OBSERVABLE_SET(window, window_hints, (XWMHints){0});
-    }
-  }
-
-  {
-    struct dpaw_string string = {0};
-    if(dpaw_get_property(&window->window, _NET_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
-    if(dpaw_get_property(&window->window, XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1)
-      fprintf(stderr, "dpaw_get_property(_NET_WM_NAME) failed\n");
-    DPAW_APP_OBSERVABLE_SET(window, name, string);
-  }
+  dpawindow_app_update_properties(window, 0, 0);
 
 //  printf("%s\n", XGetAtomName(dpaw->root.display, window->observable.type.value));
   return 0;
 }
 
 EV_ON(app, PropertyNotify){
-  if(event->atom == _NET_WM_NAME || event->atom == XA_WM_NAME){
-    struct dpaw_string string = {0};
-    if( dpaw_get_property(&window->window, _NET_WM_NAME, &string.size, 0, (void**)&string.data) == -1
-     && dpaw_get_property(&window->window,   XA_WM_NAME, &string.size, 0, (void**)&string.data) == -1
-    ){
-      fprintf(stderr, "dpaw_get_property(_NET_WM_NAME) failed\n");
-    }else{
-      if(window->observable.name.value.data)
-        XFree(window->observable.name.value.data);
-      DPAW_APP_OBSERVABLE_SET(window, name, string);
-    }
-  }else if(event->atom == _NET_WM_WINDOW_TYPE){
-    Atom* res = 0;
-    if(dpaw_get_property(&window->window, _NET_WM_WINDOW_TYPE, (size_t[]){4}, 0, (void**)&res) == -1){
-      fprintf(stderr, "dpaw_get_property(_NET_WM_WINDOW_TYPE) failed\n");
-    }else{
-      DPAW_APP_OBSERVABLE_SET(window, type, (res && *res) ? *res : _NET_WM_WINDOW_TYPE_NORMAL);
-    }
-    if(res) XFree(res);
-  }else return EHR_UNHANDLED;
-  return EHR_OK;
+  if(!event->atom)
+    return EHR_ERROR;
+  if(dpawindow_app_update_properties(window, 0, event->atom))
+    return EHR_OK;
+  return EHR_UNHANDLED;
 }
 
 static void dpawindow_app_cleanup(struct dpawindow_app* app){
