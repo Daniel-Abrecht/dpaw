@@ -4,6 +4,7 @@
 #include <-dpaw/xev/X.c>
 #include <-dpaw/atom/xembed.c>
 #include <-dpaw/atom/icccm.c>
+#include <-dpaw/atom/ewmh.c>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -125,8 +126,10 @@ static void xembed_exec_take_first_window_of_process(struct dpawindow_root* root
     return;
   struct dpawindow_xembed* xembed = pxembed;
   pid_t pid = dpaw_try_get_xwindow_pid(root->display, *pwindow);
-  if(!pid) return;
-  // TODO: check parent windows too
+  if(!pid){
+    printf("Failed to get pid for window %lx\n", *pwindow);
+    return;
+  }
   if(xembed->process.pid == pid){
     dpaw_process_cleanup(&xembed->process);
     dpawindow_xembed_set(xembed, *pwindow);

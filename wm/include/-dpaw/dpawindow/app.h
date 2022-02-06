@@ -1,6 +1,7 @@
 #ifndef DPAWINDOW_APP_H
 #define DPAWINDOW_APP_H
 
+#include <-dpaw/string.h>
 #include <-dpaw/dpawindow.h>
 #include <-dpaw/workspace.h>
 #include <-dpaw/linked_list.h>

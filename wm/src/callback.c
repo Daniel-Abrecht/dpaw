@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <-dpaw/callback.h>
 
 void dpaw_call_back(struct dpaw_callback_list* list, void* self, void* callptr){
@@ -18,6 +19,10 @@ void dpaw_call_back_and_remove(struct dpaw_callback_list* list, void* self, void
 }
 
 void dpaw_callback_add(struct dpaw_callback_list* list, struct dpaw_callback* callback){
+  if(!callback->callback){
+    printf("dpaw_callback_add: callback function wasn't set!!!\n");
+    return;
+  }
   dpaw_linked_list_set(&list->list, &callback->entry, list->list.first);
 }
 

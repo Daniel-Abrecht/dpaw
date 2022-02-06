@@ -1,6 +1,7 @@
 #ifndef DPAWINDOW_XEMBED_H
 #define DPAWINDOW_XEMBED_H
 
+#include <-dpaw/dpawindow/root.h>
 #include <-dpaw/dpawindow/app.h>
 #include <-dpaw/process.h>
 

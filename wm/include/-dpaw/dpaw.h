@@ -4,6 +4,7 @@
 #include <-dpaw/action.h>
 #include <-dpaw/linked_list.h>
 #include <-dpaw/dpawindow/root.h>
+#include <-dpaw/string.h>
 #include <-dpaw/array.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -25,11 +26,6 @@ struct dpaw_fd {
   dpaw_fd_callback callback;
   void* ptr;
   bool keep;
-};
-
-struct dpaw_string {
-  char* data;
-  size_t size;
 };
 
 struct dpaw {
