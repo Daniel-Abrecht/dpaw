@@ -1,7 +1,9 @@
 #ifndef XEV_XINPUT2_H
 #define XEV_XINPUT2_H
 
+#include <stdbool.h>
 #include <X11/extensions/XInput2.h>
+#include <-dpaw/linked_list.h>
 
 struct dpaw_touch_event;
 
@@ -58,5 +60,61 @@ struct dpaw_touch_event {
   int touch_source;
   struct dpaw_touchevent_window_map* twm;
 };
+
+enum dpaw_input_device_type {
+  DPAW_INPUT_DEVICE_TYPE_MASTER_KEYBOARD,
+  DPAW_INPUT_DEVICE_TYPE_MASTER_POINTER,
+  DPAW_INPUT_DEVICE_TYPE_KEYBOARD,
+  DPAW_INPUT_DEVICE_TYPE_POINTER,
+};
+
+struct dpaw_input_device {
+  enum dpaw_input_device_type type;
+  int deviceid;
+  const char *name;
+  bool enabled;
+};
+
+struct dpaw_input_master_device {
+  struct dpaw_list_entry id_master_entry;
+  struct dpaw_input_device pointer;
+  struct dpaw_input_device keyboard;
+  struct dpaw_list keyboard_list;
+  struct dpaw_list pointer_list;
+
+  struct dpaw_list_entry drag_event_owner;
+};
+
+struct dpaw_input_keyboard_device {
+  struct dpaw_list_entry id_keyboard_entry;
+  struct dpaw_list imd_keyboard_entry;
+  struct dpaw_input_device device;
+};
+
+enum dpaw_input_pointer_type {
+  DPAW_INPUT_POINTER_TYPE_UNKNOWN,
+  DPAW_INPUT_POINTER_TYPE_MOUSE,
+  DPAW_INPUT_POINTER_TYPE_TABLET,
+  DPAW_INPUT_POINTER_TYPE_TOUCH,
+};
+
+struct dpaw_input_drag_event_owner {
+  struct dpaw_list device_owner_list;
+  const struct dpaw_input_drag_event_handler* handler;
+};
+
+struct dpaw_input_pointer_device {
+  struct dpaw_list_entry id_pointer_entry;
+  struct dpaw_list imd_pointer_entry;
+  struct dpaw_input_device device;
+  enum dpaw_input_pointer_type type;
+};
+
+struct dpaw_input_drag_event_handler {
+  void(*onmove)(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event);
+  void(*ondrop)(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_ButtonRelease_t* event);
+};
+
+int dpaw_own_drag_event(struct dpaw* dpaw, const xev_XI_ButtonRelease_t* event, struct dpaw_input_drag_event_owner* owner);
 
 #endif

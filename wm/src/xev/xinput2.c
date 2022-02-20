@@ -5,6 +5,203 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static enum dpaw_input_device_type input_type_from_use(int use){
+  if(use & XIMasterKeyboard)
+    return DPAW_INPUT_DEVICE_TYPE_MASTER_KEYBOARD;
+  if(use & XIMasterPointer)
+    return DPAW_INPUT_DEVICE_TYPE_MASTER_POINTER;
+  if(use & XISlaveKeyboard)
+    return DPAW_INPUT_DEVICE_TYPE_KEYBOARD;
+  if(use & XISlavePointer)
+    return DPAW_INPUT_DEVICE_TYPE_POINTER;
+  return -1;
+}
+
+static struct dpaw_input_device* allocate_input_device(struct dpaw* dpaw, enum dpaw_input_device_type type, int deviceid){
+  struct dpaw_input_device* ret = 0;
+  switch(type){
+    default: return 0;
+    case DPAW_INPUT_DEVICE_TYPE_MASTER_KEYBOARD: {
+      struct dpaw_input_master_device* ddev = calloc(1, sizeof(struct dpaw_input_master_device));
+      if(!ddev) return 0;
+      dpaw_linked_list_set(&dpaw->input_device.master_list, &ddev->id_master_entry, 0);
+      ddev->pointer.deviceid = -1;
+      ret = &ddev->keyboard;
+    } break;
+    case DPAW_INPUT_DEVICE_TYPE_MASTER_POINTER: {
+      struct dpaw_input_master_device* ddev = calloc(1, sizeof(struct dpaw_input_master_device));
+      if(!ddev) return 0;
+      dpaw_linked_list_set(&dpaw->input_device.master_list, &ddev->id_master_entry, 0);
+      ddev->keyboard.deviceid = -1;
+      ret = &ddev->pointer;
+    } break;
+    case DPAW_INPUT_DEVICE_TYPE_KEYBOARD: {
+      struct dpaw_input_keyboard_device* ddev = calloc(1, sizeof(struct dpaw_input_keyboard_device));
+      if(!ddev) return 0;
+      dpaw_linked_list_set(&dpaw->input_device.keyboard_list, &ddev->id_keyboard_entry, 0);
+      ret = &ddev->device;
+    } break;
+    case DPAW_INPUT_DEVICE_TYPE_POINTER: {
+      struct dpaw_input_pointer_device* ddev = calloc(1, sizeof(struct dpaw_input_pointer_device));
+      if(!ddev) return 0;
+      dpaw_linked_list_set(&dpaw->input_device.pointer_list, &ddev->id_pointer_entry, 0);
+      ret = &ddev->device;
+    } break;
+  }
+  ret->type = type;
+  ret->deviceid = deviceid;
+  return ret;
+}
+
+static struct dpaw_input_device* find_input_device_by_id(struct dpaw* dpaw, int deviceid){
+  for(struct dpaw_list_entry* it=dpaw->input_device.master_list.first; it; it=it->next){
+    struct dpaw_input_master_device* mdev = container_of(it, struct dpaw_input_master_device, id_master_entry);
+    if(mdev->keyboard.deviceid == deviceid)
+      return &mdev->keyboard;
+    if(mdev->pointer.deviceid == deviceid)
+      return &mdev->pointer;
+  }
+  for(struct dpaw_list_entry* it=dpaw->input_device.keyboard_list.first; it; it=it->next){
+    struct dpaw_input_keyboard_device* kdev = container_of(it, struct dpaw_input_keyboard_device, id_keyboard_entry);
+    if(kdev->device.deviceid == deviceid)
+      return &kdev->device;
+  }
+  for(struct dpaw_list_entry* it=dpaw->input_device.pointer_list.first; it; it=it->next){
+    struct dpaw_input_pointer_device* pdev = container_of(it, struct dpaw_input_pointer_device, id_pointer_entry);
+    if(pdev->device.deviceid == deviceid)
+      return &pdev->device;
+  }
+  return 0;
+}
+
+static int remove_device(struct dpaw* dpaw, struct dpaw_input_device* device){
+  (void)dpaw;
+  (void)device;
+  {
+    struct dpaw_input_master_device* mdev = 0;
+    device->deviceid = -1;
+    if(device->type == DPAW_INPUT_DEVICE_TYPE_MASTER_KEYBOARD){
+      mdev = container_of(device, struct dpaw_input_master_device, keyboard);
+    }else if(device->type == DPAW_INPUT_DEVICE_TYPE_MASTER_POINTER){
+      mdev = container_of(device, struct dpaw_input_master_device, pointer);
+      dpaw_linked_list_set(0, &mdev->drag_event_owner, 0);
+    }
+    if(mdev){
+      if(mdev->keyboard.deviceid == -1 && mdev->pointer.deviceid == -1){
+        dpaw_linked_list_set(0, &mdev->id_master_entry, 0);
+        dpaw_linked_list_set(0, &mdev->drag_event_owner, 0);
+        free(mdev);
+      }
+      return 0;
+    }
+  }
+  if(device->type == DPAW_INPUT_DEVICE_TYPE_KEYBOARD){
+    struct dpaw_input_keyboard_device* kdev = container_of(device, struct dpaw_input_keyboard_device, device);
+    dpaw_linked_list_set(0, &kdev->id_keyboard_entry, 0);
+    free(kdev);
+    return 0;
+  }
+  if(device->type == DPAW_INPUT_DEVICE_TYPE_POINTER){
+    struct dpaw_input_pointer_device* pdev = container_of(device, struct dpaw_input_pointer_device, device);
+    dpaw_linked_list_set(0, &pdev->id_pointer_entry, 0);
+    free(pdev);
+    return 0;
+  }
+  return -1;
+}
+
+static int remove_device_by_id(struct dpaw* dpaw, int deviceid){
+  printf("Lost input device: %d\n", deviceid);
+  struct dpaw_input_device* device = find_input_device_by_id(dpaw, deviceid);
+  if(!device)
+    return 0;
+  return remove_device(dpaw, device);
+}
+
+static int add_or_update_device(struct dpaw* dpaw, int deviceid){
+  int ndevices_return = 0;
+  XIDeviceInfo* info = XIQueryDevice(
+    dpaw->root.display,
+    deviceid,
+    &ndevices_return
+  );
+  if(!info)
+    return -1;
+  if(ndevices_return != 1)
+    goto error;
+  if(info->deviceid != deviceid)
+    goto error;
+  enum dpaw_input_device_type type = input_type_from_use(info->use);
+  if(type == (enum dpaw_input_device_type)-1)
+    goto error;
+  struct dpaw_input_device* old = find_input_device_by_id(dpaw, deviceid);
+  if(old){
+    printf("Updating input device: %d %s\n", info->deviceid, info->name);
+    if(old->type != type){
+      printf("Device type changed\n");
+      remove_device(dpaw, old);
+      old = 0;
+    }
+  }else{
+    printf("Got input device: %d %s\n", info->deviceid, info->name);
+  }
+  if(!old)
+    old = allocate_input_device(dpaw, type, deviceid);
+  if(!old)
+    goto error;
+
+  XIFreeDeviceInfo(info);
+  return 0;
+error:
+  XIFreeDeviceInfo(info);
+  return -1;
+}
+
+EV_ON(root, XI_HierarchyChanged){
+  for(size_t i=0,n=event->num_info; i<n; i++){
+    XIHierarchyInfo* info = &event->info[i];
+    if(info->flags & (XIMasterRemoved|XISlaveRemoved)){
+      remove_device_by_id(window->window.dpaw, info->deviceid);
+    }else{
+      add_or_update_device(window->window.dpaw, info->deviceid);
+    }
+  }
+  return EHR_OK;
+}
+
+EV_ON(root, XI_DeviceChanged){
+  printf("XI_DeviceChanged %u %u %u %u\n", event->deviceid, event->sourceid, event->reason, event->num_classes);
+  return EHR_OK;
+}
+
+static inline XIEventMask* button_grab_mask(void){
+  static unsigned char mask[XIMaskLen(XI_LASTEVENT)] = {0};
+  XISetMask(mask, XI_ButtonPress);
+  XISetMask(mask, XI_Motion);
+  XISetMask(mask, XI_ButtonRelease);
+  static XIEventMask evmask = {
+    .mask_len = sizeof(mask),
+    .mask = mask
+  };
+  return &evmask;
+}
+
+int dpaw_own_drag_event(struct dpaw* dpaw, const xev_XI_ButtonRelease_t* event, struct dpaw_input_drag_event_owner* owner){
+  struct dpaw_input_device* device = find_input_device_by_id(dpaw, event->deviceid);
+  if(!device){
+    printf("dpaw_own_drag_event: device not found\n");
+    return -1;
+  }
+  if(device->type != DPAW_INPUT_DEVICE_TYPE_MASTER_POINTER){
+    printf("dpaw_own_drag_event: Wrong device type\n");
+    return -1;
+  }
+  struct dpaw_input_master_device* mdev = container_of(device, struct dpaw_input_master_device, pointer);
+  dpaw_linked_list_set(&owner->device_owner_list, &mdev->drag_event_owner, 0);
+  XIGrabDevice(dpaw->root.display, event->deviceid, dpaw->root.window.xwindow, CurrentTime,  None, GrabModeAsync, GrabModeAsync, False, button_grab_mask());
+  return 0;
+}
+
 int dpaw_xev_xinput2_init(struct dpaw* dpaw, struct xev_event_extension* extension){
   (void)extension;
 
@@ -70,6 +267,16 @@ int dpaw_xev_xinput2_init(struct dpaw* dpaw, struct xev_event_extension* extensi
   extension->opcode = opcode;
   extension->first_error = first_error;
 
+  int ndevices_return = 0;
+  XIDeviceInfo* info = XIQueryDevice(
+    dpaw->root.display,
+    XIAllDevices,
+    &ndevices_return
+  );
+  for(size_t i=0,n=ndevices_return; i<n; i++)
+    add_or_update_device(dpaw, info->deviceid);
+  XIFreeDeviceInfo(info);
+
   return 0;
 }
 
@@ -84,18 +291,6 @@ void dpaw_xev_xinput2_preprocess_event(struct dpaw* dpaw, XEvent* event){
   (void)event;
 }
 
-static inline XIEventMask* button_grab_mask(void){
-  static unsigned char mask[XIMaskLen(XI_LASTEVENT)] = {0};
-  XISetMask(mask, XI_ButtonPress);
-  XISetMask(mask, XI_Motion);
-  XISetMask(mask, XI_ButtonRelease);
-  static XIEventMask evmask = {
-    .mask_len = sizeof(mask),
-    .mask = mask
-  };
-  return &evmask;
-}
-
 enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xev_event* event){
   {
     // Let's unsubscribe any fake events
@@ -103,7 +298,8 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     if(xany->send_event)
       return EHR_UNHANDLED;
   }
-  //printf("[[%s]]\n", event->info->name);
+
+//  printf("[[%s]]\n", event->info->name);
   switch(event->info->type){
     case XI_TouchBegin:
     case XI_TouchUpdate:
@@ -146,6 +342,31 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     case XI_ButtonRelease:
     case XI_Motion: {
       XIDeviceEvent* ev = event->data;
+      if(event->info->type == XI_Motion || event->info->type == XI_ButtonRelease){
+        struct dpaw_input_device* device = find_input_device_by_id(dpaw, ev->deviceid);
+        if(!device){
+          printf("dpaw_xev_xinput2_dispatch: device not found\n");
+        }else if(device->type != DPAW_INPUT_DEVICE_TYPE_MASTER_POINTER){
+          printf("dpaw_xev_xinput2_dispatch: Wrong device type\n");
+        }else{
+          struct dpaw_input_master_device* mdev = container_of(device, struct dpaw_input_master_device, pointer);
+          if(mdev->drag_event_owner.list){
+            struct dpaw_input_drag_event_owner* deo = container_of(mdev->drag_event_owner.list, struct dpaw_input_drag_event_owner, device_owner_list);
+            if(deo->handler){
+              if(event->info->type == XI_Motion && deo->handler->onmove){
+                deo->handler->onmove(deo, mdev, ev);
+              }else{
+                if(deo->handler->ondrop)
+                  deo->handler->ondrop(deo, mdev, ev);
+                XIUngrabDevice(dpaw->root.display, ev->deviceid, CurrentTime);
+              }
+            }
+            return EHR_OK;
+          }
+          if(event->info->type == XI_ButtonRelease)
+            dpaw_linked_list_set(0, &mdev->drag_event_owner, 0);
+        }
+      }
       if(event->info->type == XI_ButtonPress){
         for(struct dpaw_list_entry* wlit = dpaw->root.workspace_manager.workspace_list.first; wlit; wlit=wlit->next){
           struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
@@ -174,11 +395,8 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
         result = dpawindow_dispatch_event(ewin, event);
       if(cwin && (result == EHR_UNHANDLED || result == EHR_NEXT))
         result = dpawindow_dispatch_event(cwin, event);
-      if(event->info->type == XI_ButtonPress){
-        if(ewin && result == EHR_OK)
-          XIGrabDevice(dpaw->root.display, ev->deviceid, ewin->xwindow, CurrentTime,  None, GrabModeAsync, GrabModeAsync, False, button_grab_mask());
+      if(event->info->type == XI_ButtonPress)
         XIAllowEvents(dpaw->root.display, ev->deviceid, XIReplayDevice, CurrentTime);
-      }
       if(event->info->type == XI_ButtonRelease)
         XIUngrabDevice(dpaw->root.display, ev->deviceid, CurrentTime);
 //      printf("[[%s]] %lx %lx %lx %.1fx%.1f %.1fx%.1f\n", event->info->name, ev->event, ev->child, ev->root, ev->event_x, ev->event_y, ev->root_x, ev->root_y);
@@ -191,7 +409,7 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
 int dpaw_xev_xinput2_subscribe(struct xev_event_extension* extension, struct dpawindow* window){
   (void)extension;
   XIEventMask mask = {
-    .deviceid = XIAllMasterDevices,
+    .deviceid = XIAllDevices,
   };
 
   struct dpawindow* set[] = {window};
@@ -275,7 +493,7 @@ int dpaw_xev_xinput2_subscribe(struct xev_event_extension* extension, struct dpa
 int dpaw_xev_xinput2_unsubscribe(struct xev_event_extension* extension, struct dpawindow* window){
   (void)extension;
   XIEventMask mask = {
-    .deviceid = XIAllMasterDevices,
+    .deviceid = XIAllDevices,
   };
   XISelectEvents(window->dpaw->root.display, window->xwindow, &mask, 1);
   return 0;

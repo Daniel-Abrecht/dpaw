@@ -50,6 +50,7 @@ struct dpawindow_desktop_window_type {
   int(*init)(struct dpawindow_desktop_window* dw);
   void(*cleanup)(struct dpawindow_desktop_window* dw);
   bool(*lookup_is_window)(struct dpawindow_desktop_window* dw, Window xwindow);
+  struct dpaw_input_drag_event_handler drag_handler;
 };
 
 #define X(NAME) extern struct dpawindow_desktop_window_type dpawindow_desktop_window_type_ ## NAME;
@@ -66,9 +67,8 @@ struct dpawindow_desktop_window {
 DECLARE_DPAW_DERIVED_WINDOW( desktop_app_window,
   struct dpawindow_desktop_window dw;
   struct dpaw_list_entry desktop_entry;
-  struct dpaw_list_entry drag_list_entry;
   struct dpaw_rect drag_offset;
-  int drag_device;
+  struct dpaw_input_drag_event_owner drag_event_owner;
   enum dpaw_desktop_window_drag_action drag_action;
   struct dpaw_action deferred_redraw;
   GC gc;

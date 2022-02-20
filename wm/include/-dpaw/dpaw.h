@@ -28,6 +28,12 @@ struct dpaw_fd {
   bool keep;
 };
 
+struct dpaw_xi {
+  struct dpaw_list master_list;
+  struct dpaw_list keyboard_list;
+  struct dpaw_list pointer_list;
+};
+
 struct dpaw {
   struct dpawindow_root root;
   struct dpaw_list window_list;
@@ -35,6 +41,7 @@ struct dpaw {
   struct dpaw_list process_list;
   struct dpaw_list plugin_list;
   struct dpaw_touchevent_window_map touch_source[DPAW_WORKSPACE_MAX_TOUCH_SOURCES];
+  struct dpaw_xi input_device;
   DPAW_ARRAY(struct dpaw_fd) input_list;
   DPAW_ARRAY(struct pollfd) fd_list;
   int last_touch;
