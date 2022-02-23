@@ -83,6 +83,7 @@ struct dpaw_input_master_device {
   struct dpaw_list pointer_list;
 
   struct dpaw_list_entry drag_event_owner;
+  void* drag_event_owner_private;
 };
 
 struct dpaw_input_keyboard_device {

@@ -265,18 +265,18 @@ int xembed_update_info(dpawindow_xembed* xembed){
   long* res = 0;
   xembed->info.version = 0;
   xembed->info.flags = XEMBED_MAPPED;
-  if(dpaw_get_property(&xembed->window, _XEMBED_INFO, (size_t[]){8}, 0, (void**)&res) == -1){
+  if(dpaw_get_property(&xembed->window, _XEMBED_INFO, (size_t[]){8}, 0, (void**)&res) != -1){
     fprintf(stderr, "dpaw_get_property _XEMBED_INFO failed\n");
     if(res) XFree(res);
-    return -1;
+    res = 0;
   }
   if(res){
     xembed->info.version = res[0];
     xembed->info.flags = res[1];
     XFree(res);
   }
-  if(!xembed->ready && (xembed->info.flags & XEMBED_MAPPED)){
-    xembed->ready = false;
+  if(!xembed->ready && (xembed->info.flags & XEMBED_MAPPED || !res)){
+    xembed->ready = true;
     if(!dpawindow_get_reasonable_size_hints(&xembed->window, &xembed->parent.observable.desired_placement.value)){
       DPAW_APP_OBSERVABLE_NOTIFY(&xembed->parent, desired_placement);
     }

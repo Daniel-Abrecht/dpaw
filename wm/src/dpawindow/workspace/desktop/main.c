@@ -44,11 +44,12 @@ static int init(struct dpawindow_workspace_desktop* workspace){
   if(dpawindow_xembed_exec(
     &workspace->xe_desktop,
     XEMBED_UNSUPPORTED_TAKE_FIRST_WINDOW,
+//    (const char*const[]){"ffplay","-an","-loop","0","-i","/usr/share/video/bbb_sunflower_1080p_30fps_normal.mp4",0},
     (const char*const[]){"matchbox-desktop","--mode=window",0},
     .keep_env = true
   )){
     fprintf(stderr, "dpawindow_xembed_exec failed\n");
-    return -1;
+    //return -1;
   }
   dpaw_workspace_add_window(&workspace->workspace, &workspace->xe_desktop.parent);
 
@@ -145,6 +146,15 @@ error:
 
 static int take_window(struct dpawindow_workspace_desktop* workspace, struct dpawindow_app* app){
   printf("take_window %lx\n", app->window.xwindow);
+
+  if(&workspace->xe_desktop.parent == app){
+    XReparentWindow(app->window.dpaw->root.display, app->window.xwindow, workspace->window.xwindow, 0, 0);
+    dpawindow_place_window(&app->window, workspace->window.boundary);
+    XLowerWindow(app->window.dpaw->root.display, app->window.xwindow);
+    dpawindow_hide(&app->window, false);
+    dpawindow_set_mapping(&app->window, true);
+    return 0;
+  }
 
   struct dpawindow_desktop_window* dw = allocate_desktop_window(workspace, DPAW_DW_DESKTOP_app_window, app);
   if(!dw)

@@ -67,9 +67,12 @@ struct dpawindow_desktop_window {
 DECLARE_DPAW_DERIVED_WINDOW( desktop_app_window,
   struct dpawindow_desktop_window dw;
   struct dpaw_list_entry desktop_entry;
-  struct dpaw_rect drag_offset;
   struct dpaw_input_drag_event_owner drag_event_owner;
+
+  // TODO: The below 2 things should be moved to dpaw_input_master_device::drag_event_owner_private on a drag event to allow multiple concurrent drags
+  struct dpaw_rect drag_offset;
   enum dpaw_desktop_window_drag_action drag_action;
+
   struct dpaw_action deferred_redraw;
   GC gc;
   struct dpaw_rect border;

@@ -397,7 +397,7 @@ enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(
   for(struct dpaw_list_entry* it=desktop_workspace->workspace.window_list.first; it; it=it->next){
     struct dpawindow_app* app = container_of(it, struct dpawindow_app, workspace_window_entry);
     struct dpawindow_desktop_window* dw = app->workspace_private;
-    if(dw->type != &dpawindow_desktop_window_type_app_window)
+    if(!dw || dw->type != &dpawindow_desktop_window_type_app_window)
       continue;
     struct dpawindow_desktop_app_window* daw = container_of(dw, struct dpawindow_desktop_app_window, dw);
     if(!has_to_be_framed(daw))
