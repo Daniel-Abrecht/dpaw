@@ -18,10 +18,17 @@ enum dpaw_desktop_window_drag_action {
   DPAW_DW_DRAG_BOTTOM_RIGHT = DPAW_DW_DRAG_BOTTOM | DPAW_DW_DRAG_RIGHT,
 };
 
-DECLARE_DPAW_WORKSPACE( desktop,
-  //struct dpaw_list desktop_window_list;
-  struct dpaw_list drag_list;
+struct dpaw_workspace_desktop_per_screen {
+  struct dpaw_workspace_screen* screen;
   struct dpawindow_xembed xe_desktop;
+};
+
+struct dpaw_workspace_desktop_virtual {
+  struct dpaw_list_entry dpawindow_workspace_desktop_virtual_entry;
+};
+
+DECLARE_DPAW_WORKSPACE( desktop,
+  struct dpaw_list virtual;
 )
 
 struct dpaw_desktop_window_button {

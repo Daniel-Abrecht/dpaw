@@ -53,6 +53,7 @@ struct dpaw_workspace_screen {
   struct dpaw_workspace* workspace;
   struct dpaw_list_entry workspace_screen_entry;
   const struct dpaw_screen_info* info;
+  void* workspace_private;
 };
 
 struct dpaw_workspace_manager_manage_window_options {

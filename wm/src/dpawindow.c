@@ -44,6 +44,7 @@ void dpawindow_cleanup(struct dpawindow* window){
   window->type->cleanup(window);
   dpawindow_unregister(window);
   window->cleanup = false;
+  window->type = 0;
   DPAW_CALL_BACK_AND_REMOVE(dpawindow, window, post_cleanup, 0);
 }
 

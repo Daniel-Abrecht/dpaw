@@ -35,54 +35,72 @@ static int init(struct dpawindow_workspace_desktop* workspace){
     return -1;
   }
 
-  if(dpawindow_xembed_init(workspace->window.dpaw, &workspace->xe_desktop)){
-    fprintf(stderr, "dpawindow_xembed_init failed\n");
-    return -1;
-  }
-  workspace->xe_desktop.parent.exclude_from_window_list = true;
-
-  if(dpawindow_xembed_exec(
-    &workspace->xe_desktop,
-    XEMBED_UNSUPPORTED_TAKE_FIRST_WINDOW,
-//    (const char*const[]){"ffplay","-an","-loop","0","-i","/usr/share/video/bbb_sunflower_1080p_30fps_normal.mp4",0},
-    (const char*const[]){"matchbox-desktop","--mode=window",0},
-    .keep_env = true
-  )){
-    fprintf(stderr, "dpawindow_xembed_exec failed\n");
-    //return -1;
-  }
-  dpaw_workspace_add_window(&workspace->workspace, &workspace->xe_desktop.parent);
-
   return 0;
 }
 
 static void dpawindow_workspace_desktop_cleanup(struct dpawindow_workspace_desktop* workspace){
   (void)workspace;
   puts("desktop_workspace cleanup");
-  dpawindow_cleanup(&workspace->xe_desktop.window); // Technically, this is currently not necessary
+}
+
+static int place_windows_after_screen_change(struct dpaw_workspace_desktop_per_screen* ws){
+  struct dpaw_point offset = ws->screen->workspace->window->boundary.top_left;
+  struct dpaw_rect area = ws->screen->info->boundary;
+  dpawindow_place_window(&ws->xe_desktop.parent.window, (struct dpaw_rect){
+    .top_left.x = area.top_left.x - offset.x,
+    .top_left.y = area.top_left.y - offset.y,
+    .bottom_right.x = area.bottom_right.x - offset.x,
+    .bottom_right.y = area.bottom_right.y - offset.y,
+  });
+  return 0;
 }
 
 static int screen_added(struct dpawindow_workspace_desktop* workspace, struct dpaw_workspace_screen* screen){
+  puts("desktop_workspace screen_added");
   (void)workspace;
   (void)screen;
-  puts("desktop_workspace screen_added");
-  dpawindow_place_window(&workspace->xe_desktop.parent.window, workspace->window.boundary);
+
+  struct dpaw_workspace_desktop_per_screen* ws = calloc(1,sizeof(struct dpaw_workspace_desktop_per_screen));
+  if(!ws) return -1;
+  ws->screen = screen;
+  screen->workspace_private = ws;
+
+  if(dpawindow_xembed_init(workspace->window.dpaw, &ws->xe_desktop)){
+    fprintf(stderr, "dpawindow_xembed_init failed\n");
+    return -1;
+  }
+  ws->xe_desktop.parent.exclude_from_window_list = true;
+  dpaw_workspace_add_window(&workspace->workspace, &ws->xe_desktop.parent);
+
+  if(dpawindow_xembed_exec(
+    &ws->xe_desktop,
+    XEMBED_UNSUPPORTED_TAKE_FIRST_WINDOW,
+//    (const char*const[]){"ffplay","-an","-loop","0","-i","/usr/share/video/bbb_sunflower_1080p_30fps_normal.mp4",0},
+    (const char*const[]){"matchbox-desktop","--mode=window",0},
+    .keep_env = true
+  )){
+    fprintf(stderr, "dpawindow_xembed_exec failed\n");
+  }
+
+  place_windows_after_screen_change(ws);
   return 0;
 }
 
 static int screen_changed(struct dpawindow_workspace_desktop* workspace, struct dpaw_workspace_screen* screen){
-  (void)workspace;
-  (void)screen;
   puts("desktop_workspace screen_changed");
-  dpawindow_place_window(&workspace->xe_desktop.parent.window, workspace->window.boundary);
+  struct dpaw_workspace_desktop_per_screen* ws = screen->workspace_private;
+  dpawindow_place_window(&ws->xe_desktop.parent.window, workspace->window.boundary);
+  place_windows_after_screen_change(ws);
   return 0;
 }
 
 static void screen_removed(struct dpawindow_workspace_desktop* workspace, struct dpaw_workspace_screen* screen){
-  (void)workspace;
-  (void)screen;
   puts("desktop_workspace screen_removed");
-  dpawindow_place_window(&workspace->xe_desktop.parent.window, workspace->window.boundary);
+  (void)workspace;
+  struct dpaw_workspace_desktop_per_screen* ws = screen->workspace_private;
+  dpawindow_cleanup(&ws->xe_desktop.window);
+  screen->workspace_private = 0;
+  free(ws);
 }
 
 static int screen_make_bid(struct dpawindow_workspace_desktop* workspace, struct dpaw_workspace_screen* screen){
@@ -147,13 +165,19 @@ error:
 static int take_window(struct dpawindow_workspace_desktop* workspace, struct dpawindow_app* app){
   printf("take_window %lx\n", app->window.xwindow);
 
-  if(&workspace->xe_desktop.parent == app){
-    XReparentWindow(app->window.dpaw->root.display, app->window.xwindow, workspace->window.xwindow, 0, 0);
-    dpawindow_place_window(&app->window, workspace->window.boundary);
-    XLowerWindow(app->window.dpaw->root.display, app->window.xwindow);
-    dpawindow_hide(&app->window, false);
-    dpawindow_set_mapping(&app->window, true);
-    return 0;
+  for(struct dpaw_list_entry* it=workspace->workspace.screen_list.first; it; it=it->next){
+    struct dpaw_workspace_screen* screen = container_of(it, struct dpaw_workspace_screen, workspace_screen_entry);
+    if(!screen->workspace_private)
+      continue;
+    struct dpaw_workspace_desktop_per_screen* ws = screen->workspace_private;
+    if(&ws->xe_desktop.parent == app){
+      XReparentWindow(app->window.dpaw->root.display, app->window.xwindow, workspace->window.xwindow, 0, 0);
+      dpawindow_place_window(&app->window, workspace->window.boundary);
+      XLowerWindow(app->window.dpaw->root.display, app->window.xwindow);
+      dpawindow_hide(&app->window, false);
+      dpawindow_set_mapping(&app->window, true);
+      return 0;
+    }
   }
 
   struct dpawindow_desktop_window* dw = allocate_desktop_window(workspace, DPAW_DW_DESKTOP_app_window, app);
