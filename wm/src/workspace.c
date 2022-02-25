@@ -362,6 +362,7 @@ int dpaw_workspace_remove_window(struct dpawindow_app* window){
   struct dpaw_workspace* workspace = window->workspace;
   if(!workspace)
     return 0;
+  XReparentWindow(window->window.dpaw->root.display, window->window.xwindow, window->window.dpaw->root.window.xwindow, 0, 0);
   if(workspace->type->abandon_window)
     workspace->type->abandon_window(window);
   DPAW_APP_UNOBSERVE(window, type);
@@ -414,6 +415,7 @@ int dpaw_workspace_manager_manage_app_window(struct dpaw_workspace_manager* wmgr
   if(dpaw_workspace_add_window(workspace, app_window))
     return -1;
   printf("Managing window %lx\n", app_window->window.xwindow);
+  XAddToSaveSet(wmgr->dpaw->root.display, app_window->window.xwindow);
   return 0;
 }
 
