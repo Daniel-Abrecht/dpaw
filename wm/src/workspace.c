@@ -176,13 +176,48 @@ static int update_virtual_root_property(struct dpaw_workspace_manager* wmgr){
   if(wmgr->workspace_list.size > 256)
     return -1; // Since root_window_list is currently allocated on the stack, let's make sure it won't become so big that it stackoverflows
   {
-    Window root_window_list[wmgr->workspace_list.size]; // Don't use window, an entry it may not be 32 bit long.
+    Window root_window_list[wmgr->workspace_list.size];
     size_t i = 0;
     for(struct dpaw_list_entry* wlit = wmgr->workspace_list.first; wlit; wlit=wlit->next)
       root_window_list[i++] = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry)->window->xwindow;
     XChangeProperty(wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow, _NET_VIRTUAL_ROOTS, XA_WINDOW, 32, PropModeReplace, (void*)root_window_list, wmgr->workspace_list.size);
   }
   return 0;
+}
+
+static int update_client_list(struct dpaw_workspace_manager* wmgr){
+  size_t total_window_count = 0;
+  for(struct dpaw_list_entry* wlit = wmgr->workspace_list.last; wlit; wlit=wlit->previous){
+    struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
+    total_window_count += workspace->window_list.size;
+  }
+  if(total_window_count > 256) // Let's limit how many windows we list. Nobody can keep track of that many windows anyway, and we don't want to risk the stack to overflow.
+    total_window_count = 256;
+  {
+    Window client_window_list[total_window_count];
+    size_t i=0;
+    for(struct dpaw_list_entry* wlit = wmgr->workspace_list.last; wlit && i<total_window_count; wlit=wlit->previous){
+      struct dpaw_workspace* workspace = container_of(wlit, struct dpaw_workspace, wmgr_workspace_list_entry);
+      size_t j=i,n=0;
+      for(struct dpaw_list_entry* wit = workspace->window_list.last; wit && i<total_window_count; wit=wit->previous){
+        struct dpawindow_app* app = container_of(wit, struct dpawindow_app, workspace_window_entry);
+        if(!app->exclude_from_window_list)
+          client_window_list[n++,i++] = app->window.xwindow;
+      }
+      XChangeProperty(wmgr->dpaw->root.display, workspace->window->xwindow, _NET_CLIENT_LIST, XA_WINDOW, 32, PropModeReplace, (void*)&client_window_list[j], n);
+      XChangeProperty(wmgr->dpaw->root.display, workspace->window->xwindow, _NET_CLIENT_LIST_STACKING, XA_WINDOW, 32, PropModeReplace, (void*)&client_window_list[j], n);
+    }
+    XChangeProperty(wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow, _NET_CLIENT_LIST, XA_WINDOW, 32, PropModeReplace, (void*)client_window_list, i);
+    XChangeProperty(wmgr->dpaw->root.display, wmgr->dpaw->root.window.xwindow, _NET_CLIENT_LIST_STACKING, XA_WINDOW, 32, PropModeReplace, (void*)client_window_list, i);
+  }
+  return 0;
+}
+
+int dpaw_workspace_request_action(struct dpawindow_app* app, enum dpaw_workspace_action action){
+  if(!app->workspace) return -1;
+  if(app->workspace->type->request_action)
+    return app->workspace->type->request_action(app, action);
+  return -1;
 }
 
 static void workspace_pre_cleanup(struct dpawindow* window, void* pworkspace, void* ptr){
@@ -373,6 +408,7 @@ int dpaw_workspace_remove_window(struct dpawindow_app* window){
   dpaw_linked_list_set(0, &window->workspace_window_entry, 0);
   if(workspace->focus_window == window)
     workspace->focus_window = 0;
+  update_client_list(workspace->workspace_manager);
   return 0;
 }
 
@@ -387,7 +423,9 @@ int dpaw_workspace_add_window(struct dpaw_workspace* workspace, struct dpawindow
   dpaw_linked_list_set(&workspace->window_list, &app_window->workspace_window_entry, workspace->window_list.first);
   if(!workspace->type->take_window)
     return -1;
-  return workspace->type->take_window(workspace->window, app_window);
+  int ret = workspace->type->take_window(workspace->window, app_window);
+  update_client_list(workspace->workspace_manager);
+  return ret;
 }
 
 

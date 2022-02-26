@@ -57,6 +57,7 @@ struct dpawindow_desktop_window_type {
   int(*init)(struct dpawindow_desktop_window* dw);
   void(*cleanup)(struct dpawindow_desktop_window* dw);
   bool(*lookup_is_window)(struct dpawindow_desktop_window* dw, Window xwindow);
+  int (*request_action)(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action);
   struct dpaw_input_drag_event_handler drag_handler;
 };
 

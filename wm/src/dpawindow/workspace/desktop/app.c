@@ -56,6 +56,7 @@ static void set_focus(struct dpawindow_desktop_app_window* dw);
 static bool has_to_be_framed(struct dpawindow_desktop_app_window* dw);
 static void update_restore_boundary(struct dpawindow_desktop_app_window* dw);
 static void ondragmove(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event);
+static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action);
 
 struct dpawindow_desktop_window_type dpawindow_desktop_window_type_app_window = {
   .init = init,
@@ -64,6 +65,7 @@ struct dpawindow_desktop_window_type dpawindow_desktop_window_type_app_window = 
   .drag_handler = {
     .onmove = ondragmove,
   },
+  .request_action = request_action,
 };
 
 
@@ -335,6 +337,20 @@ static int hide(struct dpawindow_desktop_app_window* daw){
   dpawindow_app_update_wm_state(daw->dw.app_window);
   dpawindow_hide(&daw->dw.app_window->window, true);
   return 0;
+}
+
+static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action){
+  struct dpawindow_desktop_app_window* daw = container_of(dw, struct dpawindow_desktop_app_window, dw);
+  switch(action){
+    case DPAW_WA_ACTIVATE: {
+      daw->dw.app_window->wm_state._NET_WM_STATE_HIDDEN = false;
+      dpawindow_app_update_wm_state(daw->dw.app_window);
+      dpawindow_hide(&daw->dw.app_window->window, false);
+      dpawindow_hide(&daw->window, false);
+      set_focus(daw);
+    } return 0;
+  }
+  return -1;
 }
 
 void window_close_handler(struct dpawindow_desktop_app_window* daw){

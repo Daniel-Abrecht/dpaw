@@ -118,13 +118,26 @@ static int screen_make_bid(struct dpawindow_workspace_desktop* workspace, struct
 
 static void abandon_window(struct dpawindow_app* window){
   printf("abandon_window %lx\n", window->window.xwindow);
-  struct dpawindow_desktop_window* dw = window->workspace_private;
   dpawindow_hide(&window->window, true);
-  if(dw && dw->type->cleanup) dw->type->cleanup(dw);
+  if(window->workspace_private){
+    struct dpawindow_desktop_window* dw = window->workspace_private;
+    if(dw->type->cleanup)
+      dw->type->cleanup(dw);
+  }
   XDeleteProperty(window->window.dpaw->root.display, window->window.xwindow, _NET_FRAME_EXTENTS);
   XDeleteProperty(window->window.dpaw->root.display, window->window.xwindow, _NET_WM_ALLOWED_ACTIONS);
   window->workspace_private = 0;
 }
+
+static int request_action(struct dpawindow_app* app, enum dpaw_workspace_action action){
+  if(app->workspace_private){
+    struct dpawindow_desktop_window* dw = app->workspace_private;
+    if(dw->type->request_action)
+      return dw->type->request_action(dw, action);
+  }
+  return -1;
+}
+
 
 static struct dpawindow_desktop_window* allocate_desktop_window(struct dpawindow_workspace_desktop* workspace, enum e_dpawindow_desktop_window_type type, struct dpawindow_app* app){
   void* derived = 0;
@@ -215,5 +228,6 @@ DEFINE_DPAW_WORKSPACE( desktop,
   .screen_make_bid = screen_make_bid,
   .screen_added = screen_added,
   .screen_changed = screen_changed,
-  .screen_removed = screen_removed
+  .screen_removed = screen_removed,
+  .request_action = request_action,
 )

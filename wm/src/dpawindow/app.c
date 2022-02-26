@@ -147,6 +147,8 @@ EV_ON(app, ClientMessage){
     if(sn1) XFree(sn1);
     if(sn2) XFree(sn2);
   }
+  if(event->message_type == _NET_ACTIVE_WINDOW)
+    dpaw_workspace_request_action(window, DPAW_WA_ACTIVATE);
   if(event->message_type == _NET_MOVERESIZE_WINDOW)
     puts("_NET_MOVERESIZE_WINDOW"); // TODO: Set window.observable.desired_placement
   if(event->message_type == _NET_CLOSE_WINDOW)
@@ -155,8 +157,11 @@ EV_ON(app, ClientMessage){
 }
 
 EV_ON(app, MapRequest){
-  if(window->window.xwindow == event->window)
+  printf("app MapRequest 0x%lx", event->window);
+  if(window->window.xwindow == event->window){
+    dpaw_workspace_request_action(window, DPAW_WA_ACTIVATE);
     return EHR_NEXT; // It's me
+  }
 
   struct dpawindow* win = dpawindow_lookup(window->window.dpaw, event->window);
   if(win) // This is one of our windows

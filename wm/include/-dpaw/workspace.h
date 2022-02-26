@@ -15,6 +15,10 @@ struct dpaw_workspace_manager {
   bool cleanup;
 };
 
+enum dpaw_workspace_action {
+  DPAW_WA_ACTIVATE
+};
+
 #define DPAW_WORKSPACE_TYPE(T, U) \
   struct dpawindow_workspace_ ## NAME; \
   struct dpaw_ ## T ## _type { \
@@ -30,6 +34,7 @@ struct dpaw_workspace_manager {
     int (*screen_added  )(U*, struct dpaw_workspace_screen*); \
     int (*screen_changed)(U*, struct dpaw_workspace_screen*); \
     void(*screen_removed)(U*, struct dpaw_workspace_screen*); \
+    int (*request_action)(struct dpawindow_app* app, enum dpaw_workspace_action action); \
   };
 
 struct dpawindow;
@@ -70,6 +75,7 @@ int dpaw_workspace_manager_manage_app_window(struct dpaw_workspace_manager* wmgr
 int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window, const struct dpaw_workspace_manager_manage_window_options* options);
 
 void dpaw_workspace_set_active(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace* workspace); // wmgr is optional if workspace is set
+int dpaw_workspace_request_action(struct dpawindow_app* app, enum dpaw_workspace_action action);
 
 struct dpaw_workspace* dpawindow_to_dpaw_workspace(struct dpawindow* window);
 int dpaw_workspace_add_window(struct dpaw_workspace*, struct dpawindow_app*);
