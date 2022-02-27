@@ -16,7 +16,8 @@ struct dpaw_workspace_manager {
 };
 
 enum dpaw_workspace_action {
-  DPAW_WA_ACTIVATE
+  DPAW_WA_ACTIVATE,
+  DPAW_WA_MINIMIZE,
 };
 
 #define DPAW_WORKSPACE_TYPE(T, U) \

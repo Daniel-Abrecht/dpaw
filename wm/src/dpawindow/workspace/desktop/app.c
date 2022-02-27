@@ -349,6 +349,7 @@ static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspa
       dpawindow_hide(&daw->window, false);
       set_focus(daw);
     } return 0;
+    case DPAW_WA_MINIMIZE: return hide(daw);
   }
   return -1;
 }

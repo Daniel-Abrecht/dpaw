@@ -1,6 +1,7 @@
 #include <-dpaw/dpaw.h>
 #include <-dpaw/xev/X.c>
 #include <-dpaw/atom/ewmh.c>
+#include <-dpaw/atom/icccm.c>
 #include <-dpaw/atom/misc.c>
 #include <-dpaw/dpawindow/app.h>
 #include <-dpaw/workspace.h>
@@ -149,6 +150,12 @@ EV_ON(app, ClientMessage){
   }
   if(event->message_type == _NET_ACTIVE_WINDOW)
     dpaw_workspace_request_action(window, DPAW_WA_ACTIVATE);
+  if(event->message_type == WM_CHANGE_STATE){
+    if(event->data.l[0] == NormalState)
+      dpaw_workspace_request_action(window, DPAW_WA_ACTIVATE);
+    if(event->data.l[0] == IconicState)
+      dpaw_workspace_request_action(window, DPAW_WA_MINIMIZE);
+  }
   if(event->message_type == _NET_MOVERESIZE_WINDOW)
     puts("_NET_MOVERESIZE_WINDOW"); // TODO: Set window.observable.desired_placement
   if(event->message_type == _NET_CLOSE_WINDOW)
