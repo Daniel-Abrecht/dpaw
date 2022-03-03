@@ -33,6 +33,7 @@ static volatile enum dpaw_state {
 } running_state;
 
 volatile bool got_sigchld = false;
+volatile bool got_sigusr1 = false;
 
 
 int dpaw_cleanup(struct dpaw* dpaw){
@@ -102,6 +103,11 @@ void onsigchld(int x){
   got_sigchld = true;
 }
 
+void onsigusr1(int x){
+  (void)x;
+  got_sigusr1 = true;
+}
+
 int dpaw_init(struct dpaw* dpaw){
   memset(dpaw, 0, sizeof(*dpaw));
   dpaw->initialised = true;
@@ -117,6 +123,7 @@ int dpaw_init(struct dpaw* dpaw){
   signal(SIGINT, onsigterm);
   signal(SIGHUP, onsighup);
   signal(SIGCHLD, onsigchld);
+  signal(SIGUSR1, onsigusr1);
   XSetErrorHandler(&dpaw_error_handler);
   dpaw->root.display = XOpenDisplay(0);
   if(!dpaw->root.display){
@@ -207,12 +214,17 @@ void dpaw_poll_remove(struct dpaw* dpaw, const struct dpaw_fd* input){
   assert(dpaw->input_list.count == dpaw->fd_list.count);
 }
 
+void dpaw_debug_dump_state(void){
+
+}
+
 int dpaw_run(struct dpaw* dpaw){
   bool debug_x_events = !!getenv("DEBUG_X_EVENTS");
 
   while(running_state == DPAW_KEEP_RUNNING){
 
     if(got_sigchld){
+      got_sigchld = false;
       int status = 0;
       pid_t child = 0;
       while((child=waitpid(-1, &status, WNOHANG)) > 0){
@@ -227,6 +239,11 @@ int dpaw_run(struct dpaw* dpaw){
           break;
         }
       }
+    }
+
+    if(got_sigusr1){
+      got_sigusr1 = false;
+      dpaw_debug_dump_state();
     }
 
     if(!XPending(dpaw->root.display)){

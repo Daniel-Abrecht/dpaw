@@ -343,7 +343,7 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
     case XI_ButtonRelease:
     case XI_Motion: {
       XIDeviceEvent* ev = event->data;
-      if(event->info->type == XI_Motion || event->info->type == XI_ButtonRelease){
+      if(event->info->type == XI_Motion || event->info->type == XI_ButtonRelease || event->info->type == XI_ButtonPress){
         struct dpaw_input_device* device = find_input_device_by_id(dpaw, ev->deviceid);
         if(!device){
           printf("dpaw_xev_xinput2_dispatch: device not found\n");
@@ -356,16 +356,15 @@ enum event_handler_result dpaw_xev_xinput2_dispatch(struct dpaw* dpaw, struct xe
             if(deo->handler){
               if(event->info->type == XI_Motion && deo->handler->onmove){
                 deo->handler->onmove(deo, mdev, ev);
-              }else{
+              }else if(event->info->type == XI_ButtonRelease){
                 if(deo->handler->ondrop)
                   deo->handler->ondrop(deo, mdev, ev);
                 XIUngrabDevice(dpaw->root.display, ev->deviceid, CurrentTime);
+                dpaw_linked_list_set(0, &mdev->drag_event_owner, 0);
               }
             }
             return EHR_OK;
           }
-          if(event->info->type == XI_ButtonRelease)
-            dpaw_linked_list_set(0, &mdev->drag_event_owner, 0);
         }
       }
       if(event->info->type == XI_ButtonPress){

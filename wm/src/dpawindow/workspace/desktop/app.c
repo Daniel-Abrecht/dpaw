@@ -492,6 +492,10 @@ enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(
 
 static void ondragmove(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event){
   struct drag_info* pinfo = device->drag_event_owner_private;
+  if(!pinfo){
+    fprintf(stderr, "ondragmove device->drag_event_owner_private was 0, this should never happen\n");
+    return;
+  }
 //  printf("ondragmove %lf %lf %lf %lf\n", event->root_x, event->root_y, event->event_x, event->event_y);
   struct dpaw_point point = {event->event_x, event->event_y};
   struct dpawindow_desktop_app_window* dw = container_of(owner, struct dpawindow_desktop_app_window, drag_event_owner);
