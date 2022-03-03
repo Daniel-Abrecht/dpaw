@@ -56,6 +56,7 @@ static void set_focus(struct dpawindow_desktop_app_window* dw);
 static bool has_to_be_framed(struct dpawindow_desktop_app_window* dw);
 static void update_restore_boundary(struct dpawindow_desktop_app_window* dw);
 static void ondragmove(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event);
+static void ondrop(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event);
 static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action);
 
 struct dpawindow_desktop_window_type dpawindow_desktop_window_type_app_window = {
@@ -64,6 +65,7 @@ struct dpawindow_desktop_window_type dpawindow_desktop_window_type_app_window = 
   .lookup_is_window = lookup_is_window,
   .drag_handler = {
     .onmove = ondragmove,
+    .ondrop = ondrop,
   },
   .request_action = request_action,
 };
@@ -405,7 +407,13 @@ static void window_maximize_handler(struct dpawindow_desktop_app_window* daw){
   }
 }
 
+struct drag_info {
+  struct dpaw_rect drag_offset;
+  enum dpaw_desktop_window_drag_action drag_action;
+};
+
 enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(struct dpawindow_workspace_desktop* desktop_workspace, const xev_XI_ButtonPress_t* event){
+  struct drag_info info = {0};
   const int edge_grab_rim = 4;
 //  printf("XI_ButtonPress %lf %lf %lf %lf\n", event->root_x, event->root_y, event->event_x, event->event_y);
   struct dpaw_point point = {event->event_x, event->event_y};
@@ -436,39 +444,45 @@ enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(
   bool grab = false;
   if(match){
     set_focus(match);
-    match->drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
-    match->drag_offset.bottom_right.x = match->window.boundary.bottom_right.x - match->window.boundary.top_left.x - match->drag_offset.top_left.x;
-    match->drag_offset.bottom_right.y = match->window.boundary.bottom_right.y - match->window.boundary.top_left.y - match->drag_offset.top_left.y;
-    match->drag_action = 0;
+    info.drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
+    info.drag_offset.bottom_right.x = match->window.boundary.bottom_right.x - match->window.boundary.top_left.x - info.drag_offset.top_left.x;
+    info.drag_offset.bottom_right.y = match->window.boundary.bottom_right.y - match->window.boundary.top_left.y - info.drag_offset.top_left.y;
     struct dpaw_rect dw_bounds = match->dw.app_window->window.boundary;
-    if(dw_bounds.top_left.y > 5 && match->drag_offset.top_left.y <= dw_bounds.top_left.y){
+    if(dw_bounds.top_left.y > 5 && info.drag_offset.top_left.y <= dw_bounds.top_left.y){
       long end = dw_bounds.bottom_right.x;
       for(enum dpaw_desktop_window_button_e i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
         const struct button_meta* meta = &button_meta[i];
         long width = dw_bounds.top_left.y * meta->width_height_ratio;
         long start = end - width - 1;
-        if(match->drag_offset.top_left.x >= start && match->drag_offset.top_left.x < end){
+        if(info.drag_offset.top_left.x >= start && info.drag_offset.top_left.x < end){
           button_meta[i].onclick(match);
           return EHR_OK;
         }
         end = start;
       }
     }
-    if(match->drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,edge_grab_rim))
-      match->drag_action |= DPAW_DW_DRAG_TOP;
-    if(match->drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,edge_grab_rim))
-      match->drag_action |= DPAW_DW_DRAG_LEFT;
-    if(match->drag_offset.bottom_right.y <= DPAW_MAX(match->window.boundary.bottom_right.y-match->window.boundary.top_left.y-dw_bounds.bottom_right.y,edge_grab_rim))
-      match->drag_action |= DPAW_DW_DRAG_BOTTOM;
-    if(match->drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,edge_grab_rim))
-      match->drag_action |= DPAW_DW_DRAG_RIGHT;
-    if(match->drag_action || match->drag_offset.top_left.y <= dw_bounds.top_left.y)
+    if(info.drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,edge_grab_rim))
+      info.drag_action |= DPAW_DW_DRAG_TOP;
+    if(info.drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,edge_grab_rim))
+      info.drag_action |= DPAW_DW_DRAG_LEFT;
+    if(info.drag_offset.bottom_right.y <= DPAW_MAX(match->window.boundary.bottom_right.y-match->window.boundary.top_left.y-dw_bounds.bottom_right.y,edge_grab_rim))
+      info.drag_action |= DPAW_DW_DRAG_BOTTOM;
+    if(info.drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,edge_grab_rim))
+      info.drag_action |= DPAW_DW_DRAG_RIGHT;
+    if(info.drag_action || info.drag_offset.top_left.y <= dw_bounds.top_left.y)
       grab = true;
 //    printf("XI_ButtonPress %d %lf %lf %lf %lf\n", match->drag_action, event->root_x, event->root_y, event->event_x, event->event_y);
   }
   if(grab){
     printf("dpaw_own_drag_event\n");
-    dpaw_own_drag_event(desktop_workspace->workspace.window->dpaw, event, &match->drag_event_owner);
+    struct drag_info* pinfo = calloc(1, sizeof(struct drag_info));
+    if(!pinfo)
+      return EHR_ERROR;
+    *pinfo = info;
+    if(dpaw_own_drag_event(desktop_workspace->workspace.window->dpaw, event, &match->drag_event_owner, pinfo)){
+      free(pinfo);
+      return EHR_ERROR;
+    }
     return EHR_OK;
   }
   if(!match)
@@ -477,73 +491,83 @@ enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(
 }
 
 static void ondragmove(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event){
-  (void)device;
+  struct drag_info* pinfo = device->drag_event_owner_private;
 //  printf("ondragmove %lf %lf %lf %lf\n", event->root_x, event->root_y, event->event_x, event->event_y);
   struct dpaw_point point = {event->event_x, event->event_y};
   struct dpawindow_desktop_app_window* dw = container_of(owner, struct dpawindow_desktop_app_window, drag_event_owner);
-  switch(dw->drag_action){
+  switch(pinfo->drag_action){
     case DPAW_DW_DRAG_MIDDLE      : dpawindow_move_to(&dw->window, (struct dpaw_point){
-      point.x-dw->drag_offset.top_left.x, point.y-dw->drag_offset.top_left.y
+      point.x-pinfo->drag_offset.top_left.x, point.y-pinfo->drag_offset.top_left.y
     }); break;
     case DPAW_DW_DRAG_TOP         : dpawindow_place_window(&dw->window, (struct dpaw_rect){
-      .top_left.y = point.y - dw->drag_offset.top_left.y,
+      .top_left.y = point.y - pinfo->drag_offset.top_left.y,
       .top_left.x = dw->window.boundary.top_left.x,
       .bottom_right = dw->window.boundary.bottom_right
     }); break;
     case DPAW_DW_DRAG_LEFT        : dpawindow_place_window(&dw->window, (struct dpaw_rect){
-      .top_left.x = point.x - dw->drag_offset.top_left.x,
+      .top_left.x = point.x - pinfo->drag_offset.top_left.x,
       .top_left.y = dw->window.boundary.top_left.y,
       .bottom_right = dw->window.boundary.bottom_right
     }); break;
     case DPAW_DW_DRAG_RIGHT       : dpawindow_place_window(&dw->window, (struct dpaw_rect){
       .top_left = dw->window.boundary.top_left,
       .bottom_right.y = dw->window.boundary.bottom_right.y,
-      .bottom_right.x = point.x + dw->drag_offset.bottom_right.x,
+      .bottom_right.x = point.x + pinfo->drag_offset.bottom_right.x,
     }); break;
     case DPAW_DW_DRAG_BOTTOM      : dpawindow_place_window(&dw->window, (struct dpaw_rect){
       .top_left = dw->window.boundary.top_left,
       .bottom_right.x = dw->window.boundary.bottom_right.x,
-      .bottom_right.y = point.y + dw->drag_offset.bottom_right.y,
+      .bottom_right.y = point.y + pinfo->drag_offset.bottom_right.y,
     }); break;
     case DPAW_DW_DRAG_TOP_LEFT    : dpawindow_place_window(&dw->window, (struct dpaw_rect){
-      .top_left.x = point.x - dw->drag_offset.top_left.x,
-      .top_left.y = point.y - dw->drag_offset.top_left.y,
+      .top_left.x = point.x - pinfo->drag_offset.top_left.x,
+      .top_left.y = point.y - pinfo->drag_offset.top_left.y,
       .bottom_right = dw->window.boundary.bottom_right
     }); break;
     case DPAW_DW_DRAG_TOP_RIGHT   : dpawindow_place_window(&dw->window, (struct dpaw_rect){
-      .top_left.y = point.y - dw->drag_offset.top_left.y,
+      .top_left.y = point.y - pinfo->drag_offset.top_left.y,
       .top_left.x = dw->window.boundary.top_left.x,
       .bottom_right.y = dw->window.boundary.bottom_right.y,
-      .bottom_right.x = point.x + dw->drag_offset.bottom_right.x,
+      .bottom_right.x = point.x + pinfo->drag_offset.bottom_right.x,
     }); break;
     case DPAW_DW_DRAG_BOTTOM_LEFT :dpawindow_place_window(&dw->window, (struct dpaw_rect){
       .top_left.y = dw->window.boundary.top_left.y,
-      .top_left.x = point.x - dw->drag_offset.top_left.x,
+      .top_left.x = point.x - pinfo->drag_offset.top_left.x,
       .bottom_right.x = dw->window.boundary.bottom_right.x,
-      .bottom_right.y = point.y + dw->drag_offset.bottom_right.y,
+      .bottom_right.y = point.y + pinfo->drag_offset.bottom_right.y,
     }); break;
     case DPAW_DW_DRAG_BOTTOM_RIGHT: dpawindow_place_window(&dw->window, (struct dpaw_rect){
       .top_left = dw->window.boundary.top_left,
-      .bottom_right.x = point.x + dw->drag_offset.bottom_right.x,
-      .bottom_right.y = point.y + dw->drag_offset.bottom_right.y,
+      .bottom_right.x = point.x + pinfo->drag_offset.bottom_right.x,
+      .bottom_right.y = point.y + pinfo->drag_offset.bottom_right.y,
     }); break;
   }
   bool wm_state_changed = false;
-  if(dw->drag_action & (DPAW_DW_DRAG_LEFT|DPAW_DW_DRAG_RIGHT)){
+  if(pinfo->drag_action & (DPAW_DW_DRAG_LEFT|DPAW_DW_DRAG_RIGHT)){
     wm_state_changed |= dw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ;
     dw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = false;
   }
-  if(dw->drag_action & (DPAW_DW_DRAG_TOP|DPAW_DW_DRAG_BOTTOM)){
+  if(pinfo->drag_action & (DPAW_DW_DRAG_TOP|DPAW_DW_DRAG_BOTTOM)){
     wm_state_changed |= dw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT;
     dw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = false;
   }
-  if(dw->drag_action == DPAW_DW_DRAG_MIDDLE)
+  if(pinfo->drag_action == DPAW_DW_DRAG_MIDDLE)
     normalize(dw);
   if(wm_state_changed)
     dpawindow_app_update_wm_state(dw->dw.app_window);
-  if(dw->drag_action != DPAW_DW_DRAG_MIDDLE || wm_state_changed){
+  if(pinfo->drag_action != DPAW_DW_DRAG_MIDDLE || wm_state_changed){
     update_frame_content_boundary(dw, 1);
   }else{
     update_restore_boundary(dw);
+  }
+}
+
+static void ondrop(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event){
+  (void)owner;
+  (void)event;
+  struct drag_info* pinfo = device->drag_event_owner_private;
+  if(pinfo){
+    free(pinfo);
+    device->drag_event_owner_private = 0;
   }
 }

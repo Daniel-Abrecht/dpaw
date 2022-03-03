@@ -186,7 +186,7 @@ static inline XIEventMask* button_grab_mask(void){
   return &evmask;
 }
 
-int dpaw_own_drag_event(struct dpaw* dpaw, const xev_XI_ButtonRelease_t* event, struct dpaw_input_drag_event_owner* owner){
+int dpaw_own_drag_event(struct dpaw* dpaw, const xev_XI_ButtonRelease_t* event, struct dpaw_input_drag_event_owner* owner, void* private){
   struct dpaw_input_device* device = find_input_device_by_id(dpaw, event->deviceid);
   if(!device){
     printf("dpaw_own_drag_event: device not found\n");
@@ -199,6 +199,7 @@ int dpaw_own_drag_event(struct dpaw* dpaw, const xev_XI_ButtonRelease_t* event, 
   struct dpaw_input_master_device* mdev = container_of(device, struct dpaw_input_master_device, pointer);
   dpaw_linked_list_set(&owner->device_owner_list, &mdev->drag_event_owner, 0);
   XIGrabDevice(dpaw->root.display, event->deviceid, dpaw->root.window.xwindow, CurrentTime,  None, GrabModeAsync, GrabModeAsync, False, button_grab_mask());
+  mdev->drag_event_owner_private = private;
   return 0;
 }
 

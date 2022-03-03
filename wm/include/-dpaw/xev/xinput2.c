@@ -116,6 +116,6 @@ struct dpaw_input_drag_event_handler {
   void(*ondrop)(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_ButtonRelease_t* event);
 };
 
-int dpaw_own_drag_event(struct dpaw* dpaw, const xev_XI_ButtonRelease_t* event, struct dpaw_input_drag_event_owner* owner);
+int dpaw_own_drag_event(struct dpaw* dpaw, const xev_XI_ButtonRelease_t* event, struct dpaw_input_drag_event_owner* owner, void* private);
 
 #endif
