@@ -424,6 +424,8 @@ enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(
     struct dpawindow_desktop_window* dw = app->workspace_private;
     if(!dw || dw->type != &dpawindow_desktop_window_type_app_window)
       continue;
+    if(!app->window.mapped || app->window.hidden)
+      continue;
     struct dpawindow_desktop_app_window* daw = container_of(dw, struct dpawindow_desktop_app_window, dw);
     if(!has_to_be_framed(daw))
       continue;
