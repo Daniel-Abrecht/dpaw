@@ -129,11 +129,11 @@ static void abandon_window(struct dpawindow_app* window){
   window->workspace_private = 0;
 }
 
-static int request_action(struct dpawindow_app* app, enum dpaw_workspace_action action){
+static int request_action(struct dpawindow_app* app, enum dpaw_workspace_action action, uintptr_t x){
   if(app->workspace_private){
     struct dpawindow_desktop_window* dw = app->workspace_private;
     if(dw->type->request_action)
-      return dw->type->request_action(dw, action);
+      return dw->type->request_action(dw, action, x);
   }
   return -1;
 }

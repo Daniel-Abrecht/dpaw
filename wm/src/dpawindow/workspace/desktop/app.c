@@ -46,7 +46,6 @@ static const struct button_meta button_meta[DPAW_DESKTOP_WINDOW_BUTTON_COUNT] = 
 static bool lookup_is_window(struct dpawindow_desktop_window* dw, Window xwindow);
 static int init(struct dpawindow_desktop_window* dw);
 static void cleanup(struct dpawindow_desktop_window* dw);
-static void normalize(struct dpawindow_desktop_app_window* dw);
 static void window_border_draw(struct dpawindow_desktop_app_window* dw);
 static void window_border_draw_deferred(struct dpaw_action* action);
 static void update_frame_content_boundary(struct dpawindow_desktop_app_window* dw, int mode);
@@ -57,7 +56,14 @@ static bool has_to_be_framed(struct dpawindow_desktop_app_window* dw);
 static void update_restore_boundary(struct dpawindow_desktop_app_window* dw);
 static void ondragmove(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event);
 static void ondrop(struct dpaw_input_drag_event_owner* owner, struct dpaw_input_master_device* device, const xev_XI_Motion_t* event);
-static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action);
+static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action, uintptr_t x);
+
+static void normalize(struct dpawindow_desktop_app_window* dw);
+static void normalize_x(struct dpawindow_desktop_app_window* dw);
+static void normalize_y(struct dpawindow_desktop_app_window* dw);
+static void maximize(struct dpawindow_desktop_app_window* daw);
+static void maximize_x(struct dpawindow_desktop_app_window* daw);
+static void maximize_y(struct dpawindow_desktop_app_window* daw);
 
 struct dpawindow_desktop_window_type dpawindow_desktop_window_type_app_window = {
   .init = init,
@@ -239,6 +245,8 @@ static void window_border_draw(struct dpawindow_desktop_app_window* dw){
 }
 
 static bool has_to_be_framed(struct dpawindow_desktop_app_window* dw){
+  if(dw->dw.app_window->wm_state._NET_WM_STATE_FULLSCREEN)
+    return false;
   Atom type = dw->dw.app_window->observable.type.value;
   if( type == _NET_WM_WINDOW_TYPE_UTILITY
    || type == _NET_WM_WINDOW_TYPE_SPLASH
@@ -263,7 +271,10 @@ static void update_restore_boundary(struct dpawindow_desktop_app_window* dw){
 static void update_frame_content_boundary(struct dpawindow_desktop_app_window* daw, int mode){
   struct dpaw_rect border = {{0,0},{0,0}};
   bool has_border = has_to_be_framed(daw);
-  daw->has_border = has_border;
+  if(daw->has_border != has_border){
+    XSetWindowBorderWidth(daw->window.dpaw->root.display, daw->window.xwindow, has_border);
+    daw->has_border = has_border;
+  }
   if(has_border){
     border.top_left.y = 30;
     if(!daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT){
@@ -341,17 +352,41 @@ static int hide(struct dpawindow_desktop_app_window* daw){
   return 0;
 }
 
-static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action){
+static int request_action(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action, uintptr_t x){
   struct dpawindow_desktop_app_window* daw = container_of(dw, struct dpawindow_desktop_app_window, dw);
-  switch(action){
-    case DPAW_WA_ACTIVATE: {
-      daw->dw.app_window->wm_state._NET_WM_STATE_HIDDEN = false;
-      dpawindow_app_update_wm_state(daw->dw.app_window);
-      dpawindow_hide(&daw->dw.app_window->window, false);
-      dpawindow_hide(&daw->window, false);
+  if(action == DPAW_WA_WM_STATE_SET || action == DPAW_WA_WM_STATE_UNSET){
+    if(x == _NET_WM_STATE_HIDDEN){
+      if(action == DPAW_WA_WM_STATE_SET){
+        return hide(daw);
+      }else{
+        daw->dw.app_window->wm_state._NET_WM_STATE_HIDDEN = false;
+        dpawindow_app_update_wm_state(daw->dw.app_window);
+        dpawindow_hide(&daw->dw.app_window->window, false);
+        dpawindow_hide(&daw->window, false);
+        set_focus(daw);
+        return 0;
+      }
+    }else if(x == _NET_WM_STATE_MAXIMIZED_HORZ){
+      if(action == DPAW_WA_WM_STATE_SET){
+        maximize_x(daw);
+      }else{
+        normalize_x(daw);
+      }
+    }else if(x == _NET_WM_STATE_MAXIMIZED_VERT){
+      if(action == DPAW_WA_WM_STATE_SET){
+        maximize_y(daw);
+      }else{
+        normalize_y(daw);
+      }
+    }else if(x ==_NET_WM_STATE_FULLSCREEN){
+      daw->dw.app_window->wm_state._NET_WM_STATE_FULLSCREEN = action == DPAW_WA_WM_STATE_SET;
+      if(daw->dw.app_window->wm_state._NET_WM_STATE_FULLSCREEN){
+        maximize(daw);
+      }else{
+        normalize(daw);
+      }
       set_focus(daw);
-    } return 0;
-    case DPAW_WA_MINIMIZE: return hide(daw);
+    }
   }
   return -1;
 }
@@ -388,20 +423,47 @@ static void maximize_y(struct dpawindow_desktop_app_window* daw){
   dpawindow_app_update_wm_state(daw->dw.app_window);
 }
 
-static void normalize(struct dpawindow_desktop_app_window* daw){
-  if(!daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT && !daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ)
+static void normalize_x(struct dpawindow_desktop_app_window* daw){
+  if(!daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ)
     return;
-  dpawindow_place_window(&daw->window, daw->old_boundary);
-  daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = false;
+  dpawindow_place_window(&daw->window, (struct dpaw_rect){
+    .top_left.x = daw->old_boundary.top_left.x,
+    .top_left.y = daw->window.boundary.top_left.y,
+    .bottom_right.x = daw->old_boundary.bottom_right.x,
+    .bottom_right.y = daw->window.boundary.bottom_right.y,
+  });
   daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ = false;
   update_frame_content_boundary(daw, 1);
   dpawindow_app_update_wm_state(daw->dw.app_window);
 }
 
+static void normalize_y(struct dpawindow_desktop_app_window* daw){
+  if(!daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT)
+    return;
+  dpawindow_place_window(&daw->window, (struct dpaw_rect){
+    .top_left.x     = daw->window.boundary.top_left.x,
+    .top_left.y     = daw->old_boundary.top_left.y,
+    .bottom_right.x = daw->window.boundary.bottom_right.x,
+    .bottom_right.y = daw->old_boundary.bottom_right.y,
+  });
+  daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT = false;
+  update_frame_content_boundary(daw, 1);
+  dpawindow_app_update_wm_state(daw->dw.app_window);
+}
+
+static void normalize(struct dpawindow_desktop_app_window* daw){
+  normalize_x(daw);
+  normalize_y(daw);
+}
+
+static void maximize(struct dpawindow_desktop_app_window* daw){
+  maximize_x(daw);
+  maximize_y(daw);
+}
+
 static void window_maximize_handler(struct dpawindow_desktop_app_window* daw){
   if(!(daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_HORZ && daw->dw.app_window->wm_state._NET_WM_STATE_MAXIMIZED_VERT)){
-    maximize_x(daw);
-    maximize_y(daw);
+    maximize(daw);
   }else{
     normalize(daw);
   }
@@ -427,13 +489,12 @@ enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(
     if(!app->window.mapped || app->window.hidden)
       continue;
     struct dpawindow_desktop_app_window* daw = container_of(dw, struct dpawindow_desktop_app_window, dw);
-    if(!has_to_be_framed(daw))
-      continue;
+    const int rim = daw->has_border * edge_grab_rim;
     bool in_super_area = !match && dpaw_in_rect((struct dpaw_rect){
-      .top_left.x     = daw->window.boundary.top_left.x     - edge_grab_rim,
-      .top_left.y     = daw->window.boundary.top_left.y     - edge_grab_rim,
-      .bottom_right.x = daw->window.boundary.bottom_right.x + edge_grab_rim,
-      .bottom_right.y = daw->window.boundary.bottom_right.y + edge_grab_rim,
+      .top_left.x     = daw->window.boundary.top_left.x     - rim,
+      .top_left.y     = daw->window.boundary.top_left.y     - rim,
+      .bottom_right.x = daw->window.boundary.bottom_right.x + rim,
+      .bottom_right.y = daw->window.boundary.bottom_right.y + rim,
     }, point);
     bool in_frame = in_super_area
                  && !dpaw_in_rect(daw->dw.app_window->window.boundary, (struct dpaw_point){point.x-daw->window.boundary.top_left.x,point.y-daw->window.boundary.top_left.y})
@@ -446,33 +507,35 @@ enum event_handler_result dpaw_workspace_desktop_app_window_handle_button_press(
   bool grab = false;
   if(match){
     set_focus(match);
-    info.drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
-    info.drag_offset.bottom_right.x = match->window.boundary.bottom_right.x - match->window.boundary.top_left.x - info.drag_offset.top_left.x;
-    info.drag_offset.bottom_right.y = match->window.boundary.bottom_right.y - match->window.boundary.top_left.y - info.drag_offset.top_left.y;
-    struct dpaw_rect dw_bounds = match->dw.app_window->window.boundary;
-    if(dw_bounds.top_left.y > 5 && info.drag_offset.top_left.y <= dw_bounds.top_left.y){
-      long end = dw_bounds.bottom_right.x;
-      for(enum dpaw_desktop_window_button_e i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
-        const struct button_meta* meta = &button_meta[i];
-        long width = dw_bounds.top_left.y * meta->width_height_ratio;
-        long start = end - width - 1;
-        if(info.drag_offset.top_left.x >= start && info.drag_offset.top_left.x < end){
-          button_meta[i].onclick(match);
-          return EHR_OK;
+    if(match->has_border){
+      info.drag_offset.top_left = (struct dpaw_point){point.x - match->window.boundary.top_left.x, point.y - match->window.boundary.top_left.y};
+      info.drag_offset.bottom_right.x = match->window.boundary.bottom_right.x - match->window.boundary.top_left.x - info.drag_offset.top_left.x;
+      info.drag_offset.bottom_right.y = match->window.boundary.bottom_right.y - match->window.boundary.top_left.y - info.drag_offset.top_left.y;
+      struct dpaw_rect dw_bounds = match->dw.app_window->window.boundary;
+      if(dw_bounds.top_left.y > 5 && info.drag_offset.top_left.y <= dw_bounds.top_left.y){
+        long end = dw_bounds.bottom_right.x;
+        for(enum dpaw_desktop_window_button_e i=0; i<DPAW_DESKTOP_WINDOW_BUTTON_COUNT; i++){
+          const struct button_meta* meta = &button_meta[i];
+          long width = dw_bounds.top_left.y * meta->width_height_ratio;
+          long start = end - width - 1;
+          if(info.drag_offset.top_left.x >= start && info.drag_offset.top_left.x < end){
+            button_meta[i].onclick(match);
+            return EHR_OK;
+          }
+          end = start;
         }
-        end = start;
       }
+      if(info.drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,edge_grab_rim))
+        info.drag_action |= DPAW_DW_DRAG_TOP;
+      if(info.drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,edge_grab_rim))
+        info.drag_action |= DPAW_DW_DRAG_LEFT;
+      if(info.drag_offset.bottom_right.y <= DPAW_MAX(match->window.boundary.bottom_right.y-match->window.boundary.top_left.y-dw_bounds.bottom_right.y,edge_grab_rim))
+        info.drag_action |= DPAW_DW_DRAG_BOTTOM;
+      if(info.drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,edge_grab_rim))
+        info.drag_action |= DPAW_DW_DRAG_RIGHT;
+      if(info.drag_action || info.drag_offset.top_left.y <= dw_bounds.top_left.y)
+        grab = true;
     }
-    if(info.drag_offset.top_left.y <= DPAW_MIN(dw_bounds.top_left.y,edge_grab_rim))
-      info.drag_action |= DPAW_DW_DRAG_TOP;
-    if(info.drag_offset.top_left.x <= DPAW_MAX(dw_bounds.top_left.x,edge_grab_rim))
-      info.drag_action |= DPAW_DW_DRAG_LEFT;
-    if(info.drag_offset.bottom_right.y <= DPAW_MAX(match->window.boundary.bottom_right.y-match->window.boundary.top_left.y-dw_bounds.bottom_right.y,edge_grab_rim))
-      info.drag_action |= DPAW_DW_DRAG_BOTTOM;
-    if(info.drag_offset.bottom_right.x <= DPAW_MAX(match->window.boundary.bottom_right.x-match->window.boundary.top_left.x-dw_bounds.bottom_right.x,edge_grab_rim))
-      info.drag_action |= DPAW_DW_DRAG_RIGHT;
-    if(info.drag_action || info.drag_offset.top_left.y <= dw_bounds.top_left.y)
-      grab = true;
 //    printf("XI_ButtonPress %d %lf %lf %lf %lf\n", match->drag_action, event->root_x, event->root_y, event->event_x, event->event_y);
   }
   if(grab){

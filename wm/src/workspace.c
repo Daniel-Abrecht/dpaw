@@ -213,10 +213,10 @@ static int update_client_list(struct dpaw_workspace_manager* wmgr){
   return 0;
 }
 
-int dpaw_workspace_request_action(struct dpawindow_app* app, enum dpaw_workspace_action action){
+int dpaw_workspace_request_action(struct dpawindow_app* app, enum dpaw_workspace_action action, uintptr_t x){
   if(!app->workspace) return -1;
   if(app->workspace->type->request_action)
-    return app->workspace->type->request_action(app, action);
+    return app->workspace->type->request_action(app, action, x);
   return -1;
 }
 

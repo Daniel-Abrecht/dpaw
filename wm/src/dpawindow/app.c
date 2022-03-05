@@ -147,14 +147,28 @@ EV_ON(app, ClientMessage){
     printf("_NET_WM_STATE action: %ld %s %s si: %ld\n", event->data.l[0], sn1, sn2, event->data.l[3]);
     if(sn1) XFree(sn1);
     if(sn2) XFree(sn2);
+    if(event->data.l[1]){
+      if(event->data.l[0]){
+        dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_SET  , event->data.l[1]);
+      }else{
+        dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_UNSET, event->data.l[1]);
+      }
+    }
+    if(event->data.l[2]){
+      if(event->data.l[0]){
+        dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_SET  , event->data.l[2]);
+      }else{
+        dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_UNSET, event->data.l[2]);
+      }
+    }
   }
   if(event->message_type == _NET_ACTIVE_WINDOW)
-    dpaw_workspace_request_action(window, DPAW_WA_ACTIVATE);
+    dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_UNSET, _NET_WM_STATE_HIDDEN);
   if(event->message_type == WM_CHANGE_STATE){
     if(event->data.l[0] == NormalState)
-      dpaw_workspace_request_action(window, DPAW_WA_ACTIVATE);
+      dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_UNSET, _NET_WM_STATE_HIDDEN);
     if(event->data.l[0] == IconicState)
-      dpaw_workspace_request_action(window, DPAW_WA_MINIMIZE);
+      dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_SET, _NET_WM_STATE_HIDDEN);
   }
   if(event->message_type == _NET_MOVERESIZE_WINDOW)
     puts("_NET_MOVERESIZE_WINDOW"); // TODO: Set window.observable.desired_placement
@@ -166,7 +180,7 @@ EV_ON(app, ClientMessage){
 EV_ON(app, MapRequest){
   printf("app MapRequest 0x%lx", event->window);
   if(window->window.xwindow == event->window){
-    dpaw_workspace_request_action(window, DPAW_WA_ACTIVATE);
+    dpaw_workspace_request_action(window, DPAW_WA_WM_STATE_UNSET, _NET_WM_STATE_HIDDEN);
     return EHR_NEXT; // It's me
   }
 

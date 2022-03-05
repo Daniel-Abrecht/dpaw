@@ -12,10 +12,10 @@ enum dpaw_desktop_window_drag_action {
   DPAW_DW_DRAG_LEFT   = 2,
   DPAW_DW_DRAG_RIGHT  = 4,
   DPAW_DW_DRAG_BOTTOM = 8,
-  DPAW_DW_DRAG_TOP_LEFT     = DPAW_DW_DRAG_TOP    | DPAW_DW_DRAG_LEFT ,
-  DPAW_DW_DRAG_TOP_RIGHT    = DPAW_DW_DRAG_TOP    | DPAW_DW_DRAG_RIGHT,
-  DPAW_DW_DRAG_BOTTOM_LEFT  = DPAW_DW_DRAG_BOTTOM | DPAW_DW_DRAG_LEFT ,
-  DPAW_DW_DRAG_BOTTOM_RIGHT = DPAW_DW_DRAG_BOTTOM | DPAW_DW_DRAG_RIGHT,
+  DPAW_DW_DRAG_TOP_LEFT     = DPAW_DW_DRAG_TOP    | DPAW_DW_DRAG_LEFT , //  3
+  DPAW_DW_DRAG_TOP_RIGHT    = DPAW_DW_DRAG_TOP    | DPAW_DW_DRAG_RIGHT, //  5
+  DPAW_DW_DRAG_BOTTOM_LEFT  = DPAW_DW_DRAG_BOTTOM | DPAW_DW_DRAG_LEFT , // 10
+  DPAW_DW_DRAG_BOTTOM_RIGHT = DPAW_DW_DRAG_BOTTOM | DPAW_DW_DRAG_RIGHT, // 12
 };
 
 struct dpaw_workspace_desktop_per_screen {
@@ -57,7 +57,7 @@ struct dpawindow_desktop_window_type {
   int(*init)(struct dpawindow_desktop_window* dw);
   void(*cleanup)(struct dpawindow_desktop_window* dw);
   bool(*lookup_is_window)(struct dpawindow_desktop_window* dw, Window xwindow);
-  int (*request_action)(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action);
+  int (*request_action)(struct dpawindow_desktop_window* dw, enum dpaw_workspace_action action, uintptr_t x);
   struct dpaw_input_drag_event_handler drag_handler;
 };
 

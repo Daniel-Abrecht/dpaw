@@ -5,6 +5,7 @@
 #include <-dpaw/primitives.h>
 #include <-dpaw/linked_list.h>
 #include <stddef.h>
+#include <stdint.h>
 
 struct dpaw;
 
@@ -16,8 +17,8 @@ struct dpaw_workspace_manager {
 };
 
 enum dpaw_workspace_action {
-  DPAW_WA_ACTIVATE,
-  DPAW_WA_MINIMIZE,
+  DPAW_WA_WM_STATE_UNSET,
+  DPAW_WA_WM_STATE_SET,
 };
 
 #define DPAW_WORKSPACE_TYPE(T, U) \
@@ -35,7 +36,7 @@ enum dpaw_workspace_action {
     int (*screen_added  )(U*, struct dpaw_workspace_screen*); \
     int (*screen_changed)(U*, struct dpaw_workspace_screen*); \
     void(*screen_removed)(U*, struct dpaw_workspace_screen*); \
-    int (*request_action)(struct dpawindow_app* app, enum dpaw_workspace_action action); \
+    int (*request_action)(struct dpawindow_app* app, enum dpaw_workspace_action action, uintptr_t x); \
   };
 
 struct dpawindow;
@@ -76,7 +77,7 @@ int dpaw_workspace_manager_manage_app_window(struct dpaw_workspace_manager* wmgr
 int dpaw_workspace_manager_manage_window(struct dpaw_workspace_manager* wmgr, Window window, const struct dpaw_workspace_manager_manage_window_options* options);
 
 void dpaw_workspace_set_active(struct dpaw_workspace_manager* wmgr, struct dpaw_workspace* workspace); // wmgr is optional if workspace is set
-int dpaw_workspace_request_action(struct dpawindow_app* app, enum dpaw_workspace_action action);
+int dpaw_workspace_request_action(struct dpawindow_app* app, enum dpaw_workspace_action action, uintptr_t x);
 
 struct dpaw_workspace* dpawindow_to_dpaw_workspace(struct dpawindow* window);
 int dpaw_workspace_add_window(struct dpaw_workspace*, struct dpawindow_app*);
